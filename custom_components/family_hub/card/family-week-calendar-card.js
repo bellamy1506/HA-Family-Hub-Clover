@@ -3353,8 +3353,10 @@ this._subscribeAlarmEvents();
 // effort/fire-and-forget, same as the _sync* calls just above - never
 // awaited, so a slow or failed backend round trip here can't delay the
 // very first render.
-this._reportDeviceSettings();
-this._checkPendingDeviceSettings();
+// House fork (copy_sync.py): check for queued settings only after the
+// report lands, since a brand-new copy's first report is what queues its
+// user's settings for it - so it opens on them, not on defaults.
+this._reportDeviceSettings().then(() => this._checkPendingDeviceSettings());
 this._subscribeDeviceSettingsPush();
 this._subscribeDeviceIdentifyPush();
 this._subscribeScreenSaverTogglePush();

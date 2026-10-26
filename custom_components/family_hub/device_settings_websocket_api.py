@@ -402,6 +402,14 @@ async def ws_report(hass: HomeAssistant, connection: websocket_api.ActiveConnect
             instance_record.get("instance_label"), instance_changes,
         ):
             _push_instance_settings(hass, entry_data, target_device, target_instance, settings)
+        # A brand-new placement starts on defaults; send it this user's
+        # latest settings instead (copy_sync.seed_for).
+        seed = copy_sync.seed_for(
+            blob["devices"], user_id, device_id, instance_id,
+            instance_record.get("instance_label"), cleaned_instance,
+        ) if is_new_instance else {}
+        if seed:
+            _push_instance_settings(hass, entry_data, device_id, instance_id, seed)
     await entry_data["device_settings_store"].async_save(blob)
     # v1.147.0+: lets a device that was closed/asleep when an admin or
     # automation flipped its screensaver switch learn the right value the

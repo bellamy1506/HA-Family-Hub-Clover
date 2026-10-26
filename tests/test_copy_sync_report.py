@@ -208,6 +208,32 @@ class WsReport(unittest.TestCase):
         self.report(OWNER, "dev-home", "inst-home", title="on", applied=None, instance_applied=None)
         self.assertEqual(self.pushes(), [])
 
+    def test_new_copy_is_seeded_and_its_defaults_go_nowhere(self):
+        self.setup_owner_and_jenn()
+        self.report(OWNER, "dev-home", "inst-home", title="on")
+        self.report(OWNER, "dev-cloud", "inst-cloud", title="on", instance_applied=1)
+        self.bus.fired.clear()
+        # A brand-new copy of the owner's opens on defaults (Title only off).
+        self.report(OWNER, "dev-new", "inst-new", title="off")
+        self.assertEqual(
+            self.pushes(),
+            [{"device_id": "dev-new", "instance_id": "inst-new", "seq": 1, "settings": {TITLE: "on"}}],
+        )
+        for dev, inst in (("dev-home", "inst-home"), ("dev-cloud", "inst-cloud")):
+            self.assertEqual(self.devices[dev]["instances"][inst]["settings"][TITLE], "on")
+        self.assertEqual(self.devices["dev-cloud"]["instances"]["inst-cloud"]["pending_seq"], 1)
+
+    def test_users_first_copy_is_not_seeded(self):
+        self.report(OWNER, "dev-home", "inst-home")
+        self.assertEqual(self.pushes(), [])
+
+    def test_new_copy_is_not_seeded_from_another_user(self):
+        self.setup_owner_and_jenn()
+        self.report(JENN, "dev-jenn", "inst-jenn", title="on")
+        self.bus.fired.clear()
+        self.report(OWNER, "dev-new", "inst-new", title="off")
+        self.assertEqual(self.pushes(), [])
+
     def test_device_name_never_sent(self):
         self.setup_owner_and_jenn()
         self.report(OWNER, "dev-home", "inst-home", name="Will")

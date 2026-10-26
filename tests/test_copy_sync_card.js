@@ -73,6 +73,16 @@ global.localStorage = {
   await new AsyncFunction(methodBody("_applyPushedDeviceSettingsLive", true)).call(applier);
   assert.strictEqual(reports, 1, "reports after applying a push");
 
+  // First open checks for queued settings only after the report lands, so a
+  // brand-new copy picks up the settings its first report queued (#7).
+  assert.ok(
+    src.includes("this._reportDeviceSettings().then(() => this._checkPendingDeviceSettings());"),
+    "pending check waits for the first report",
+  );
+  assert.strictEqual(src.split("this._checkPendingDeviceSettings();").length - 1, 0, "no unsequenced pending check");
+  // _reportDeviceSettings is async, so .then works even when it returns early.
+  assert.ok(src.includes("\nasync _reportDeviceSettings() {\n"));
+
   console.log("copy sync card: all checks passed");
 })().catch((e) => {
   console.error(e);

@@ -168,6 +168,56 @@ class PlanPushes(unittest.TestCase):
         self.assertEqual(self.plan({WEEK: "planner"}), [("dev-cloud", "inst-cloud", {WEEK: "planner"})])
 
 
+class SeedNewCopy(unittest.TestCase):
+    def seed(self, devices, reported=None, user=OWNER):
+        return copy_sync.seed_for(devices, user, "dev-new", "inst-new", "family-hub", reported or view())
+
+    def test_new_copy_gets_the_users_changed_settings(self):
+        devices = {
+            "dev-home": device(OWNER, {"inst-home": instance(view(title="on", week="planner"), changed_at=T1)}),
+            "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        self.assertEqual(self.seed(devices), {TITLE: "on", WEEK: "planner"})
+
+    def test_most_recently_changed_copy_wins_not_the_one_seen_last(self):
+        devices = {
+            "dev-home": device(OWNER, {"inst-home": instance(view(title="on"), changed_at=T2)}),
+            "dev-cloud": device(OWNER, {"inst-cloud": instance(view(title="off", month="split"), changed_at=T1)}),
+            "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        devices["dev-cloud"]["instances"]["inst-cloud"]["last_seen"] = "2026-10-26T23:59:00+00:00"
+        self.assertEqual(self.seed(devices), {TITLE: "on"})
+
+    def test_users_first_copy_gets_nothing(self):
+        devices = {"dev-new": device(OWNER, {"inst-new": instance(view())})}
+        self.assertEqual(self.seed(devices), {})
+
+    def test_copies_never_changed_are_not_a_source(self):
+        devices = {
+            "dev-home": device(OWNER, {"inst-home": instance(view(title="on"))}),
+            "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        self.assertEqual(self.seed(devices), {})
+
+    def test_other_users_and_dashboards_are_not_a_source(self):
+        devices = {
+            "dev-jenn": device(JENN, {"inst-jenn": instance(view(title="on"), changed_at=T2)}),
+            "dev-home": device(OWNER, {"inst-other": instance(view(title="on"), label="other", changed_at=T2)}),
+            "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        self.assertEqual(self.seed(devices), {})
+
+    def test_no_user_no_seed(self):
+        devices = {"dev-home": device(None, {"inst-home": instance(view(title="on"), changed_at=T1)})}
+        self.assertEqual(self.seed(devices, user=None), {})
+
+    def test_device_name_never_seeded(self):
+        devices = {
+            "dev-home": device(OWNER, {"inst-home": instance({NAME: "Will", TITLE: "on"}, changed_at=T1)}),
+        }
+        self.assertEqual(self.seed(devices), {TITLE: "on"})
+
+
 class RoundTrip(unittest.TestCase):
     """Report -> push -> stale report -> apply -> report, with the records
     updated the way device_settings_websocket_api.py updates them."""
