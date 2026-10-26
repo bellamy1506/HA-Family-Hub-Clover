@@ -3959,12 +3959,6 @@ backdrop-filter: blur(var(--fc-glass-blur, 0px));
    a week" shortcuts row, since there's no nav bar left to reach its own
    toggle from once this is on. */
 :host([hide-top-bar]) .week-nav, :host([hide-top-bar]) .week-shortcuts { display: none; }
-/* House fork (1109 Shamrock Rd): "Title only" top bar style - keeps just the
-   month/week label; arrows, view switcher, buttons, and the jump-to-week
-   toggle hide (swipe still pages). Settings moves into the + menu, as with
-   Minimal and Hidden. See _getTopBarTitleOnly. */
-:host([top-bar-title-only]) .week-nav-side, :host([top-bar-title-only]) .nav-arrow, :host([top-bar-title-only]) .week-shortcuts-toggle, :host([top-bar-title-only]) .week-shortcuts { display: none; }
-:host([top-bar-title-only]) .week-nav { grid-template-columns: 1fr; margin-bottom: 4px; }
 /* Settings moved into the + button's own menu - only shown there once
    small screen mode is actually on, since the top bar's own Settings
    button (⚙️) still handles it otherwise (no duplicate entry point). */
@@ -3974,7 +3968,7 @@ backdrop-filter: blur(var(--fc-glass-blur, 0px));
    household found that meant Settings had no way back once the bar
    hiding it was itself hidden, so this now reveals the same FAB menu
    item small-screen-mode already uses, on the hide-top-bar attribute too. */
-:host([small-screen-mode]) .add-fab-settings, :host([hide-top-bar]) .add-fab-settings, :host([top-bar-title-only]) .add-fab-settings { display: block; }
+:host([small-screen-mode]) .add-fab-settings, :host([hide-top-bar]) .add-fab-settings { display: block; }
 /* a small reusable "it worked" confirmation - "adding a
    recipe/meal gives no save confirmation, modal stays open." Used by
    _showToast wherever a save used to just silently close the modal (or,
@@ -6138,8 +6132,6 @@ if (this._getSmallScreenMode()) this.setAttribute("small-screen-mode", "");
 else this.removeAttribute("small-screen-mode");
 if ((this._config && this._config.hideTopBar) || this._getHideTopBarDevice()) this.setAttribute("hide-top-bar", "");
 else this.removeAttribute("hide-top-bar");
-if (this._getTopBarTitleOnly()) this.setAttribute("top-bar-title-only", "");
-else this.removeAttribute("top-bar-title-only");
 // "Right Now" top bar style - see _getRightNowTopBarEnabled's own
 // comment for why this is a fourth value in the same family as
 // small-screen-mode/hide-top-bar above, not a separate concept. Placed
@@ -7290,8 +7282,6 @@ return {
 // just above, this is purely the additional third choice. See
 // const.py's own DEVICE_SETTINGS_FIELDS copy for why this exists.
 familyCalendarHideTopBarDeviceLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: this._t("settings.hide_top_bar_device_label", "Calendar top bar style: Hidden") },
-// House fork: "Title only" top bar style, see _getTopBarTitleOnly.
-familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: "Calendar top bar style: Title only" },
   // See _getDeviceName's own comment for how this overrides the
   // auto-guessed browser/OS name once set, either right here in the
   // admin Devices tab (like any other field - edit, then Push to this
@@ -8879,18 +8869,6 @@ return legacyShared;
 // _getWeekViewVariant/_getMonthViewVariant, not _getSmallScreenMode's
 // migration dance - there's no legacy shared value for a brand new
 // field to migrate off of.
-// House fork: "Title only" top bar style - this device only, same
-// localStorage pattern as _getHideTopBarDevice below. Off under the shared
-// static layout, which has no field for it.
-_getTopBarTitleOnly() {
-if (this._getStaticLayoutAcrossDevices()) return false;
-let local = null;
-try {
-local = this._getScopedSettingItem("familyCalendarTopBarTitleOnlyLocal");
-} catch (e) {
-}
-return local === "on";
-}
 _getHideTopBarDevice() {
 if (this._getStaticLayoutAcrossDevices()) return !!this._getSettings().hideTopBarDeviceShared;
 let local = null;
@@ -15103,7 +15081,6 @@ ${FAMILY_HUB_SHARED_STYLE_BLOCK}
 <div class="size-btn-row">
 <button type="button" class="size-btn top-bar-style-btn" data-value="normal" data-i18n="settings.top_bar_style_normal">Normal</button>
 <button type="button" class="size-btn top-bar-style-btn" data-value="minimal" data-i18n="settings.top_bar_style_minimal">Minimal</button>
-<button type="button" class="size-btn top-bar-style-btn" data-value="title_only">Title only</button>
 <button type="button" class="size-btn top-bar-style-btn" data-value="hidden" data-i18n="settings.top_bar_style_hidden">Hidden</button>
 <button type="button" class="size-btn top-bar-style-btn" data-value="right_now" data-i18n="settings.top_bar_style_right_now">Right Now</button>
 </div>
@@ -19816,7 +19793,7 @@ btn.classList.toggle("active", btn.dataset.value === (settings.greyOutPastEvents
 root.querySelectorAll(".prevent-duplicate-events-btn").forEach((btn) => {
 btn.classList.toggle("active", btn.dataset.value === (settings.preventDuplicateEvents !== false ? "on" : "off"));
 });
-const topBarStyleValue = this._getRightNowTopBarEnabled() ? "right_now" : this._getTopBarTitleOnly() ? "title_only" : this._getSmallScreenMode() ? "minimal" : this._getHideTopBarDevice() ? "hidden" : "normal";
+const topBarStyleValue = this._getRightNowTopBarEnabled() ? "right_now" : this._getSmallScreenMode() ? "minimal" : this._getHideTopBarDevice() ? "hidden" : "normal";
 root.querySelectorAll(".top-bar-style-btn").forEach((btn) => {
 btn.classList.toggle("active", btn.dataset.value === topBarStyleValue);
 });
@@ -21978,7 +21955,6 @@ const preventDuplicateEvents = activePreventDuplicateEventsBtn ? activePreventDu
 const activeTopBarStyleBtn = root.querySelector(".top-bar-style-btn.active");
 const smallScreenMode = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "minimal" : false;
 const hideTopBarDevice = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "hidden" : false;
-const topBarTitleOnly = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "title_only" : false;
 const rightNowTopBarEnabled = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "right_now" : false;
 const activeRightNowPositionBtn = root.querySelector(".right-now-topbar-position-btn.active");
 const rightNowTopBarPosition = ["top", "left", "right"].includes(activeRightNowPositionBtn && activeRightNowPositionBtn.dataset.value) ? activeRightNowPositionBtn.dataset.value : "top";
@@ -22006,10 +21982,6 @@ this._setScopedSettingItem("familyCalendarSmallScreenModeLocal", smallScreenMode
 }
 try {
 this._setScopedSettingItem("familyCalendarHideTopBarDeviceLocal", hideTopBarDevice ? "on" : "off");
-} catch (e) {
-}
-try {
-this._setScopedSettingItem("familyCalendarTopBarTitleOnlyLocal", topBarTitleOnly ? "on" : "off");
 } catch (e) {
 }
 try {

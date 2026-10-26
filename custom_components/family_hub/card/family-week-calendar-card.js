@@ -3446,6 +3446,8 @@ if (this._getSmallScreenMode()) this.setAttribute("small-screen-mode", "");
 else this.removeAttribute("small-screen-mode");
 if ((this._config && this._config.hideTopBar) || this._getHideTopBarDevice()) this.setAttribute("hide-top-bar", "");
 else this.removeAttribute("hide-top-bar");
+if (this._getTopBarTitleOnly()) this.setAttribute("top-bar-title-only", "");
+else this.removeAttribute("top-bar-title-only");
 if (!window.__familyHubFabCoordinator) return;
 const cardRelative = !!(this._config && this._config.fabPosition === "card");
 if (cardRelative) this.setAttribute("fab-position", "card");
@@ -4361,6 +4363,8 @@ return {
 // just above, this is purely the additional third choice. See
 // const.py's own DEVICE_SETTINGS_FIELDS copy for why this exists.
 familyCalendarHideTopBarDeviceLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: this._t("settings.hide_top_bar_device_label", "Calendar top bar style: Hidden") },
+// House fork: "Title only" top bar style, see _getTopBarTitleOnly.
+familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: "Calendar top bar style: Title only" },
   // See _getDeviceName's own comment for how this overrides the
   // auto-guessed browser/OS name once set, either right here in the
   // admin Devices tab (like any other field - edit, then Push to this
@@ -5945,6 +5949,18 @@ return legacyShared;
 // _getWeekViewVariant/_getMonthViewVariant, not _getSmallScreenMode's
 // migration dance - there's no legacy shared value for a brand new
 // field to migrate off of.
+// House fork: "Title only" top bar style - this device only, same
+// localStorage pattern as _getHideTopBarDevice below. Off under the shared
+// static layout, which has no field for it.
+_getTopBarTitleOnly() {
+if (this._getStaticLayoutAcrossDevices()) return false;
+let local = null;
+try {
+local = this._getScopedSettingItem("familyCalendarTopBarTitleOnlyLocal");
+} catch (e) {
+}
+return local === "on";
+}
 _getHideTopBarDevice() {
 if (this._getStaticLayoutAcrossDevices()) return !!this._getSettings().hideTopBarDeviceShared;
 let local = null;
@@ -10701,11 +10717,17 @@ backdrop-filter: blur(var(--fc-glass-blur, 0px));
    a week" shortcuts row, since there's no nav bar left to reach its own
    toggle from once this is on. */
 :host([hide-top-bar]) .week-nav, :host([hide-top-bar]) .week-shortcuts { display: none; }
+/* House fork (1109 Shamrock Rd): "Title only" top bar style - keeps just the
+   month/week label; arrows, view switcher, buttons, and the jump-to-week
+   toggle hide (swipe still pages). Settings moves into the + menu, as with
+   Minimal. See _getTopBarTitleOnly. */
+:host([top-bar-title-only]) .week-nav-side, :host([top-bar-title-only]) .nav-arrow, :host([top-bar-title-only]) .week-shortcuts-toggle, :host([top-bar-title-only]) .week-shortcuts { display: none; }
+:host([top-bar-title-only]) .week-nav { grid-template-columns: 1fr; margin-bottom: 4px; }
 /* Settings moved into the + button's own menu - only shown there once
    small screen mode is actually on, since the top bar's own Settings
    button (⚙️) still handles it otherwise (no duplicate entry point). */
 .add-fab-settings { display: none; }
-:host([small-screen-mode]) .add-fab-settings { display: block; }
+:host([small-screen-mode]) .add-fab-settings, :host([top-bar-title-only]) .add-fab-settings { display: block; }
 /* a small reusable "it worked" confirmation - "adding a
    recipe/meal gives no save confirmation, modal stays open." Used by
    _showToast wherever a save used to just silently close the modal (or,
@@ -12669,6 +12691,7 @@ instead of the usual stacked field layout. */
 <div class="size-btn-row">
 <button type="button" class="size-btn top-bar-style-btn" data-value="normal" data-i18n="settings.top_bar_style_normal">Normal</button>
 <button type="button" class="size-btn top-bar-style-btn" data-value="minimal" data-i18n="settings.top_bar_style_minimal">Minimal</button>
+<button type="button" class="size-btn top-bar-style-btn" data-value="title_only">Title only</button>
 <button type="button" class="size-btn top-bar-style-btn" data-value="hidden" data-i18n="settings.top_bar_style_hidden">Hidden</button>
 </div>
 <div class="remind-hint" data-i18n="settings.top_bar_style_hint">Minimal hides the top bar (Settings/Week/Month/Edit Meals/Suggestions/Recipe Box/More) to save space on a small device - Settings moves into the + button's menu instead, right alongside Calendar Entry/Reminder/Meal Suggestion/Recipe. Hidden just hides the bar with nothing moved anywhere else - meant for a display-only placement that's never used to add or manage anything (keep Settings reachable from some OTHER placement of this card). Saved to THIS device/browser only, like the Days shown/Month button settings above - choosing Minimal or Hidden here won't affect any other Family Hub tablet or screen in the household. (Becomes shared household-wide instead if this card's own "Static layout" config option, set from its Edit Card screen, is on.)</div>
@@ -16368,7 +16391,7 @@ weatherEntityDatalistEl.innerHTML = this._entitiesForDomain("weather").map((e) =
 root.querySelectorAll(".grey-out-past-btn").forEach((btn) => {
 btn.classList.toggle("active", btn.dataset.value === (settings.greyOutPastEvents ? "on" : "off"));
 });
-const topBarStyleValue = this._getSmallScreenMode() ? "minimal" : this._getHideTopBarDevice() ? "hidden" : "normal";
+const topBarStyleValue = this._getTopBarTitleOnly() ? "title_only" : this._getSmallScreenMode() ? "minimal" : this._getHideTopBarDevice() ? "hidden" : "normal";
 root.querySelectorAll(".top-bar-style-btn").forEach((btn) => {
 btn.classList.toggle("active", btn.dataset.value === topBarStyleValue);
 });
@@ -18415,12 +18438,17 @@ const greyOutPastEvents = activeGreyOutPastBtn ? activeGreyOutPastBtn.dataset.va
 const activeTopBarStyleBtn = root.querySelector(".top-bar-style-btn.active");
 const smallScreenMode = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "minimal" : false;
 const hideTopBarDevice = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "hidden" : false;
+const topBarTitleOnly = activeTopBarStyleBtn ? activeTopBarStyleBtn.dataset.value === "title_only" : false;
 try {
 this._setScopedSettingItem("familyCalendarSmallScreenModeLocal", smallScreenMode ? "on" : "off");
 } catch (e) {
 }
 try {
 this._setScopedSettingItem("familyCalendarHideTopBarDeviceLocal", hideTopBarDevice ? "on" : "off");
+} catch (e) {
+}
+try {
+this._setScopedSettingItem("familyCalendarTopBarTitleOnlyLocal", topBarTitleOnly ? "on" : "off");
 } catch (e) {
 }
 try {
