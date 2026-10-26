@@ -114,3 +114,29 @@ def plan_pushes(
         if settings:
             plan.append((dev_id, inst_id, settings))
     return plan
+
+
+def seed_for(
+    devices: dict[str, Any],
+    user_id: Optional[str],
+    device_id: str,
+    instance_id: str,
+    label: Optional[str],
+    reported: dict[str, Any],
+) -> dict[str, Any]:
+    """What a brand-new placement of this dashboard should be sent: the
+    settings of this user's placement that changed most recently (by
+    changed_at, not last_seen), minus what the new one already reported.
+    {} when the user has no other placement, or none has changed yet."""
+    sources = [
+        inst for _, _, inst in _other_copies(devices, user_id, device_id, instance_id, label)
+        if inst.get("changed_at")
+    ]
+    if not sources:
+        return {}
+    source = max(sources, key=lambda inst: inst["changed_at"])
+    return {
+        k: v
+        for k, v in (source.get("settings") or {}).items()
+        if k not in NEVER_SYNCED and reported.get(k) != v
+    }
