@@ -88,6 +88,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
 from . import button as device_settings_button
+from . import copy_sync
 from . import device_settings_entity_shared as shared
 from . import number as device_settings_number
 from . import select as device_settings_select
@@ -327,6 +328,10 @@ _DEVICE_NAME_MAX_LEN = 80
         # of it below for what that actually does to this device's
         # privacy_participates.
         vol.Optional("is_kiosk_account"): bool,
+        # House fork (copy_sync.py): the copy's own last-applied push seqs,
+        # so a report sent before applying a push isn't read as a change.
+        vol.Optional("applied_seq"): int,
+        vol.Optional("instance_applied_seq"): int,
     }
 )
 @websocket_api.async_response
@@ -363,8 +368,14 @@ async def ws_report(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     # sensible default, not an enforced link between account and device.
     if bool(msg.get("is_kiosk_account")) and "privacy_participates" not in record:
         record["privacy_participates"] = True
-    record["settings"] = cleaned
-    record["last_seen"] = dt_util.utcnow().isoformat()
+    now = dt_util.utcnow().isoformat()
+    # House fork: record who owns this copy, so copy_sync can pass this
+    # user's changes on to their other copies (and nobody else's).
+    user_id = getattr(connection.user, "id", None) if connection.user else None
+    if user_id:
+        record["user_id"] = user_id
+    device_changes = copy_sync.record_report(record, cleaned, msg.get("applied_seq"), is_new_device, now)
+    record["last_seen"] = now
     # Cosmetic only - see this field's own note on _device_record/
     # _DEVICE_NAME_MAX_LEN above. A device that never sends one (an older
     # card version, say) simply keeps whatever was last reported, so this
@@ -377,13 +388,35 @@ async def ws_report(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     if instance_id:
         is_new_instance = instance_id not in record["instances"]
         instance_record = _instance_record(record, instance_id)
-        instance_record["settings"] = cleaned_instance
-        instance_record["last_seen"] = dt_util.utcnow().isoformat()
+        instance_changes = copy_sync.record_report(
+            instance_record, cleaned_instance, msg.get("instance_applied_seq"), is_new_instance, now
+        )
+        instance_record["last_seen"] = now
         instance_label = (msg.get("instance_label") or "").strip()
         if instance_label:
             instance_record["instance_label"] = instance_label[:_DEVICE_NAME_MAX_LEN]
-    await entry_data["device_settings_store"].async_save(blob)
     _sync_device_entities(hass, entry_data, device_id, is_new_device, instance_id or None, is_new_instance)
+    # House fork: device-scoped fields (the theme) follow the user too.
+    for target_device, _, settings in copy_sync.plan_pushes(blob["devices"], user_id, device_id, None, None, device_changes):
+        _push_settings(hass, entry_data, target_device, settings)
+    device_seed = copy_sync.seed_for(blob["devices"], user_id, device_id, None, None, cleaned) if is_new_device else {}
+    if device_seed:
+        _push_settings(hass, entry_data, device_id, device_seed)
+    if instance_id:
+        for target_device, target_instance, settings in copy_sync.plan_pushes(
+            blob["devices"], user_id, device_id, instance_id,
+            instance_record.get("instance_label"), instance_changes,
+        ):
+            _push_instance_settings(hass, entry_data, target_device, target_instance, settings)
+        # A brand-new placement starts on defaults; send it this user's
+        # latest settings instead (copy_sync.seed_for).
+        seed = copy_sync.seed_for(
+            blob["devices"], user_id, device_id, instance_id,
+            instance_record.get("instance_label"), cleaned_instance,
+        ) if is_new_instance else {}
+        if seed:
+            _push_instance_settings(hass, entry_data, device_id, instance_id, seed)
+    await entry_data["device_settings_store"].async_save(blob)
     # v1.147.0+: lets a device that was closed/asleep when an admin or
     # automation flipped its screensaver switch learn the right value the
     # next time it loads - see DEVICE_SETTINGS_EVENT_SCREENSAVER_TOGGLE's

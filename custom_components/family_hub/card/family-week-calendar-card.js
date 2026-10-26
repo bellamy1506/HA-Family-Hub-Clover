@@ -3353,8 +3353,10 @@ this._subscribeAlarmEvents();
 // effort/fire-and-forget, same as the _sync* calls just above - never
 // awaited, so a slow or failed backend round trip here can't delay the
 // very first render.
-this._reportDeviceSettings();
-this._checkPendingDeviceSettings();
+// House fork (copy_sync.py): check for queued settings only after the
+// report lands, since a brand-new copy's first report is what queues its
+// user's settings for it - so it opens on them, not on defaults.
+this._reportDeviceSettings().then(() => this._checkPendingDeviceSettings());
 this._subscribeDeviceSettingsPush();
 this._subscribeDeviceIdentifyPush();
 this._subscribeScreenSaverTogglePush();
@@ -4371,6 +4373,9 @@ familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], defa
   // device) or locally via the "This device" field on the General tab
   // (see _saveThisDeviceName).
   familyHubDeviceCustomNameLocal: { type: "text", max_length: 60, default: "", scope: "device", label: this._t("settings.device_name_label", "Device name") },
+// House fork (copy_sync.py): this device's theme override, see
+// _getDeviceThemeOverride. "" = household theme, "__default__" = local look.
+familyHubDeviceThemeOverrideLocal: { type: "text", max_length: 100, default: "", scope: "device", label: "This device's theme" },
 };
 }
 // A stable, anonymous per-device id - generated once and persisted, never
@@ -4636,6 +4641,16 @@ try {
 // field, and .notify-profile-kiosk-account-field's own hint.
 const currentUserId = this._hass.user && this._hass.user.id;
 const currentUserProfile = currentUserId ? (this._getSettings().userProfiles || {})[currentUserId] : null;
+// House fork (copy_sync.py): the push seqs this copy has applied, so the
+// server can tell a value it pushed but this copy hasn't applied yet from
+// a change made here.
+let appliedSeq = 0;
+let instanceAppliedSeq = 0;
+try {
+appliedSeq = parseInt(localStorage.getItem("familyHubDeviceSettingsAppliedSeqLocal"), 10) || 0;
+instanceAppliedSeq = parseInt(localStorage.getItem(this._instanceScopedStorageKey("familyHubDeviceSettingsAppliedSeqLocal")), 10) || 0;
+} catch (e) {
+}
 const result = await this._hass.connection.sendMessagePromise({
 type: "family_hub/device_settings/report",
 device_id: this._getDeviceId(),
@@ -4645,6 +4660,8 @@ instance_id: this._getCardInstanceId(),
 instance_settings: this._deviceSettingsSnapshot("instance"),
 instance_label: this._getCardInstanceLabel(),
 is_kiosk_account: !!(currentUserProfile && currentUserProfile.isKioskAccount),
+applied_seq: appliedSeq,
+instance_applied_seq: instanceAppliedSeq,
 });
 // Catch-up for the live per-device screensaver toggle - see
 // DEVICE_SETTINGS_EVENT_SCREENSAVER_TOGGLE's own comment in const.py.
@@ -4721,6 +4738,8 @@ await this._fetchSettings();
 this._applySizeVars();
 this._fetchEvents();
 this._fetchCountdown();
+// House fork: tell the server what this copy now holds (copy_sync.py).
+this._reportDeviceSettings();
 }
 // Applies an admin's pushed settings for ONE scope (from either the live
 // bus event or the get_pending catch-up check below) - instanceId
@@ -14752,6 +14771,8 @@ localStorage.setItem("familyHubDeviceThemeOverrideLocal", deviceThemeSelect.valu
 } catch (e) {
 }
 this._applySizeVars();
+// House fork: report it now, so it follows to this user's other copies.
+this._reportDeviceSettings();
 });
 }
 root.querySelectorAll(".meals-in-month-btn").forEach((btn) => {
