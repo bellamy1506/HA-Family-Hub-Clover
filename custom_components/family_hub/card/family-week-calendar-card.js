@@ -9151,6 +9151,17 @@ if (typeof cached[name] === "string") this.style.setProperty(name, cached[name])
 });
 return true;
 }
+// House fork: true while the theme this copy wants (its own override, or
+// the household's global theme) can't resolve yet because the theme list
+// hasn't loaded. _resolveTheme would fall back to the plain default look,
+// and _fetchSettings applies the theme before the list arrives, so that
+// look flashed on every open (2026-10-26).
+_themeListPending(settings) {
+if (Array.isArray(this._globalThemes) || this._globalThemesError) return false;
+const override = this._getDeviceThemeOverride();
+if (override) return override !== "__default__";
+return !!(settings.useGlobalTheme && settings.globalThemeId);
+}
 _applySizeVars() {
 const settings = this._getSettings();
 const v = this._sizeVars(settings);
@@ -9164,6 +9175,12 @@ this.style.setProperty("--menu-block-padding", v.padding);
 // every resize/keyboard-open the way this card's own height used to be.
 const bottomPadding = Math.max(0, Math.min(2000, Math.round(settings.bottomPadding || 0)));
 this.style.setProperty("--fh-bottom-padding", `${bottomPadding}px`);
+// House fork: keep the cached look until the theme list arrives (see
+// _themeListPending); _fetchGlobalThemes re-applies once it does.
+if (this._themeListPending(settings) && this._applyCachedThemeVarsIfAny()) {
+this._applyScrollLock();
+return;
+}
 const theme = this._resolveTheme(settings);
 // "Card / chip transparency" (Theme Builder's cardOpacity slider) and the
 // new "glass blur" field only ever existed as Theme Builder preview-only
