@@ -55,7 +55,13 @@ assert.ok(hideRule, "hide rule");
 for (const sel of [".week-nav-side", ".nav-arrow", ".week-shortcuts-toggle", ".week-shortcuts"]) {
   assert.ok(hideRule[0].includes(sel), `hides ${sel}`);
 }
-assert.ok(!/top-bar-title-only\]\) \.week-label/.test(src), "label stays visible");
+assert.ok(!/top-bar-title-only\]\) \.week-label[^{]*\{[^}]*display: none/.test(src), "label stays visible");
+assert.ok(!hideRule[0].includes(".week-label"), "label not in hide rule");
 assert.ok(src.includes(":host([top-bar-title-only]) .add-fab-settings"), "Settings reachable from + menu");
+
+// Sizing (fork PR #4): bigger month name, empty countdown line removed, tight margin.
+assert.ok(src.includes(":host([top-bar-title-only]) .week-label { font-size: calc(var(--fs-header-title, 15px) * 1.6);"), "bigger label");
+assert.ok(src.includes(":host([top-bar-title-only]) .countdown-line:empty { display: none; }"), "no empty countdown gap");
+assert.ok(src.includes(":host([top-bar-title-only]) .week-nav { grid-template-columns: 1fr; margin-bottom: 2px; }"), "tight margin");
 
 console.log("title-only top bar: all checks passed");
