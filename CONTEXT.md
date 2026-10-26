@@ -30,6 +30,10 @@ _Avoid_: recommendation, review
 The Family Hub dashboard on the wall tablet (and on phones); "tell the board" and "ask the board" are its Siri phrases.
 _Avoid_: Skylight, hub, kiosk
 
+**Copy**:
+One browser storage at one address; what Family Hub's code calls a "device". One phone can hold several: the owner's iPhone has one for `http://192.168.4.58` and one for Home Assistant Cloud. One user's view settings and theme follow them between their copies (issue #5); the copy's name doesn't.
+_Avoid_: device (except when quoting the code), browser, session
+
 **Person column**:
 One person's lane on the week view; a person's first calendar is the column, more calendars show inside it.
 _Avoid_: row, track

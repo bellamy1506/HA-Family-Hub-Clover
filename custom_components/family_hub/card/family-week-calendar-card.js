@@ -4636,6 +4636,16 @@ try {
 // field, and .notify-profile-kiosk-account-field's own hint.
 const currentUserId = this._hass.user && this._hass.user.id;
 const currentUserProfile = currentUserId ? (this._getSettings().userProfiles || {})[currentUserId] : null;
+// House fork (copy_sync.py): the push seqs this copy has applied, so the
+// server can tell a value it pushed but this copy hasn't applied yet from
+// a change made here.
+let appliedSeq = 0;
+let instanceAppliedSeq = 0;
+try {
+appliedSeq = parseInt(localStorage.getItem("familyHubDeviceSettingsAppliedSeqLocal"), 10) || 0;
+instanceAppliedSeq = parseInt(localStorage.getItem(this._instanceScopedStorageKey("familyHubDeviceSettingsAppliedSeqLocal")), 10) || 0;
+} catch (e) {
+}
 const result = await this._hass.connection.sendMessagePromise({
 type: "family_hub/device_settings/report",
 device_id: this._getDeviceId(),
@@ -4645,6 +4655,8 @@ instance_id: this._getCardInstanceId(),
 instance_settings: this._deviceSettingsSnapshot("instance"),
 instance_label: this._getCardInstanceLabel(),
 is_kiosk_account: !!(currentUserProfile && currentUserProfile.isKioskAccount),
+applied_seq: appliedSeq,
+instance_applied_seq: instanceAppliedSeq,
 });
 // Catch-up for the live per-device screensaver toggle - see
 // DEVICE_SETTINGS_EVENT_SCREENSAVER_TOGGLE's own comment in const.py.
@@ -4721,6 +4733,8 @@ await this._fetchSettings();
 this._applySizeVars();
 this._fetchEvents();
 this._fetchCountdown();
+// House fork: tell the server what this copy now holds (copy_sync.py).
+this._reportDeviceSettings();
 }
 // Applies an admin's pushed settings for ONE scope (from either the live
 // bus event or the get_pending catch-up check below) - instanceId
