@@ -1646,6 +1646,11 @@ DEVICE_SETTINGS_FIELDS = {
         "type": "enum", "choices": ["on", "off"], "default": "off",
         "label": "Calendar top bar style: Hidden", "scope": "instance",
     },
+    # House fork: "Title only" top bar style (keeps only the month/week label).
+    "familyCalendarTopBarTitleOnlyLocal": {
+        "type": "enum", "choices": ["on", "off"], "default": "off",
+        "label": "Calendar top bar style: Title only", "scope": "instance",
+    },
     # Unlike the free-text `device_name` ws_report
     # already carries (see device_settings_websocket_api.py's own module
     # docstring), that one is purely cosmetic display sugar the DEVICE
