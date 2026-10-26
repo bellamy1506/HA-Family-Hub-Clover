@@ -24377,7 +24377,7 @@ const grid = this._root && this._root.querySelector(".grid");
 if (!grid) return;
 const gridEl = grid.querySelector(".month-cells") || grid;
 const key = this._instanceScopedStorageKey(`familyHubGridHeightLocal:${this._viewMode}`);
-if (this._eventsViewMode !== this._viewMode) {
+if (!this._viewMode || this._eventsViewMode !== this._viewMode) {
 let held = 0;
 try {
 held = parseInt(localStorage.getItem(key), 10) || 0;
@@ -24394,6 +24394,72 @@ localStorage.setItem(key, String(height));
 } catch (e) {
 }
 }
+}
+// House fork: placeholder pills (owner, 2026-10-26). Until this view's
+// events arrive, month cells and the split view's day panel show last
+// time's pills in their colors and places with blank text, so only the
+// text waits. Stored per copy and per set of calendars (the "Hide work
+// calendars" copy keeps its own): each day's pill styles, shape flags and
+// "+N more" count. Never titles, times or ids. Nothing is shown or stored
+// while privacy mode is on, and nothing is stored while a filter hides some.
+_pillLayoutKey() {
+const entities = this._getPeople().map((p) => p.entity).sort().join(",");
+return this._instanceScopedStorageKey(`familyHubPillLayoutLocal:${entities}`);
+}
+_readPillLayout() {
+try {
+const parsed = JSON.parse(localStorage.getItem(this._pillLayoutKey()) || "{}");
+return parsed && typeof parsed === "object" ? parsed : {};
+} catch (e) {
+return {};
+}
+}
+_writePillLayout(cells) {
+const stored = this._readPillLayout();
+Object.keys(cells).forEach((k) => {
+stored[k] = { ...(stored[k] || {}), ...cells[k] };
+});
+const keep = (offset) => {
+const d = new Date();
+d.setDate(d.getDate() + offset);
+return this._dateKey(d);
+};
+const from = keep(-70);
+const to = keep(70);
+Object.keys(stored).forEach((k) => {
+if (k < from || k > to) delete stored[k];
+});
+try {
+localStorage.setItem(this._pillLayoutKey(), JSON.stringify(stored));
+} catch (e) {
+}
+}
+_pillLayoutForRender() {
+if (this._privacyModeEffectiveLocked()) return { record: false, show: false, cells: {} };
+if (!this._viewMode) return { record: false, show: false, cells: {} };
+if (this._eventsViewMode === this._viewMode) {
+const filtered = (this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length;
+return { record: !filtered, show: false, cells: {} };
+}
+return { record: false, show: true, cells: this._readPillLayout() };
+}
+_placeholderPillsHtml(entry, allPast) {
+const safe = (style) => typeof style === "string" && !/["<>]/.test(style);
+const pills = (Array.isArray(entry && entry.p) ? entry.p : [])
+.filter((x) => Array.isArray(x) && safe(x[0]) && typeof x[1] === "string")
+.map(([style, f]) => {
+const cls = `mc-pill fh-pill-placeholder${f.includes("r") ? " mc-reminder-pill" : ""}${f.includes("<") ? " mc-continue-prev" : ""}${f.includes(">") ? " mc-continue-next" : ""}${f.includes("p") || allPast ? " past" : ""}`;
+return `<div class="${cls}" style="${style}">&nbsp;</div>`;
+})
+.join("");
+const more = Number.isInteger(entry && entry.m) && entry.m > 0 ? `<div class="mc-more">+${entry.m} more</div>` : "";
+return pills + more;
+}
+_placeholderDetailHtml(styles) {
+return (Array.isArray(styles) ? styles : [])
+.filter((style) => typeof style === "string" && !/["<>]/.test(style))
+.map((style) => `<div class="msd-item event fh-pill-placeholder" style="${style}"><span class="msd-item-time">&nbsp;</span><span class="msd-item-summary">&nbsp;</span></div>`)
+.join("");
 }
 _renderMonthGrid() {
 const gridEl = this._root.querySelector(".grid");
@@ -24423,6 +24489,7 @@ const eventPeople = filterKeys.length ? people.filter((p) => filterKeys.includes
 // should still surface when filtering to just one of its tagged people.
 const filterEntitySet = filterKeys.length ? new Set(eventPeople.map((p) => p.entity)) : null;
 let cellsHtml = "";
+const pillLayout = this._pillLayoutForRender();
 for (let i = 0; i < 42; i++) {
 const cellDate = new Date(gridStart);
 cellDate.setDate(gridStart.getDate() + i);
@@ -24552,6 +24619,13 @@ return e.isReminder ? e.start.getTime() <= nowMs : e.end.getTime() <= nowMs;
 };
 const shown = dayEvents.slice(0, 3);
 const more = dayEvents.length - shown.length;
+if (pillLayout.record) pillLayout.cells[dateKey] = {
+p: shown.map((e) => [
+e.bg || `background:${e.color}`,
+`${e.isReminder ? "r" : ""}${!e.isReminder && e.start && e.start.getTime() < dayStart.getTime() ? "<" : ""}${!e.isReminder && e.end && e.end.getTime() > dayEnd.getTime() ? ">" : ""}${isPastEvent(e) ? "p" : ""}`,
+]),
+m: more,
+};
 let pillsHtml =
 shown
 .map((e) => {
@@ -24573,6 +24647,7 @@ const suffix = continuesToNext ? " ▸" : "";
 return `<div class="mc-pill${e.isReminder ? " mc-reminder-pill" : ""}${continueClass}${isPastEvent(e) ? " past" : ""}" style="${e.bg || `background:${e.color}`}">${e.isReminder ? "&#128276; " : ""}${prefix}${e.summary}${suffix}</div>`;
 })
 .join("") + (more > 0 ? `<div class="mc-more">+${more} more</div>` : "");
+if (!dayEvents.length && pillLayout.show && pillLayout.cells[dateKey]) pillsHtml = this._placeholderPillsHtml(pillLayout.cells[dateKey], greyOutPast && isBeforeToday);
 // meals render BEFORE (above) events/reminders in each cell,
 // not after - a household glancing at Month view is usually checking
 // "what's for dinner" alongside the day's schedule, and meals used to
@@ -24605,6 +24680,7 @@ cellsHtml += `<div class="month-cell ${isToday ? "today" : ""} ${outside ? "outs
 <div class="mc-events">${pillsHtml}</div>
 </div>`;
 }
+if (pillLayout.record) this._writePillLayout(pillLayout.cells);
 return { dayNames, cellsHtml };
 }
 // v145+ task: the "split" Month variant - classic month grid on one side
@@ -24762,6 +24838,11 @@ const itemsHtml = items.length
 )
 .join("")
 : `<div class="msd-empty">Nothing scheduled</div>`;
+// House fork: placeholder rows, see _pillLayoutForRender.
+const pillLayout = this._pillLayoutForRender();
+if (pillLayout.record) this._writePillLayout({ [dateKey]: { d: items.map((it) => it.bg || `background:${it.color}`) } });
+const placeholderRows = !items.length && pillLayout.show ? this._placeholderDetailHtml((pillLayout.cells[dateKey] || {}).d) : "";
+const shownItemsHtml = placeholderRows || itemsHtml;
 let mealsHtml = "";
 if (settings.showMealsInMonth) {
 const dayBlocks = this._getBlocksForDay(cellDate);
@@ -24780,7 +24861,7 @@ return `<div class="msd-header">
 <div class="msd-date">${dateLabel}${isToday ? ' <span class="msd-today-tag">Today</span>' : ""}</div>
 <button type="button" class="msd-goto-week-btn" data-date="${dateKey}">Go to this week &#8594;</button>
 </div>
-<div class="msd-items">${mealsHtml}${itemsHtml}</div>`;
+<div class="msd-items">${mealsHtml}${shownItemsHtml}</div>`;
 }
 // v1.134.0+: Week and the old "Portrait" variant merged into one mode -
 // household ask, verbatim: "I think that we have built enough

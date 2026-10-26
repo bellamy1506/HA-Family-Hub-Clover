@@ -88,6 +88,12 @@ hold.call(card(gridEl(560, cellsLoaded), "split", "split"));
 assert.strictEqual(cellsLoaded.style.minHeight, "", "cells released");
 assert.strictEqual(store["familyHubGridHeightLocal:split__inst_i1"], "430", "cells height remembered");
 
+// Before the view is chosen on open, nothing counts as loaded.
+store = {};
+g = gridEl(1350);
+hold.call(card(g, undefined, undefined));
+assert.deepStrictEqual(store, {}, "nothing remembered before the view is known");
+
 // Wiring: every grid render ends with the hold, events record their view,
 // and the title is set as soon as the view is known on open.
 const renderGrid = methodBody("_renderGrid");
