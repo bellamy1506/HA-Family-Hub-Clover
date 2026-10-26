@@ -3328,6 +3328,9 @@ const s = this._getSettings();
 // month) - which variant within that family renders is this device's
 // own choice, same as _getShowTimeline etc.
 this._viewMode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: set the title now, not when events arrive, so a Month
+// view doesn't open titled "This Week".
+this._updateNavLabel();
 }
 this._refreshAllData();
 this._startPolling();
@@ -9374,6 +9377,7 @@ newErrors[person.entity] = (e && (e.message || e.body || e.error)) || String(e);
 );
 if (fetchId !== this._eventsFetchSeq) return;
 Object.assign(this._events, newEvents);
+this._eventsViewMode = this._viewMode;
 for (const entity of Object.keys(newEvents)) {
 if (newErrors[entity]) this._fetchErrors[entity] = newErrors[entity];
 else delete this._fetchErrors[entity];
@@ -24359,6 +24363,36 @@ this._renderDayGrid();
 this._renderAgendaGrid();
 } else {
 this._renderWeekGrid();
+}
+this._holdGridSize();
+}
+// House fork: the grid drew before any calendar events, then grew when
+// they arrived (month cells fill with pills), so the board jumped on every
+// open (2026-10-26). Until this view's events land, hold the grid at the
+// height it had last time with events; once they have, remember it. Month
+// views hold their cells instead: the six rows share the height, so the
+// split view's day panel below them doesn't move either.
+_holdGridSize() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid) return;
+const gridEl = grid.querySelector(".month-cells") || grid;
+const key = this._instanceScopedStorageKey(`familyHubGridHeightLocal:${this._viewMode}`);
+if (this._eventsViewMode !== this._viewMode) {
+let held = 0;
+try {
+held = parseInt(localStorage.getItem(key), 10) || 0;
+} catch (e) {
+}
+gridEl.style.minHeight = held ? `${held}px` : "";
+return;
+}
+gridEl.style.minHeight = "";
+const height = Math.round(gridEl.getBoundingClientRect().height);
+if (height > 0) {
+try {
+localStorage.setItem(key, String(height));
+} catch (e) {
+}
 }
 }
 _renderMonthGrid() {
