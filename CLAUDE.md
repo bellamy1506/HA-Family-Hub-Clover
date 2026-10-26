@@ -22,6 +22,7 @@ Short on time and decision capacity; wants a durable, low-maintenance floor, not
 
 ## Changing the code
 
+- **Edit the files Home Assistant serves.** The cards load from `custom_components/family_hub/card/` (and `panel/`), per the `*_path` lines in `__init__.py`. Same-named files at the top level of `custom_components/family_hub/` are unused copies, newer than the served ones; editing them changes nothing on the board (2026-10-26). Read code behavior from the served copies too.
 - Keep house changes small and few: every change is a merge conflict when taking upstream updates. Prefer configuration in Home Assistant over code changes.
 - Add a test for any behavior you change; upstream has none in the repo. Put tests under `tests/` and say in the PR how to run them.
 - License is GPL-3.0; the repo stays public.
