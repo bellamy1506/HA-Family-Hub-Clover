@@ -25,6 +25,7 @@ OWNER = "1fd0c2c4a19241c192c77dc39bf472f4"
 JENN = "6e16c1f58eef48e0ab02f0db8be9b21c"
 TITLE = "familyCalendarTopBarTitleOnlyLocal"
 NAME = "familyHubDeviceCustomNameLocal"
+THEME = "familyHubDeviceThemeOverrideLocal"
 EVENT_PUSH = "family_hub_device_settings_push"
 
 
@@ -133,11 +134,11 @@ class WsReport(unittest.TestCase):
     def devices(self):
         return self.entry_data["device_settings"]["devices"]
 
-    def report(self, user_id, device_id, instance_id, title="off", name="", applied=0, instance_applied=0, label="family-hub"):
+    def report(self, user_id, device_id, instance_id, title="off", name="", theme="", applied=0, instance_applied=0, label="family-hub"):
         connection = _Connection(user_id)
         msg = {
             "id": 1, "type": "family_hub/device_settings/report", "device_id": device_id,
-            "settings": {NAME: name}, "device_name": "iPhone", "instance_id": instance_id,
+            "settings": {NAME: name, THEME: theme}, "device_name": "iPhone", "instance_id": instance_id,
             "instance_settings": view(title), "instance_label": label,
         }
         if applied is not None:
@@ -233,6 +234,53 @@ class WsReport(unittest.TestCase):
         self.bus.fired.clear()
         self.report(OWNER, "dev-new", "inst-new", title="off")
         self.assertEqual(self.pushes(), [])
+
+    def test_theme_reaches_the_owners_other_copy_only(self):
+        self.setup_owner_and_jenn()
+        self.report(OWNER, "dev-home", "inst-home", theme="liquidglassdark")
+        self.assertEqual(self.pushes(), [{"device_id": "dev-cloud", "seq": 1, "settings": {THEME: "liquidglassdark"}}])
+        self.assertEqual(self.devices["dev-cloud"]["settings"][THEME], "liquidglassdark")
+        self.assertEqual(self.devices["dev-jenn"]["pending_seq"], 0)
+
+    def test_theme_values_round_trip(self):
+        self.setup_owner_and_jenn()
+        for theme in ("__default__", "ha:Dark", ""):
+            self.report(OWNER, "dev-home", "inst-home", theme=theme, applied=0)
+            self.assertEqual(self.devices["dev-cloud"]["settings"][THEME], theme)
+            self.assertEqual(self.devices["dev-cloud"]["pending_settings"], {THEME: theme})
+
+    def test_theme_report_before_applying_does_not_bounce(self):
+        self.setup_owner_and_jenn()
+        self.report(OWNER, "dev-home", "inst-home", theme="liquidglassdark")
+        self.bus.fired.clear()
+        self.report(OWNER, "dev-cloud", "inst-cloud", theme="", applied=0)
+        self.report(OWNER, "dev-cloud", "inst-cloud", theme="liquidglassdark", applied=1)
+        self.assertEqual(self.pushes(), [])
+
+    def test_first_theme_report_after_the_update_is_not_a_change(self):
+        # Records from before this field existed hold no theme at all.
+        self.setup_owner_and_jenn()
+        for dev in ("dev-home", "dev-cloud"):
+            self.devices[dev]["settings"].pop(THEME)
+        self.report(OWNER, "dev-home", "inst-home", theme="liquidglassdark")
+        self.assertEqual(self.pushes(), [])
+
+    def test_new_copy_is_seeded_with_the_theme(self):
+        self.setup_owner_and_jenn()
+        self.report(OWNER, "dev-home", "inst-home", name="Will", theme="liquidglassdark")
+        self.bus.fired.clear()
+        self.report(OWNER, "dev-new", "inst-new")
+        self.assertIn({"device_id": "dev-new", "seq": 1, "settings": {THEME: "liquidglassdark"}}, self.pushes())
+        self.assertEqual(self.devices["dev-new"]["settings"][NAME], "")
+
+    def test_bad_theme_value_is_rejected(self):
+        connection = _Connection(OWNER)
+        msg = {"id": 1, "device_id": "dev-x", "settings": {THEME: 5}}
+        asyncio.run(ws.ws_report(self.hass, connection, msg))
+        self.assertEqual(connection.errors, ["invalid_format"])
+        connection = _Connection(OWNER)
+        asyncio.run(ws.ws_report(self.hass, connection, {"id": 1, "device_id": "dev-x", "settings": {THEME: "x" * 101}}))
+        self.assertEqual(connection.errors, ["invalid_format"])
 
     def test_device_name_never_sent(self):
         self.setup_owner_and_jenn()

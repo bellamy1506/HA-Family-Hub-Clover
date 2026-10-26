@@ -4373,6 +4373,9 @@ familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], defa
   // device) or locally via the "This device" field on the General tab
   // (see _saveThisDeviceName).
   familyHubDeviceCustomNameLocal: { type: "text", max_length: 60, default: "", scope: "device", label: this._t("settings.device_name_label", "Device name") },
+// House fork (copy_sync.py): this device's theme override, see
+// _getDeviceThemeOverride. "" = household theme, "__default__" = local look.
+familyHubDeviceThemeOverrideLocal: { type: "text", max_length: 100, default: "", scope: "device", label: "This device's theme" },
 };
 }
 // A stable, anonymous per-device id - generated once and persisted, never
@@ -14768,6 +14771,8 @@ localStorage.setItem("familyHubDeviceThemeOverrideLocal", deviceThemeSelect.valu
 } catch (e) {
 }
 this._applySizeVars();
+// House fork: report it now, so it follows to this user's other copies.
+this._reportDeviceSettings();
 });
 }
 root.querySelectorAll(".meals-in-month-btn").forEach((btn) => {
