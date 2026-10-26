@@ -224,6 +224,23 @@ class WsReport(unittest.TestCase):
             self.assertEqual(self.devices[dev]["instances"][inst]["settings"][TITLE], "on")
         self.assertEqual(self.devices["dev-cloud"]["instances"]["inst-cloud"]["pending_seq"], 1)
 
+    def test_new_copy_is_seeded_from_copies_set_up_before_the_update(self):
+        # The 2026-10-26 case: settings chosen before sync existed, so no
+        # change was ever recorded; a new copy still opens on them.
+        self.report(OWNER, "dev-home", "inst-home", title="on", theme="liquidglassdark")
+        self.bus.fired.clear()
+        self.report(OWNER, "dev-new", "inst-new", title="off", theme="")
+        self.assertIn({"device_id": "dev-new", "instance_id": "inst-new", "seq": 1, "settings": {TITLE: "on"}}, self.pushes())
+        self.assertIn({"device_id": "dev-new", "seq": 1, "settings": {THEME: "liquidglassdark"}}, self.pushes())
+
+    def test_another_page_on_the_same_copy_is_left_alone(self):
+        self.setup_owner_and_jenn()
+        self.report(OWNER, "dev-home", "inst-home-2")
+        self.bus.fired.clear()
+        self.report(OWNER, "dev-home", "inst-home", title="on")
+        targets = {(p["device_id"], p.get("instance_id")) for p in self.pushes()}
+        self.assertEqual(targets, {("dev-cloud", "inst-cloud")})
+
     def test_users_first_copy_is_not_seeded(self):
         self.report(OWNER, "dev-home", "inst-home")
         self.assertEqual(self.pushes(), [])

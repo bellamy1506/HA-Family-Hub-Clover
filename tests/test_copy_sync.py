@@ -129,10 +129,17 @@ class PlanPushes(unittest.TestCase):
         self.devices["dev-cloud"]["instances"]["inst-other"] = instance(view(title="off"), label="other-dashboard")
         self.assertEqual(self.plan({TITLE: "on"}), [("dev-cloud", "inst-cloud", {TITLE: "on"})])
 
-    def test_same_dashboard_on_another_page_of_the_same_copy(self):
+    def test_another_page_of_the_same_copy_keeps_its_own_settings(self):
+        # Upstream keeps view settings per page on one copy; only other
+        # copies follow.
         self.devices["dev-home"]["instances"]["inst-home-2"] = instance(view(title="off"))
         targets = {(d, i) for d, i, _ in self.plan({TITLE: "on"})}
-        self.assertEqual(targets, {("dev-cloud", "inst-cloud"), ("dev-home", "inst-home-2")})
+        self.assertEqual(targets, {("dev-cloud", "inst-cloud")})
+
+    def test_every_page_of_the_dashboard_on_another_copy_follows(self):
+        self.devices["dev-cloud"]["instances"]["inst-cloud-2"] = instance(view(title="off"))
+        targets = {(d, i) for d, i, _ in self.plan({TITLE: "on"})}
+        self.assertEqual(targets, {("dev-cloud", "inst-cloud"), ("dev-cloud", "inst-cloud-2")})
 
     def test_nothing_back_to_the_source(self):
         self.devices["dev-cloud"]["instances"]["inst-cloud"]["settings"][TITLE] = "on"
@@ -192,10 +199,37 @@ class SeedNewCopy(unittest.TestCase):
         devices = {"dev-new": device(OWNER, {"inst-new": instance(view())})}
         self.assertEqual(self.seed(devices), {})
 
-    def test_copies_never_changed_are_not_a_source(self):
+    def test_with_no_change_recorded_the_copy_seen_last_is_used(self):
+        # Copies set up before this shipped have no change time yet.
+        home = instance(view(title="on"))
+        home["last_seen"] = T2
+        cloud = instance(view(title="off", month="split"))
+        cloud["last_seen"] = T1
         devices = {
-            "dev-home": device(OWNER, {"inst-home": instance(view(title="on"))}),
+            "dev-home": device(OWNER, {"inst-home": home}),
+            "dev-cloud": device(OWNER, {"inst-cloud": cloud}),
             "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        self.assertEqual(self.seed(devices), {TITLE: "on"})
+
+    def test_a_recorded_change_beats_a_later_visit(self):
+        home = instance(view(title="on"), changed_at=T1)
+        home["last_seen"] = T1
+        cloud = instance(view(title="off", month="split"))
+        cloud["last_seen"] = T2
+        devices = {
+            "dev-home": device(OWNER, {"inst-home": home}),
+            "dev-cloud": device(OWNER, {"inst-cloud": cloud}),
+            "dev-new": device(OWNER, {"inst-new": instance(view())}),
+        }
+        self.assertEqual(self.seed(devices), {TITLE: "on"})
+
+    def test_new_page_on_an_existing_copy_is_not_seeded_from_its_own_pages(self):
+        devices = {
+            "dev-new": device(OWNER, {
+                "inst-old-page": instance(view(title="on"), changed_at=T1),
+                "inst-new": instance(view()),
+            }),
         }
         self.assertEqual(self.seed(devices), {})
 

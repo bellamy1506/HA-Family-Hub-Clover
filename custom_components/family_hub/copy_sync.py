@@ -71,24 +71,22 @@ def record_report(
 
 def _other_copies(devices: dict[str, Any], user_id: Optional[str], device_id: str, instance_id: Optional[str], label: Optional[str]):
     """Instance scope (instance_id given): (device_id, instance_id, record)
-    for each of this user's other placements of the same dashboard (same
-    instance_label), on any copy. Device scope (instance_id None):
-    (device_id, None, device record) for each of this user's other copies."""
+    for each placement of the same dashboard (same instance_label) on this
+    user's other copies. Pages on the source copy itself are skipped:
+    upstream keeps view settings per page there. Device scope (instance_id
+    None): (device_id, None, device record) for each of this user's other
+    copies."""
     if not user_id or (instance_id is not None and not label):
         return
     for dev_id, dev in devices.items():
-        if not isinstance(dev, dict) or dev.get("user_id") != user_id:
+        if not isinstance(dev, dict) or dev.get("user_id") != user_id or dev_id == device_id:
             continue
         if instance_id is None:
-            if dev_id != device_id:
-                yield dev_id, None, dev
+            yield dev_id, None, dev
             continue
         for inst_id, inst in (dev.get("instances") or {}).items():
-            if not isinstance(inst, dict) or inst.get("instance_label") != label:
-                continue
-            if (dev_id, inst_id) == (device_id, instance_id):
-                continue
-            yield dev_id, inst_id, inst
+            if isinstance(inst, dict) and inst.get("instance_label") == label:
+                yield dev_id, inst_id, inst
 
 
 def _to_queue(target: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
@@ -135,14 +133,16 @@ def seed_for(
     and label None, a brand-new copy's device-scoped fields) should be
     sent: the settings of this user's one that changed most recently (by
     changed_at, not last_seen), minus what the new one already reported.
-    {} when the user has no other, or none has changed yet."""
-    sources = [
-        inst for _, _, inst in _other_copies(devices, user_id, device_id, instance_id, label)
-        if inst.get("changed_at")
-    ]
+    If none has a recorded change (copies set up before this shipped), the
+    one seen last. {} when the user has no other copy."""
+    sources = [rec for _, _, rec in _other_copies(devices, user_id, device_id, instance_id, label)]
     if not sources:
         return {}
-    source = max(sources, key=lambda inst: inst["changed_at"])
+    changed = [rec for rec in sources if rec.get("changed_at")]
+    if changed:
+        source = max(changed, key=lambda rec: rec["changed_at"])
+    else:
+        source = max(sources, key=lambda rec: rec.get("last_seen") or "")
     return {
         k: v
         for k, v in (source.get("settings") or {}).items()
