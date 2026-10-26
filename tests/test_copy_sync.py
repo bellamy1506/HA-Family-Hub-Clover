@@ -218,6 +218,55 @@ class SeedNewCopy(unittest.TestCase):
         self.assertEqual(self.seed(devices), {TITLE: "on"})
 
 
+THEME = "familyHubDeviceThemeOverrideLocal"
+
+
+class ThemeFollowsTheCopy(unittest.TestCase):
+    """The theme is device-scoped: one per copy, whatever the dashboard.
+    Device scope is asked for with instance_id=None and label=None."""
+
+    def setUp(self):
+        self.devices = {
+            "dev-home": device(OWNER, {}, settings={NAME: "Will", THEME: "liquidglassdark"}),
+            "dev-cloud": device(OWNER, {}, settings={NAME: "", THEME: ""}),
+            "dev-jenn": device(JENN, {}, settings={NAME: "", THEME: ""}),
+        }
+
+    def test_theme_change_reaches_the_users_other_copies_only(self):
+        plan = copy_sync.plan_pushes(self.devices, OWNER, "dev-home", None, None, {THEME: "liquidglassdark"})
+        self.assertEqual(plan, [("dev-cloud", None, {THEME: "liquidglassdark"})])
+
+    def test_any_dashboard_label_is_ignored_for_device_scope(self):
+        self.devices["dev-cloud"]["instances"] = {"inst": instance({}, label="other")}
+        plan = copy_sync.plan_pushes(self.devices, OWNER, "dev-home", None, None, {THEME: "__default__"})
+        self.assertEqual(plan, [("dev-cloud", None, {THEME: "__default__"})])
+
+    def test_household_theme_empty_value_syncs_too(self):
+        self.devices["dev-cloud"]["settings"][THEME] = "liquidglassdark"
+        plan = copy_sync.plan_pushes(self.devices, OWNER, "dev-home", None, None, {THEME: ""})
+        self.assertEqual(plan, [("dev-cloud", None, {THEME: ""})])
+
+    def test_theme_change_is_a_change_but_name_is_not(self):
+        record = self.devices["dev-home"]
+        changes = copy_sync.record_report(record, {NAME: "Will's phone", THEME: "ha:Dark"}, applied_seq=0, first=False, now=T1)
+        self.assertEqual(changes, {THEME: "ha:Dark"})
+        self.assertEqual(record["settings"][NAME], "Will's phone")
+        self.assertEqual(record["changed_at"], T1)
+
+    def test_name_never_queued_even_if_asked(self):
+        plan = copy_sync.plan_pushes(self.devices, OWNER, "dev-home", None, None, {NAME: "Will", THEME: "ha:Dark"})
+        self.assertEqual(plan, [("dev-cloud", None, {THEME: "ha:Dark"})])
+
+    def test_new_copy_is_seeded_with_the_theme_not_the_name(self):
+        self.devices["dev-home"]["changed_at"] = T1
+        seed = copy_sync.seed_for(self.devices, OWNER, "dev-new", None, None, {NAME: "", THEME: ""})
+        self.assertEqual(seed, {THEME: "liquidglassdark"})
+
+    def test_instance_scope_still_needs_a_label(self):
+        self.devices["dev-cloud"]["instances"] = {"inst": instance(view(title="off"))}
+        self.assertEqual(copy_sync.plan_pushes(self.devices, OWNER, "dev-home", "inst-home", None, {TITLE: "on"}), [])
+
+
 class RoundTrip(unittest.TestCase):
     """Report -> push -> stale report -> apply -> report, with the records
     updated the way device_settings_websocket_api.py updates them."""

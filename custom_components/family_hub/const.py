@@ -1670,6 +1670,15 @@ DEVICE_SETTINGS_FIELDS = {
         "type": "text", "max_length": 60, "default": "",
         "label": "Device name", "scope": "device",
     },
+    # House fork (copy_sync.py, issue #5): this device's theme override, so
+    # it can be reported, pushed, and follow one user between their copies.
+    # "" = household theme, "__default__" = the card's own local look,
+    # anything else a theme id (Theme Builder id or "ha:<name>"). See the
+    # card's own _getDeviceThemeOverride.
+    "familyHubDeviceThemeOverrideLocal": {
+        "type": "text", "max_length": 100, "default": "",
+        "label": "This device's theme", "scope": "device",
+    },
 }
 
 # Convenience views over DEVICE_SETTINGS_FIELDS above, split by "scope" -

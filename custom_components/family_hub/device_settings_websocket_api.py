@@ -374,7 +374,7 @@ async def ws_report(hass: HomeAssistant, connection: websocket_api.ActiveConnect
     user_id = getattr(connection.user, "id", None) if connection.user else None
     if user_id:
         record["user_id"] = user_id
-    copy_sync.record_report(record, cleaned, msg.get("applied_seq"), is_new_device, now)
+    device_changes = copy_sync.record_report(record, cleaned, msg.get("applied_seq"), is_new_device, now)
     record["last_seen"] = now
     # Cosmetic only - see this field's own note on _device_record/
     # _DEVICE_NAME_MAX_LEN above. A device that never sends one (an older
@@ -396,6 +396,12 @@ async def ws_report(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         if instance_label:
             instance_record["instance_label"] = instance_label[:_DEVICE_NAME_MAX_LEN]
     _sync_device_entities(hass, entry_data, device_id, is_new_device, instance_id or None, is_new_instance)
+    # House fork: device-scoped fields (the theme) follow the user too.
+    for target_device, _, settings in copy_sync.plan_pushes(blob["devices"], user_id, device_id, None, None, device_changes):
+        _push_settings(hass, entry_data, target_device, settings)
+    device_seed = copy_sync.seed_for(blob["devices"], user_id, device_id, None, None, cleaned) if is_new_device else {}
+    if device_seed:
+        _push_settings(hass, entry_data, device_id, device_seed)
     if instance_id:
         for target_device, target_instance, settings in copy_sync.plan_pushes(
             blob["devices"], user_id, device_id, instance_id,

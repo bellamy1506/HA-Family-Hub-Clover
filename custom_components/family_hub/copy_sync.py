@@ -69,13 +69,19 @@ def record_report(
     return changes
 
 
-def _other_copies(devices: dict[str, Any], user_id: Optional[str], device_id: str, instance_id: str, label: Optional[str]):
-    """(device_id, instance_id, record) for each of this user's other
-    placements of the same dashboard (same instance_label), on any copy."""
-    if not user_id or not label:
+def _other_copies(devices: dict[str, Any], user_id: Optional[str], device_id: str, instance_id: Optional[str], label: Optional[str]):
+    """Instance scope (instance_id given): (device_id, instance_id, record)
+    for each of this user's other placements of the same dashboard (same
+    instance_label), on any copy. Device scope (instance_id None):
+    (device_id, None, device record) for each of this user's other copies."""
+    if not user_id or (instance_id is not None and not label):
         return
     for dev_id, dev in devices.items():
         if not isinstance(dev, dict) or dev.get("user_id") != user_id:
+            continue
+        if instance_id is None:
+            if dev_id != device_id:
+                yield dev_id, None, dev
             continue
         for inst_id, inst in (dev.get("instances") or {}).items():
             if not isinstance(inst, dict) or inst.get("instance_label") != label:
@@ -100,12 +106,13 @@ def plan_pushes(
     devices: dict[str, Any],
     user_id: Optional[str],
     device_id: str,
-    instance_id: str,
+    instance_id: Optional[str],
     label: Optional[str],
     changes: dict[str, Any],
-) -> list[tuple[str, str, dict[str, Any]]]:
-    """Who gets what for one copy's instance-scoped changes: a list of
-    (device_id, instance_id, settings to queue)."""
+) -> list[tuple[str, Optional[str], dict[str, Any]]]:
+    """Who gets what for one copy's changes: a list of (device_id,
+    instance_id, settings to queue). instance_id and label None for
+    device-scoped changes (the theme), which reach instance_id None."""
     if not changes:
         return []
     plan = []
@@ -120,14 +127,15 @@ def seed_for(
     devices: dict[str, Any],
     user_id: Optional[str],
     device_id: str,
-    instance_id: str,
+    instance_id: Optional[str],
     label: Optional[str],
     reported: dict[str, Any],
 ) -> dict[str, Any]:
-    """What a brand-new placement of this dashboard should be sent: the
-    settings of this user's placement that changed most recently (by
+    """What a brand-new placement of this dashboard (or, with instance_id
+    and label None, a brand-new copy's device-scoped fields) should be
+    sent: the settings of this user's one that changed most recently (by
     changed_at, not last_seen), minus what the new one already reported.
-    {} when the user has no other placement, or none has changed yet."""
+    {} when the user has no other, or none has changed yet."""
     sources = [
         inst for _, _, inst in _other_copies(devices, user_id, device_id, instance_id, label)
         if inst.get("changed_at")

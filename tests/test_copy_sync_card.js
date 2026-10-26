@@ -12,8 +12,8 @@ const src = fs.readFileSync(
   "utf8",
 );
 
-function methodBody(name, isAsync) {
-  const start = src.indexOf(`\n${isAsync ? "async " : ""}${name}() {\n`);
+function methodBody(name, isAsync, params = "") {
+  const start = src.indexOf(`\n${isAsync ? "async " : ""}${name}(${params}) {\n`);
   assert.ok(start >= 0, `${name} not found`);
   const open = src.indexOf("{", start);
   let depth = 0;
@@ -82,6 +82,40 @@ global.localStorage = {
   assert.strictEqual(src.split("this._checkPendingDeviceSettings();").length - 1, 0, "no unsequenced pending check");
   // _reportDeviceSettings is async, so .then works even when it returns early.
   assert.ok(src.includes("\nasync _reportDeviceSettings() {\n"));
+
+  // The theme override is a tracked device-scoped field (#8)...
+  const THEME = "familyHubDeviceThemeOverrideLocal";
+  const registry = new Function(methodBody("_deviceSettingsFieldRegistry")).call({ _t: (k, d) => d });
+  assert.deepStrictEqual(
+    { type: registry[THEME].type, max_length: registry[THEME].max_length, default: registry[THEME].default, scope: registry[THEME].scope },
+    { type: "text", max_length: 100, default: "", scope: "device" },
+  );
+  assert.strictEqual(registry.familyHubDeviceCustomNameLocal.scope, "device", "name stays a device field");
+
+  // ...whose three kinds of value survive report (read) and push (write).
+  const card = {
+    _deviceSettingsFieldRegistry: () => registry,
+    _getScopedSettingItem: () => null,
+    _setScopedSettingItem: () => { throw new Error("theme is not instance-scoped"); },
+  };
+  const read = new Function("key", "field", methodBody("_readDeviceSettingField", false, "key, field"));
+  const write = new Function("settings", "instanceId", methodBody("_writePushedScopeSettings", false, "settings, instanceId"));
+  for (const value of ["", "__default__", "liquidglassdark", "ha:Dark"]) {
+    store = {};
+    write.call(card, { [THEME]: value }, null);
+    assert.strictEqual(store[THEME], value, `push writes ${JSON.stringify(value)}`);
+    assert.strictEqual(read.call(card, THEME, registry[THEME]), value, `report reads ${JSON.stringify(value)}`);
+  }
+  store = {};
+  assert.strictEqual(read.call(card, THEME, registry[THEME]), "", "never set reads as household theme");
+  write.call(card, { [THEME]: "x".repeat(101) }, null);
+  assert.ok(!(THEME in store), "over-long value is not written");
+
+  // The theme picker reports right away, so a change follows without a Save.
+  assert.ok(
+    /localStorage\.setItem\("familyHubDeviceThemeOverrideLocal", deviceThemeSelect\.value \|\| ""\);\n\} catch \(e\) \{\n\}\nthis\._applySizeVars\(\);\n\/\/ [^\n]*\nthis\._reportDeviceSettings\(\);/.test(src),
+    "theme picker reports",
+  );
 
   console.log("copy sync card: all checks passed");
 })().catch((e) => {
