@@ -1,6 +1,8 @@
 // House fork test for the "Title only" calendar top bar style.
 // Run: node tests/test_title_only_top_bar.js   (no dependencies)
 //
+// Checks card/family-week-calendar-card.js: the copy Home Assistant serves
+// (see card_path in __init__.py). The top-level copy of the same name is unused.
 // The card is one large browser file, so this checks the pieces that make the
 // style work: the getter's logic (run for real against a stub `this`), and the
 // settings button, the host attribute, the save path, and the CSS that hides
@@ -10,7 +12,7 @@ const fs = require("fs");
 const path = require("path");
 
 const src = fs.readFileSync(
-  path.join(__dirname, "..", "custom_components", "family_hub", "family-week-calendar-card.js"),
+  path.join(__dirname, "..", "custom_components", "family_hub", "card", "family-week-calendar-card.js"),
   "utf8",
 );
 
