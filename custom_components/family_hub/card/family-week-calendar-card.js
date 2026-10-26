@@ -10722,7 +10722,9 @@ backdrop-filter: blur(var(--fc-glass-blur, 0px));
    toggle hide (swipe still pages). Settings moves into the + menu, as with
    Minimal. See _getTopBarTitleOnly. */
 :host([top-bar-title-only]) .week-nav-side, :host([top-bar-title-only]) .nav-arrow, :host([top-bar-title-only]) .week-shortcuts-toggle, :host([top-bar-title-only]) .week-shortcuts { display: none; }
-:host([top-bar-title-only]) .week-nav { grid-template-columns: 1fr; margin-bottom: 4px; }
+:host([top-bar-title-only]) .week-nav { grid-template-columns: 1fr; margin-bottom: 2px; }
+:host([top-bar-title-only]) .week-label { font-size: calc(var(--fs-header-title, 15px) * 1.6); line-height: 1.15; }
+:host([top-bar-title-only]) .countdown-line:empty { display: none; }
 /* Settings moved into the + button's own menu - only shown there once
    small screen mode is actually on, since the top bar's own Settings
    button (⚙️) still handles it otherwise (no duplicate entry point). */
