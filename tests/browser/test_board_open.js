@@ -6,7 +6,7 @@
 // doesn't erase the remembered layout; no event text is stored.
 // (owner, 2026-10-26)
 //
-// Run: node tests/browser/test_board_open.js
+// Run: node tests/browser/test_board_open.js   (ONLY=<text> for a subset)
 // Needs Playwright with Chromium. Skips (exit 0) when Playwright isn't
 // installed; in a Claude Code cloud session use
 //   NODE_PATH=/opt/node-tools/node_modules node tests/browser/test_board_open.js
@@ -154,6 +154,40 @@ const CHECKS = [
       return "meal visible before calendars";
     },
   },
+  ...[["Month (split) with meals, phone", "view=month&month=split&meals=all", 402], ["Agenda with meals, phone", "view=week&week=agenda&meals=all", 402]].map(([name, q, width]) => ({
+    name: `${name}: meals load before calendars`, width,
+    run: async (page) => {
+      await settle(page, await open(page, q));
+      const calls = await open(page, q);
+      await page.waitForTimeout(CAL / 2);
+      const text = await page.evaluate(() => window.__el.shadowRoot.querySelector(".grid").textContent);
+      assert.ok(text.includes("Tacos tonight"), "today's meal shows before the calendars answer");
+      await settle(page, calls);
+      return "meal visible before calendars";
+    },
+  })),
+  {
+    name: "Switching Month to Week: no ghost events on days already known empty", width: 1024,
+    run: async (page) => {
+      // Last time, day +3 had four events in Week; since then they were deleted.
+      await settle(page, await open(page, "view=week&week=week"));
+      const { before, after } = await beforeAndAfter(page, "view=month&month=month&week=week&drop=1", "week");
+      assertStable(before, after, { allowText: true });
+      return `${after.items.length} event elements, none stale`;
+    },
+  },
+  {
+    name: "A layout isn't saved while the card is hidden", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split"));
+      const calls = await open(page, "view=month&month=split");
+      await page.evaluate(() => { window.__el.style.display = "none"; });
+      await settle(page, calls);
+      const { before, after } = await beforeAndAfter(page, "view=month&month=split");
+      assertStable(before, after);
+      return "layout survived a hidden fetch";
+    },
+  },
   {
     name: "A failed calendar fetch keeps the remembered layout", width: 402,
     run: async (page) => {
@@ -202,7 +236,9 @@ const CHECKS = [
 (async () => {
   const browser = await chromium.launch();
   let failures = 0;
-  for (const check of CHECKS) {
+  // ONLY=<text> runs just the checks whose name contains it.
+  const only = process.env.ONLY;
+  for (const check of CHECKS.filter((c) => !only || c.name.includes(only))) {
     try {
       let note;
       await withPage(browser, check.width, check.date, async (page) => { note = await check.run(page); });

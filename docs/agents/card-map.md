@@ -74,8 +74,15 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
   - `_rememberGlobalThemes`, `_rememberedGlobalTheme`: no cream flash.
   - `_updateNavLabel` in `_initFirstLoad`: right title immediately.
   - `_holdGridSize`: holds last height (reads only).
-  - `_settleShapes`, plus `_shapeMode`, `_shapeEventLike`, `_shapeKeepText`, `_shapeKeepLive`, `_readShapes`: restore each day unit's blanked event shapes, then put the live day header and meal blocks back and carry scroll over.
-  - `_recordSettledLayout`, plus `_blankShape`, `_shapeStoreKey`, `_gridHeightKey`, `_shapeCalendars`: save, only from `_fetchEvents` when no calendar errored.
+  - `_settleShapes`, plus `_shapeMode`, `_shapeEventLike`, `_shapeKeepText`, `_shapeKeepLive`, `_readLayout`:
+    - restore each day unit's blanked event shapes;
+    - put back the live parts that load before the calendars (dates, day headers, meal blocks and meal pills, per kind);
+    - carry over the timeline's `.events` scroll;
+    - after a view switch, skip days inside `this._eventsRange` (already fetched).
+
+    It reads everything first and then writes, so there's one layout pass.
+  - `_recordSettledLayout`, plus `_blankShape`, `_shapeLayoutKey`, `_shapeCalendars`: save the shapes and the height together. It runs only from `_fetchEvents` when no calendar errored, only while the card is on screen (`getClientRects().length`), and only when the events or reminders changed (`this._shapeLayoutSignature`).
+  - Text kept in stored shapes is matched on the element's own class (`matches`, not `closest`), so names, badges and birthday marks are always blanked.
   - `this._eventsViewMode`, set in `_fetchEvents`, means "events are in for this view."
   - Shapes wait until privacy mode is known (`this._privacyModeEffectiveApplied !== undefined`).
 
@@ -99,10 +106,9 @@ Instance-scoped keys end in `__inst_<id>`. The id comes from `_getCardInstanceId
 | `familyHubDeviceCustomNameLocal`, `familyHubDeviceThemeOverrideLocal` | copy name (never synced), theme |
 | `familyHubDeviceSettingsAppliedSeqLocal` (+ `__inst_`) | last applied push seq |
 | `familyHubThemeVarsCache::<key>` | cached theme CSS vars |
-| `familyHubGlobalThemeLocal:<theme id>` | the theme in use, from the last theme list |
-| `familyHubGridHeightLocal:<view>:<calendars>__inst_` | last settled grid or month-cells height |
-| `familyHubShapesLocal:<view>:<width>:<calendars>__inst_` | `{ "unit key": blanked inner HTML }`, ±45 days, about 150 KB max |
-| `familyHubShapesIndexLocal__inst_` | the 4 most recent shapes keys; older ones are removed |
+| `familyHubGlobalThemesLocal` | `{ id: theme }` for the themes in use (own override, household), from the last theme list |
+| `familyHubShapesLocal:<view>:<width>:<calendars>:<view-settings hash>__inst_` | `{ h: settled height, u: { "unit key": blanked inner HTML } }`, ±45 days, about 150 KB max |
+| `familyHubShapesIndexLocal` | the 4 most recent layout keys in this browser; older ones are removed |
 
 ## Testing
 

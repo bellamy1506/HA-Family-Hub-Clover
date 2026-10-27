@@ -52,13 +52,14 @@ const settings = { useGlobalTheme: true, globalThemeId: "liquidglass", theme: nu
 // Remembering: the copy's own theme and the household's, nothing else.
 store = {};
 card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: [DARK, LIGHT, { id: "other" }] })._rememberGlobalThemes();
-assert.deepStrictEqual(Object.keys(store).sort(), ["familyHubGlobalThemeLocal:liquidglass", "familyHubGlobalThemeLocal:liquidglassdark"]);
+assert.deepStrictEqual(Object.keys(JSON.parse(store.familyHubGlobalThemesLocal)).sort(), ["liquidglass", "liquidglassdark"]);
+assert.deepStrictEqual(Object.keys(store), ["familyHubGlobalThemesLocal"], "one bounded entry, replaced each time");
 store = {};
 card({ _getDeviceThemeOverride: () => "__default__", _globalThemes: [DARK, LIGHT] })._rememberGlobalThemes();
-assert.deepStrictEqual(Object.keys(store), ["familyHubGlobalThemeLocal:liquidglass"], "__default__ isn't a theme id");
+assert.deepStrictEqual(Object.keys(JSON.parse(store.familyHubGlobalThemesLocal)), ["liquidglass"], "__default__ isn't a theme id");
 
 // Resolving before the list loads: the remembered theme, not the default.
-store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(DARK) };
+store = { familyHubGlobalThemesLocal: JSON.stringify({ liquidglassdark: DARK }) };
 const early = card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings);
 assert.strictEqual(early.colors.bg, "#0b1020", "remembered theme used before the list loads");
 assert.strictEqual(early.cardOpacity, 55);
@@ -66,10 +67,10 @@ assert.strictEqual(early.cardOpacity, 55);
 store = {};
 assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings).colors.bg, "#fbf7e5");
 // List loaded without the theme (deleted) or failed (empty): the default, as before.
-store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(DARK) };
+store = { familyHubGlobalThemesLocal: JSON.stringify({ liquidglassdark: DARK }) };
 assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: [] })._resolveTheme(settings).colors.bg, "#fbf7e5");
 // A remembered entry under the wrong id is ignored.
-store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(LIGHT) };
+store = { familyHubGlobalThemesLocal: JSON.stringify({ liquidglassdark: LIGHT }) };
 assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings).colors.bg, "#fbf7e5");
 
 // Wiring: remembered after each successful list; no early return left in

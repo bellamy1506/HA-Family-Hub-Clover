@@ -37,14 +37,15 @@ const proto = {
   _privacyModeEffectiveApplied: false,
   _viewMode: "split",
   _eventsViewMode: undefined,
+  _deviceSettingsSnapshot: () => ({}),
 };
-for (const name of ["_shapeMode", "_shapeStoreKey", "_shapeCalendars", "_shapeEventLike", "_shapeKeepText", "_shapeKeepLive"]) proto[name] = new Function(methodBody(name));
+for (const name of ["_shapeMode", "_shapeLayoutKey", "_shapeCalendars", "_shapeEventLike", "_shapeKeepText", "_shapeKeepLive"]) proto[name] = new Function(methodBody(name));
 const card = (over = {}) => Object.assign(Object.create(proto), over);
 
-// Key: per copy, view, screen width, and set of calendars.
-assert.strictEqual(card()._shapeStoreKey(), "familyHubShapesLocal:split:402:calendar.home,calendar.work__inst_i1");
-assert.notStrictEqual(card({ _getPeople: () => [{ entity: "calendar.home" }] })._shapeStoreKey(), card()._shapeStoreKey());
-assert.notStrictEqual(card({ _viewMode: "planner" })._shapeStoreKey(), card()._shapeStoreKey());
+// Key: per copy, view, screen width, set of calendars, and view settings
+// (see test_board_no_jump.js for each part).
+assert.ok(card()._shapeLayoutKey().startsWith("familyHubShapesLocal:split:402:calendar.home,calendar.work:"));
+assert.notStrictEqual(card({ _viewMode: "planner" })._shapeLayoutKey(), card()._shapeLayoutKey());
 
 // When to show.
 assert.strictEqual(card()._shapeMode(), "show", "before events, privacy known off: show");
@@ -58,31 +59,36 @@ assert.strictEqual(card({ _viewMode: undefined })._shapeMode(), "none", "view no
 const eventLike = card()._shapeEventLike();
 for (const sel of [".event", ".tl-event", ".all-day-chip", ".agenda-item:not(.mc-meal-pill)", ".mc-pill:not(.mc-meal-pill)", ".msd-item:not(.mc-meal-pill)"]) assert.ok(eventLike.includes(sel), sel);
 
-// Privacy: only plain labels keep their text; ids and other attributes go.
+// Privacy: only a few plain labels keep their text, matched on the element
+// itself (not an ancestor), so names, badges and birthday marks are blanked
+// too; day headers and dates come back live instead.
 const keep = card()._shapeKeepText();
-for (const label of [".mc-date", ".num", ".hour-label", ".planner-day-number", ".agenda-day-date", ".mc-more"]) assert.ok(keep.includes(label), label);
-for (const content of [".summary", ".time", ".menu-text", ".tl-summary", ".agenda-item-summary", ".msd-item-summary", ".custody-badge"]) assert.ok(!keep.includes(content), `${content} text is blanked`);
+assert.deepStrictEqual(keep.split(", "), [".hour-label", ".mc-more", ".msd-empty", ".agenda-empty", ".planner-mobile-empty"]);
+assert.ok(methodBody("_blankShape", "unit").includes("const keepText = src.matches(keep);"), "kept only by the element's own class");
 const blank = methodBody("_blankShape", "unit");
 assert.ok(blank.includes('if (a.name !== "class" && a.name !== "style" && a.name !== "data-date") el.removeAttribute(a.name);'), "only class, style, data-date kept");
 assert.ok(blank.includes('node.textContent = "\\u00a0";'), "text replaced by a blank");
 
 // Restoring keeps the live day header and meal blocks, and the scroll.
-const keepLive = card()._shapeKeepLive();
-for (const sel of [".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header"]) assert.ok(keepLive.includes(sel), sel);
+assert.deepStrictEqual(card()._shapeKeepLive(), [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header", ".mc-meal-pill"], "live parts, meals in every view");
 const settle = methodBody("_settleShapes");
-assert.ok(settle.includes("slot.replaceWith(live[i])"), "live parts put back");
-assert.ok(settle.includes("n.scrollTop = top"), "scroll carried over");
-assert.ok(settle.includes("if (!firstOpen && unit.querySelector(this._shapeEventLike())) return;"), "after a view switch, days with real events keep them");
+assert.ok(settle.includes("slot.replaceWith(live[i][j])"), "live parts put back, per kind");
+assert.ok(settle.includes("n.scrollTop = scrolls[i]"), "timeline scroll carried over");
+assert.ok(settle.includes("if (!firstOpen && range && date >= range[0] && date < range[1]) return;"), "after a view switch, days the fetched events cover stay as rendered");
+assert.ok(src.includes("this._eventsRange = [this._dateKey(start), this._dateKey(end)];"), "fetch records its date range");
 
 // Recording: only after a successful fetch, never while privacy mode is on
 // or a filter hides some events; bounded storage.
 const record = methodBody("_recordSettledLayout");
 assert.ok(methodBody("_fetchEvents").includes("if (!Object.keys(newErrors).length) this._recordSettledLayout();"));
+assert.ok(record.includes("!this.isConnected || !grid.getClientRects().length"), "never saved while hidden or detached");
+assert.ok(record.includes("if (signature === this._shapeLayoutSignature) return;"), "not re-saved when the events haven't changed");
 assert.ok(record.includes("this._privacyModeEffectiveLocked()) return;"));
 assert.ok(record.includes("(this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length) return;"));
 assert.ok(record.includes("near(-45)") && record.includes("near(45)"), "±45 days");
 assert.ok(record.includes("if (size > 150000) break;"), "about 150 KB per layout");
-assert.ok(record.includes("index.slice(4).forEach((k) => localStorage.removeItem(k));"), "at most 4 layouts per copy");
+assert.ok(record.includes('const indexKey = "familyHubShapesIndexLocal";'), "one index for the whole browser");
+assert.ok(record.includes("index.slice(4).forEach((k) => localStorage.removeItem(k));"), "at most 4 layouts in this browser");
 
 // Wiring: every grid render settles shapes, then holds the size; shapes are
 // drawn once privacy mode is known; every view's day unit is tagged.
