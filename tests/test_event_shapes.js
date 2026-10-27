@@ -7,27 +7,8 @@
 // copy Home Assistant serves. The DOM work (blanking, sizes, restoring, live
 // meals and scroll) is covered in every layout by tests/browser/test_board_open.js.
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
 
-const src = fs.readFileSync(
-  path.join(__dirname, "..", "custom_components", "family_hub", "card", "family-week-calendar-card.js"),
-  "utf8",
-);
-
-function methodBody(name, params = "") {
-  let start = src.indexOf(`\n${name}(${params}) {\n`);
-  if (start < 0) start = src.indexOf(`\nasync ${name}(${params}) {\n`);
-  assert.ok(start >= 0, `${name} not found`);
-  const open = src.indexOf("{", start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    if (src[i] === "}") depth--;
-    if (depth === 0) return src.slice(open + 1, i);
-  }
-  throw new Error(`${name} has no end`);
-}
+const { src, methodBody } = require("./lib/card_source");
 
 global.window = { innerWidth: 402 };
 const proto = {

@@ -1,0 +1,36 @@
+# House fork: run every test on each pull request (tests/run_all.sh).
+# main deploys to the house's board, so nothing merges on a red run.
+name: Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # tests/test_house_lines_clean.js compares against the reviewed
+          # upstream branch, so fetch every branch.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Playwright with Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Run every test
+        env:
+          FH_REQUIRE_UPSTREAM: "1"
+          FH_REQUIRE_PLAYWRIGHT: "1"
+        run: bash tests/run_all.sh

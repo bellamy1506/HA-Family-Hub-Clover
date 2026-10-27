@@ -8,26 +8,8 @@
 // settings button, the host attribute, the save path, and the CSS that hides
 // everything except the month/week label.
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
 
-const src = fs.readFileSync(
-  path.join(__dirname, "..", "custom_components", "family_hub", "card", "family-week-calendar-card.js"),
-  "utf8",
-);
-
-function methodBody(name) {
-  const start = src.indexOf(`\n${name}() {\n`);
-  assert.ok(start >= 0, `${name} not found`);
-  const open = src.indexOf("{", start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    if (src[i] === "}") depth--;
-    if (depth === 0) return src.slice(open + 1, i);
-  }
-  throw new Error(`${name} has no end`);
-}
+const { src, methodBody } = require("./lib/card_source");
 
 // Getter: on only when this device stored "on", and never under the shared static layout.
 const getter = new Function(methodBody("_getTopBarTitleOnly"));

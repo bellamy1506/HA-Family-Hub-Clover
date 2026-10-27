@@ -4,26 +4,8 @@
 // Checks card/family-week-calendar-card.js, the copy Home Assistant serves.
 // Runs the real method bodies against a stub `this` and a fake localStorage.
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
 
-const src = fs.readFileSync(
-  path.join(__dirname, "..", "custom_components", "family_hub", "card", "family-week-calendar-card.js"),
-  "utf8",
-);
-
-function methodBody(name, isAsync, params = "") {
-  const start = src.indexOf(`\n${isAsync ? "async " : ""}${name}(${params}) {\n`);
-  assert.ok(start >= 0, `${name} not found`);
-  const open = src.indexOf("{", start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    if (src[i] === "}") depth--;
-    if (depth === 0) return src.slice(open + 1, i);
-  }
-  throw new Error(`${name} has no end`);
-}
+const { src, methodBody } = require("./lib/card_source");
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 let store = {};
@@ -50,14 +32,14 @@ global.localStorage = {
     _getCardInstanceLabel: () => "family-hub",
     _applyPrivacyParticipatesDeviceState: () => {},
   };
-  await new AsyncFunction(methodBody("_reportDeviceSettings", true)).call(reporter);
+  await new AsyncFunction(methodBody("async _reportDeviceSettings")).call(reporter);
   assert.strictEqual(sent.length, 1);
   assert.strictEqual(sent[0].applied_seq, 2);
   assert.strictEqual(sent[0].instance_applied_seq, 5);
 
   store = {};
   sent.length = 0;
-  await new AsyncFunction(methodBody("_reportDeviceSettings", true)).call(reporter);
+  await new AsyncFunction(methodBody("async _reportDeviceSettings")).call(reporter);
   assert.strictEqual(sent[0].applied_seq, 0, "no seq stored yet reads as 0");
   assert.strictEqual(sent[0].instance_applied_seq, 0);
 
@@ -70,7 +52,7 @@ global.localStorage = {
     _fetchCountdown: () => {},
     _reportDeviceSettings: () => { reports++; },
   };
-  await new AsyncFunction(methodBody("_applyPushedDeviceSettingsLive", true)).call(applier);
+  await new AsyncFunction(methodBody("async _applyPushedDeviceSettingsLive")).call(applier);
   assert.strictEqual(reports, 1, "reports after applying a push");
 
   // First open checks for queued settings only after the report lands, so a
@@ -98,8 +80,8 @@ global.localStorage = {
     _getScopedSettingItem: () => null,
     _setScopedSettingItem: () => { throw new Error("theme is not instance-scoped"); },
   };
-  const read = new Function("key", "field", methodBody("_readDeviceSettingField", false, "key, field"));
-  const write = new Function("settings", "instanceId", methodBody("_writePushedScopeSettings", false, "settings, instanceId"));
+  const read = new Function("key", "field", methodBody("_readDeviceSettingField", "key, field"));
+  const write = new Function("settings", "instanceId", methodBody("_writePushedScopeSettings", "settings, instanceId"));
   for (const value of ["", "__default__", "liquidglassdark", "ha:Dark"]) {
     store = {};
     write.call(card, { [THEME]: value }, null);
