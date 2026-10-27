@@ -3094,6 +3094,9 @@ if (this._config.hideTopBar) this.setAttribute("hide-top-bar", "");
 else this.removeAttribute("hide-top-bar");
 this._registerFabCoordinator();
 this._events = {};
+// House fork: no events now, so none are "in" (see _shapeMode).
+this._eventsViewMode = undefined;
+this._eventsRange = undefined;
 this._fetchErrors = {};
 this._reminders = [];
 this._recipes = [];
@@ -3328,6 +3331,9 @@ const s = this._getSettings();
 // month) - which variant within that family renders is this device's
 // own choice, same as _getShowTimeline etc.
 this._viewMode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: set the title now, not when events arrive, so a Month
+// view doesn't open titled "This Week".
+this._updateNavLabel();
 }
 this._refreshAllData();
 this._startPolling();
@@ -5108,6 +5114,8 @@ if (!this._hass || !this._hass.connection) return;
 try {
 const result = await this._hass.connection.sendMessagePromise({ type: "family_hub/privacy_mode/get_state" });
 this._applyPrivacyModeState(result && result.enabled);
+// House fork: shapes wait for this, see _shapeMode.
+if (this._root && this._shapeMode() === "show") this._renderGrid();
 } catch (e) {
 // best-effort - see _reportDeviceSettings's own docstring.
 }
@@ -8036,6 +8044,32 @@ raw = localStorage.getItem("familyHubDeviceThemeOverrideLocal") || "";
 }
 return raw;
 }
+// House fork: the themes this copy uses (its own override and the
+// household's), kept from the last theme list for _resolveTheme to use
+// before the list loads.
+_rememberGlobalThemes() {
+const settings = this._getSettings();
+const override = this._getDeviceThemeOverride();
+const kept = {};
+[override && override !== "__default__" ? override : "", settings.globalThemeId || ""].forEach((id) => {
+const theme = id && this._globalThemes.find((t) => t && t.id === id);
+if (theme) kept[id] = theme;
+});
+try {
+localStorage.setItem("familyHubGlobalThemesLocal", JSON.stringify(kept));
+} catch (e) {
+}
+}
+_rememberedGlobalTheme(id) {
+if (!id) return null;
+try {
+const themes = JSON.parse(localStorage.getItem("familyHubGlobalThemesLocal") || "{}");
+const theme = themes && themes[id];
+return theme && typeof theme === "object" && theme.id === id ? theme : null;
+} catch (e) {
+return null;
+}
+}
 _resolveTheme(settings) {
 const override = this._getDeviceThemeOverride();
 const useGlobalTheme = override ? override !== "__default__" : settings.useGlobalTheme;
@@ -8043,7 +8077,10 @@ const globalThemeId = override ? (override === "__default__" ? "" : override) : 
 const local = settings.theme || this._defaultTheme();
 if (!useGlobalTheme || !globalThemeId) return local;
 const list = Array.isArray(this._globalThemes) ? this._globalThemes : [];
-const g = list.find((t) => t && t.id === globalThemeId);
+// House fork: until the theme list loads, use the theme as it was last
+// time (_rememberGlobalThemes), not the plain default look, which
+// flashed on every open (2026-10-26).
+const g = list.find((t) => t && t.id === globalThemeId) || (Array.isArray(this._globalThemes) ? null : this._rememberedGlobalTheme(globalThemeId));
 if (!g) return local;
 const defaultTheme = this._defaultTheme();
 const colors = {};
@@ -8097,6 +8134,7 @@ const result = await this._hass.connection.sendMessagePromise({ type: "theme_bui
 const custom = (result && Array.isArray(result.themes)) ? result.themes : [];
 this._globalThemes = custom.concat(this._nativeHaThemeEntries());
 this._globalThemesError = false;
+this._rememberGlobalThemes();
 } catch (e) {
 this._globalThemes = [];
 this._globalThemesError = true;
@@ -9357,6 +9395,8 @@ newErrors[person.entity] = (e && (e.message || e.body || e.error)) || String(e);
 );
 if (fetchId !== this._eventsFetchSeq) return;
 Object.assign(this._events, newEvents);
+this._eventsViewMode = this._viewMode;
+this._eventsRange = Object.keys(newErrors).length ? undefined : [this._dateKey(start), this._dateKey(end)];
 for (const entity of Object.keys(newEvents)) {
 if (newErrors[entity]) this._fetchErrors[entity] = newErrors[entity];
 else delete this._fetchErrors[entity];
@@ -9364,6 +9404,8 @@ else delete this._fetchErrors[entity];
 this._renderGrid();
 this._renderLegend();
 this._updateNavLabel();
+// House fork: remember the settled layout, see _recordSettledLayout.
+if (!Object.keys(newErrors).length) this._recordSettledLayout();
 if (this._root.querySelector(".debug-overlay.open")) this._renderDebug();
 }
 // Whether entityId's calendar integration can delete an
@@ -24343,6 +24385,211 @@ this._renderAgendaGrid();
 } else {
 this._renderWeekGrid();
 }
+this._settleShapes();
+this._holdGridSize();
+}
+// House fork: the board opens settled (owner, 2026-10-26). The grid drew
+// before any calendar events, then grew and filled in about 2 s later when
+// they arrived, in every view. Now, until this view's events arrive:
+//  - _holdGridSize holds the grid (or a month's cells) at last time's height;
+//  - _settleShapes restores each day unit's last event shapes (pills, cards,
+//    rows in their sizes, places and colors, with blank text).
+// _recordSettledLayout saves both, only after a calendar fetch that
+// succeeded (_fetchEvents) while the card is on screen, and only when the
+// board as drawn changed or its layout was dropped from storage.
+//
+// Day units are tagged data-fh-unit ("kind|date|calendar") by each renderer.
+// A unit is stored with all text blanked except a few plain labels
+// (_shapeKeepText) and with only class, style and data-date kept, so no
+// title, time or id is stored (people's names are, except in discreet mode,
+// which has its own layouts). On restore, the live parts that load before
+// the calendars (_shapeKeepLive: dates, day headers, meal blocks, and the
+// day's meal pills however many) go back in, and the timeline keeps its
+// scroll. After a view switch, days the
+// already-fetched events cover are left as rendered. One saved layout per
+// copy, view, screen width, set of calendars (the "Hide work calendars" copy
+// keeps its own) and view settings; at most 4 in this browser, ±45 days,
+// about 150 KB each. Nothing is shown before privacy mode is known to be
+// off, or at all while it's on.
+_shapeCalendars() {
+return this._getPeople().map((p) => p.entity).sort().join(",");
+}
+_shapeLayoutKey() {
+const settings = JSON.stringify(this._deviceSettingsSnapshot("instance"));
+let hash = 5381;
+for (let i = 0; i < settings.length; i++) hash = ((hash * 33) ^ settings.charCodeAt(i)) >>> 0;
+return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${this._shapeCalendars()}:${hash.toString(36)}${this._isDiscreetMode() ? ":discreet" : ""}`);
+}
+_shapeEventLike() {
+return ".event, .tl-event, .all-day-chip, .agenda-item:not(.mc-meal-pill), .mc-pill:not(.mc-meal-pill), .msd-item:not(.mc-meal-pill)";
+}
+_shapeKeepText() {
+return ".hour-label, .mc-more, .msd-empty, .agenda-empty, .planner-mobile-empty, .planner-mobile-person-name";
+}
+_shapeKeepLive() {
+return [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header"];
+}
+_shapeMode() {
+if (!this._viewMode || this._privacyModeEffectiveApplied === undefined || this._privacyModeEffectiveLocked()) return "none";
+return this._eventsViewMode === this._viewMode ? "none" : "show";
+}
+_readLayout(key) {
+const k = key || this._shapeLayoutKey();
+if (this._layoutMemo && this._layoutMemo.key === k) return this._layoutMemo.value;
+let value = {};
+try {
+const parsed = JSON.parse(localStorage.getItem(k) || "{}");
+if (parsed && typeof parsed === "object") value = parsed;
+} catch (e) {
+}
+this._layoutMemo = { key: k, value };
+return value;
+}
+_holdGridSize() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid) return;
+const gridEl = grid.querySelector(".month-cells") || grid;
+const waiting = this._viewMode && this._eventsViewMode !== this._viewMode && !this._privacyModeEffectiveLocked();
+const restoring = this._eventsViewMode === undefined || this._shapesRestored > 0;
+const held = waiting && restoring ? parseInt(this._readLayout().h, 10) || 0 : 0;
+gridEl.style.minHeight = held ? `${held}px` : "";
+}
+_blankShape(unit) {
+const keep = this._shapeKeepText();
+const eventLike = this._shapeEventLike();
+const clone = unit.cloneNode(true);
+const live = [unit, ...unit.querySelectorAll("*")];
+const copy = [clone, ...clone.querySelectorAll("*")];
+copy.forEach((el, i) => {
+const src = live[i];
+if (i > 0) {
+[...el.attributes].forEach((a) => {
+if (a.name !== "class" && a.name !== "style" && a.name !== "data-date") el.removeAttribute(a.name);
+});
+}
+const keepText = src.matches(keep);
+let blanked = false;
+el.childNodes.forEach((node) => {
+if (node.nodeType === 3 && node.textContent.trim() && !keepText) {
+node.textContent = "\u00a0";
+blanked = true;
+}
+});
+if (i > 0 && (blanked || src.matches(eventLike))) {
+const cs = window.getComputedStyle(src);
+if (cs.display !== "inline") {
+const rect = src.getBoundingClientRect();
+el.style.boxSizing = "border-box";
+el.style.height = `${rect.height}px`;
+const parentCs = src.parentElement ? window.getComputedStyle(src.parentElement) : null;
+if (cs.display.startsWith("inline-") || (parentCs && parentCs.display.includes("flex") && parentCs.flexDirection.startsWith("row"))) {
+el.style.width = `${rect.width}px`;
+}
+}
+}
+});
+return clone.innerHTML;
+}
+_settleShapes() {
+this._shapesRestored = 0;
+this._layoutMemo = null;
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid || this._shapeMode() !== "show") return;
+const stored = this._readLayout().u || {};
+const firstOpen = this._eventsViewMode === undefined;
+const range = this._eventsRange;
+const keepLive = this._shapeKeepLive();
+// Read everything first, then write, so restoring costs one layout pass.
+const plan = [];
+grid.querySelectorAll("[data-fh-unit]").forEach((unit) => {
+const key = unit.dataset.fhUnit;
+const html = stored[key];
+if (typeof html !== "string") return;
+const date = key.split("|")[1] || "";
+if (!firstOpen && range && date >= range[0] && date < range[1]) return;
+plan.push({
+unit,
+html,
+live: keepLive.map((sel) => [...unit.querySelectorAll(sel)]),
+meals: [...unit.querySelectorAll(".mc-meal-pill")].map((m) => [m, m.parentElement && m.parentElement.classList[0]]),
+scrolls: [...unit.querySelectorAll(".events")].map((n) => n.scrollTop),
+});
+});
+plan.forEach(({ unit, html, live, meals }) => {
+unit.innerHTML = html;
+keepLive.forEach((sel, i) => {
+const slots = [...unit.querySelectorAll(sel)];
+if (slots.length === live[i].length) slots.forEach((slot, j) => slot.replaceWith(live[i][j]));
+});
+// Meals: the live ones, however many there are now, at the head of
+// their list (meals render above events).
+unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());
+for (let i = meals.length - 1; i >= 0; i--) {
+const [meal, listClass] = meals[i];
+const list = !listClass ? null : unit.classList.contains(listClass) ? unit : unit.querySelector(`.${listClass}`);
+if (list) list.prepend(meal);
+}
+});
+this._shapesRestored = plan.length;
+plan.forEach(({ unit, scrolls }) => {
+const scrollers = [...unit.querySelectorAll(".events")];
+if (scrollers.length === scrolls.length) scrollers.forEach((n, i) => { if (scrolls[i]) n.scrollTop = scrolls[i]; });
+});
+}
+_recordSettledLayout() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid || !this.isConnected || !grid.getClientRects().length || !this._viewMode || this._privacyModeEffectiveLocked()) return;
+if ((this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length) return;
+const key = this._shapeLayoutKey();
+const drawn = key + (this.getAttribute("style") || "") + grid.innerHTML;
+let signature = 5381;
+for (let i = 0; i < drawn.length; i++) signature = ((signature * 33) ^ drawn.charCodeAt(i)) >>> 0;
+let index = [];
+try {
+index = JSON.parse(localStorage.getItem("familyHubShapesIndexLocal") || "[]");
+} catch (e) {
+}
+if (!Array.isArray(index)) index = [];
+if (signature === this._shapeLayoutSignature && index.includes(key)) return;
+const gridEl = grid.querySelector(".month-cells") || grid;
+const height = Math.round(gridEl.getBoundingClientRect().height);
+if (!height) return;
+this._layoutMemo = null;
+const stored = { ...(this._readLayout(key).u || {}) };
+grid.querySelectorAll("[data-fh-unit]").forEach((unit) => {
+stored[unit.dataset.fhUnit] = this._blankShape(unit);
+});
+const near = (offset) => {
+const d = new Date();
+d.setDate(d.getDate() + offset);
+return this._dateKey(d);
+};
+const today = near(0);
+const from = near(-45);
+const to = near(45);
+const distance = (k) => Math.abs(new Date(`${k.split("|")[1]}T00:00:00`) - new Date(`${today}T00:00:00`));
+const keys = Object.keys(stored)
+.filter((k) => (k.split("|")[1] || "") >= from && (k.split("|")[1] || "") <= to)
+.sort((x, y) => distance(x) - distance(y));
+// Nearest days first; drop the farthest until it fits about 150 KB.
+const kept = {};
+let size = 20;
+for (const k of keys) {
+size += JSON.stringify(k).length + JSON.stringify(stored[k]).length + 1;
+if (size > 150000) break;
+kept[k] = stored[k];
+}
+try {
+localStorage.setItem(key, JSON.stringify({ h: height, u: kept }));
+// At most 4 saved layouts in this browser, across every copy placement.
+const indexKey = "familyHubShapesIndexLocal";
+index = [key, ...index.filter((k) => k !== key)];
+index.slice(4).forEach((k) => localStorage.removeItem(k));
+localStorage.setItem(indexKey, JSON.stringify(index.slice(0, 4)));
+this._shapeLayoutSignature = signature;
+this._layoutMemo = null;
+} catch (e) {
+}
 }
 _renderMonthGrid() {
 const gridEl = this._root.querySelector(".grid");
@@ -24549,7 +24796,7 @@ matchedHolidayBg
 ? ` style="background-image: linear-gradient(rgba(0,0,0,0.32), rgba(0,0,0,0.32)), url('${matchedHolidayBg.imageUrl.replace(/'/g, "%27")}'); background-size: cover; background-position: center;"`
 : "";
 const dayColHolidayDark = matchedHolidayBg ? this._isHolidayBackgroundDark(matchedHolidayBg.imageUrl) : false;
-cellsHtml += `<div class="month-cell ${isToday ? "today" : ""} ${outside ? "outside" : ""} ${selectedDateKey && dateKey === selectedDateKey ? "selected" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-date="${dateKey}"${dayColHolidayStyle}>
+cellsHtml += `<div class="month-cell ${isToday ? "today" : ""} ${outside ? "outside" : ""} ${selectedDateKey && dateKey === selectedDateKey ? "selected" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-date="${dateKey}" data-fh-unit="cell|${dateKey}"${dayColHolidayStyle}>
 <div class="mc-date">${cellDate.getDate()}${hasBirthday ? " \u{1F382}" : ""}${badgesHtml}</div>
 <div class="mc-events">${pillsHtml}</div>
 </div>`;
@@ -24729,7 +24976,7 @@ return `<div class="msd-header">
 <div class="msd-date">${dateLabel}${isToday ? ' <span class="msd-today-tag">Today</span>' : ""}</div>
 <button type="button" class="msd-goto-week-btn" data-date="${dateKey}">Go to this week &#8594;</button>
 </div>
-<div class="msd-items">${mealsHtml}${itemsHtml}</div>`;
+<div class="msd-items" data-fh-unit="detail|${dateKey}">${mealsHtml}${itemsHtml}</div>`;
 }
 // v1.134.0+: Week and the old "Portrait" variant merged into one mode -
 // household ask, verbatim: "I think that we have built enough
@@ -25085,7 +25332,7 @@ return `<div class="event${ev.isReminder ? " reminder-event" : ""}${isPastEvent(
 // .month-cell already uses.
 const isSelected = this._weekSelectedDate === dateKey;
 return `
-<div class="day-col ${isToday ? "today" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}>
+<div class="day-col ${isToday ? "today" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-fh-unit="day|${dateKey}"${dayColHolidayStyle}>
 <div class="day-header ${isSelected ? "selected" : ""}" data-date="${dateKey}">
 <div class="name-row"><div class="name">${dayNames[dayStart.getDay()]}</div>${wxIconHtml}</div>
 <div class="num">${dayStart.getDate()}${badges
@@ -25300,7 +25547,7 @@ const timeLabel = ev.allDay ? "All day" : ev.start.toLocaleTimeString([], { hour
 return `<div class="event planner-event${ev.isReminder ? " reminder-event" : ""}" style="${ev.bg}" data-event-id="${ev.id}"><span class="time">${ev.isReminder ? "&#128276; " : ""}${timeLabel}</span><span class="summary">${ev.summary}</span></div>`;
 })
 .join("");
-rowsHtml += `<div class="planner-person-cell">${cellHtml}</div>`;
+rowsHtml += `<div class="planner-person-cell" data-fh-unit="planner|${this._dateKey(dayStart)}|${person.entity}">${cellHtml}</div>`;
 // Mobile view skips a person entirely for this day when they have
 // nothing planned - unlike the desktop grid's fixed columns (which
 // always show every person's cell, empty or not, since the grid shape
@@ -25313,7 +25560,7 @@ dayMobileSections += `<div class="planner-mobile-person"><div class="planner-mob
 }
 if (isMobile) {
 const dayBody = dayMobileSections || `<div class="planner-mobile-empty">Nothing planned</div>`;
-mobileHtml += `<div class="planner-mobile-day${isToday ? " today" : ""}"><div class="planner-mobile-day-header${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}><span class="planner-day-name">${dayNames[dayStart.getDay()]}</span><span class="planner-day-number">${dayStart.getDate()}${dayBadgesHtml}</span></div><div class="planner-mobile-persons">${dayBody}</div></div>`;
+mobileHtml += `<div class="planner-mobile-day${isToday ? " today" : ""}" data-fh-unit="planner-m|${this._dateKey(dayStart)}"><div class="planner-mobile-day-header${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}><span class="planner-day-name">${dayNames[dayStart.getDay()]}</span><span class="planner-day-number">${dayStart.getDate()}${dayBadgesHtml}</span></div><div class="planner-mobile-persons">${dayBody}</div></div>`;
 }
 }
 gridEl.innerHTML = isMobile
@@ -25522,7 +25769,7 @@ return `<div class="tl-event${ev.isReminder ? " reminder-event" : ""}${isPastEve
 .join("");
 const eventsHtml = `${allDayHtml}<div class="timeline" style="height:${((rangeEndMin - rangeStartMin) / 60) * PX_PER_HOUR}px">${hourRowsHtml}${tlEventsHtml}</div>`;
 return `
-<div class="day-col person-lane${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}>
+<div class="day-col person-lane${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-fh-unit="lane|${this._dateKey(dayStart)}|${person ? person.entity : "family"}"${dayColHolidayStyle}>
 <div class="person-lane-header">
 <div class="person-lane-avatar" style="background:${laneColor};color:${this._textColorFor(laneColor)}">${isFamily ? "&#128506;" : laneInitial}</div>
 <div class="person-lane-name">${laneName}</div>
@@ -25689,7 +25936,7 @@ return `<div class="agenda-item mc-meal-pill" style="background:${m.color || "#f
 }
 const dayName = dayStart.toLocaleDateString(undefined, { weekday: "short" });
 const dateLabel = dayStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-groupsHtml += `<div class="agenda-day-group${isToday ? " agenda-today" : ""}">
+groupsHtml += `<div class="agenda-day-group${isToday ? " agenda-today" : ""}" data-fh-unit="agenda|${this._dateKey(dayStart)}">
 <div class="agenda-day-header"><span class="agenda-day-name">${dayName}</span><span class="agenda-day-date">${dateLabel}</span></div>
 <div class="agenda-day-items">${mealsHtml}${itemsHtml}</div>
 </div>`;
