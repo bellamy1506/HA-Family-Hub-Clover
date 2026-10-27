@@ -404,6 +404,38 @@ const CHECKS = [
       return "one send";
     },
   },
+  // Debug Info closes from anywhere in it, and from outside it (owner,
+  // 2026-10-26: the close button scrolled away under Home Assistant's bar).
+  {
+    name: "Debug Info: close button stays reachable", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split"));
+      const openPanel = () => page.evaluate(() => window.__el.shadowRoot.querySelector(".settings-debug-btn").click());
+      const isOpen = () => page.evaluate(() => window.__el.shadowRoot.querySelector(".debug-overlay").classList.contains("open"));
+      await openPanel();
+      const spot = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const box = root.querySelector(".debug-box");
+        box.scrollTop = box.scrollHeight;
+        const r = root.querySelector(".debug-close").getBoundingClientRect();
+        const header = parseInt(getComputedStyle(window.__el).getPropertyValue("--fh-header-offset"), 10) || 0;
+        const x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const hit = root.elementFromPoint(x, y);
+        return { x, y, top: r.top, header, scrolled: box.scrollTop > 0, hit: !!(hit && hit.closest(".debug-close")), boxTop: box.getBoundingClientRect().top };
+      });
+      assert.ok(spot.scrolled, "the panel scrolls");
+      assert.ok(spot.header > 0 && spot.boxTop >= spot.header, `the panel starts below the top bar (${spot.boxTop} vs ${spot.header})`);
+      assert.ok(spot.hit && spot.top >= spot.header, `the close button is visible and on top after scrolling (top ${spot.top})`);
+      await page.mouse.click(spot.x, spot.y);
+      assert.ok(!(await isOpen()), "the close button closes it");
+      await openPanel();
+      await page.mouse.click(200, 400);
+      assert.ok(await isOpen(), "a tap inside the panel leaves it open");
+      await page.mouse.click(3, 400);
+      assert.ok(!(await isOpen()), "a tap outside closes it");
+      return "closes after scrolling and from outside";
+    },
+  },
 ];
 
 (async () => {

@@ -11440,6 +11440,13 @@ comes later in paint order. */
 .meal-view-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--fc-text-secondary); margin-bottom: 12px; }
 .meal-view-recipe-btn { display: block; width: 100%; box-sizing: border-box; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; background: var(--fc-accent); color: var(--fc-accent-text); cursor: pointer; box-shadow: var(--fc-shadow); }
 .debug-box { width: min(94vw, 560px); font-family: monospace; }
+/* House fork: Debug Info's close button stays reachable (owner, 2026-10-26).
+The panel starts below Home Assistant's own top bar, as the recipe viewer
+does (--fh-header-offset), and fits the space left; the close button is
+pinned to the top of the panel while it scrolls. */
+.debug-overlay { top: var(--fh-header-offset, 0px); }
+.debug-overlay .debug-box { max-height: calc(100% - 24px); box-sizing: border-box; }
+.debug-overlay .debug-close { position: sticky; top: 0; margin: -14px -12px -22px auto; z-index: 1; }
 .settings-box { width: min(94vw, 520px); }
 /* Tab bar at the top of Settings (General / Notifications) - a horizontal
    row of equal-width buttons, same idiom as .add-event-tabs/.shopping-tabs
@@ -14515,6 +14522,10 @@ addEventRolldaysField.style.display = addEventRolloverCb.checked ? "block" : "no
 this._wireRolldaysToggle(root.querySelector(".add-event-reminder-rolldays"));
 root.querySelector(".debug-close").addEventListener("click", () => {
 root.querySelector(".debug-overlay").classList.remove("open");
+});
+// House fork: a tap outside Debug Info closes it too.
+root.querySelector(".debug-overlay").addEventListener("click", (e) => {
+if (e.target === e.currentTarget) e.currentTarget.classList.remove("open");
 });
 root.querySelector(".debug-copy-btn").addEventListener("click", () => this._copyDebugInfo());
 root.querySelector(".debug-export-btn").addEventListener("click", () => this._exportDebugInfo());
