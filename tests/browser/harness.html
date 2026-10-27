@@ -8,9 +8,11 @@
      drop=1 (day +3's events deleted), cache=1 (the server has a copy of every
      calendar, its titles starting CACHED; puts recorded in window.__cachePuts),
      slow=<entity> (that calendar answers 3x later), privacydelay=<ms>,
-     cachedelay=<ms> (the copy answers that much later). -->
+     cachedelay=<ms> (the copy answers that much later), hdr=0 (no Home
+     Assistant top bar, as in a kiosk). -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
+<script>if (new URLSearchParams(location.search).get("hdr") === "0") document.getElementById("hdr").remove();</script>
 <script>
 const q = new URLSearchParams(location.search);
 localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "split");
