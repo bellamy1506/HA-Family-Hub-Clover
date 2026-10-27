@@ -63,6 +63,7 @@ function snapshot(eventLike) {
     items,
     scrolls: [...grid.querySelectorAll(".events")].map((e) => e.scrollTop),
     todayText: today ? today.textContent : "",
+    meals: [...grid.querySelectorAll(".mc-meal-pill")].map((m) => { const r = m.getBoundingClientRect(); return `${m.textContent.trim()}@${Math.round(r.x)},${Math.round(r.y)}`; }),
     fcBg: el.style.getPropertyValue("--fc-bg"),
     bgImage: el.style.getPropertyValue("--fc-bg-image").slice(0, 60),
     answered: window.__calAnswered || 0,
@@ -158,12 +159,12 @@ const CHECKS = [
     name: `${name}: meals load before calendars`, width,
     run: async (page) => {
       await settle(page, await open(page, q));
-      const calls = await open(page, q);
-      await page.waitForTimeout(CAL / 2);
-      const text = await page.evaluate(() => window.__el.shadowRoot.querySelector(".grid").textContent);
-      assert.ok(text.includes("Tacos tonight"), "today's meal shows before the calendars answer");
-      await settle(page, calls);
-      return "meal visible before calendars";
+      const { before, after } = await beforeAndAfter(page, q);
+      const meals = (x) => x.meals.join("|");
+      assert.ok(before.meals.length > 0 && before.meals.every((m) => m.includes("Tacos tonight")), `meals before the calendars answer: ${meals(before)}`);
+      assert.strictEqual(meals(before), meals(after), "every meal (cell and day panel) shows before the calendars answer");
+      assertStable(before, after);
+      return `${before.meals.length} meals visible, nothing moved`;
     },
   })),
   {

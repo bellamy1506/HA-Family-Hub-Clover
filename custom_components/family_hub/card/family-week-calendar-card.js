@@ -24526,7 +24526,7 @@ if (slots.length === live[i].length) slots.forEach((slot, j) => slot.replaceWith
 unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());
 for (let i = meals.length - 1; i >= 0; i--) {
 const [meal, listClass] = meals[i];
-const list = listClass && unit.querySelector(`.${listClass}`);
+const list = !listClass ? null : unit.classList.contains(listClass) ? unit : unit.querySelector(`.${listClass}`);
 if (list) list.prepend(meal);
 }
 });

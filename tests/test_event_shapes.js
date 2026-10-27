@@ -76,7 +76,7 @@ assert.deepStrictEqual(card()._shapeKeepLive(), [".mc-date", ".day-header", ".me
 const settle = methodBody("_settleShapes");
 assert.ok(settle.includes("slot.replaceWith(live[i][j])"), "live parts put back, per kind");
 assert.ok(settle.includes("n.scrollTop = scrolls[i]"), "timeline scroll carried over");
-assert.ok(settle.includes('unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());') && settle.includes("list.prepend(meal);"), "live meals put back whatever their count");
+assert.ok(settle.includes('unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());') && settle.includes("list.prepend(meal);") && settle.includes("unit.classList.contains(listClass) ? unit"), "live meals put back whatever their count, including when the unit is the list (split day panel)");
 assert.ok(settle.includes("this._shapesRestored = plan.length;"), "counts restored days for the size hold");
 assert.ok(settle.includes("if (!firstOpen && range && date >= range[0] && date < range[1]) return;"), "after a view switch, days the fetched events cover stay as rendered");
 assert.ok(src.includes("this._eventsRange = Object.keys(newErrors).length ? undefined : [this._dateKey(start), this._dateKey(end)];"), "fetch records its date range, only when nothing errored");
