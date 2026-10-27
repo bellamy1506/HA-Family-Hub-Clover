@@ -5123,6 +5123,7 @@ try {
 const result = await this._hass.connection.sendMessagePromise({ type: "family_hub/privacy_mode/get_state" });
 this._applyPrivacyModeState(result && result.enabled);
 // House fork: so does the server's copy, see _showCachedEvents.
+this._privacyStateKnown = true;
 if (this._cachedEventsWaiting) this._showCachedEvents(this._cachedEventsWaiting);
 // House fork: shapes wait for this, see _shapeMode.
 if (this._root && this._shapeMode() === "show") this._renderGrid();
@@ -9410,6 +9411,7 @@ this._showLiveCalendar(live, person.entity);
 );
 live.done = true;
 if (fetchId !== this._eventsFetchSeq) return;
+this._eventsShownRange = live.range.join("|");
 Object.assign(this._events, newEvents);
 this._eventsViewMode = this._viewMode;
 this._eventsRange = Object.keys(newErrors).length ? undefined : [this._dateKey(start), this._dateKey(end)];
@@ -24417,7 +24419,9 @@ this._holdGridSize();
 // live check finished; each column's live answer then replaces it.
 _askCachedEvents(fetchId, people, startIso, endIso, newEvents, newErrors, range) {
 const live = { fetchId, viewMode: this._viewMode, range, newEvents, newErrors, shown: false, done: false };
-const showing = this._eventsViewMode === this._viewMode && this._eventsRange && this._eventsRange[0] === range[0] && this._eventsRange[1] === range[1];
+// this._eventsShownRange, unlike this._eventsRange, is set even when a
+// calendar failed, so a failing one doesn't bring the copy back each poll.
+const showing = this._eventsViewMode === this._viewMode && this._eventsShownRange === range.join("|");
 const ids = people.map((p) => p.entity);
 if (showing || !ids.length || !this._hass.connection) return live;
 this._hass.connection
@@ -24433,7 +24437,7 @@ return live;
 }
 _showCachedEvents(live) {
 if (live.shown || live.done || !live.cached || live.fetchId !== this._eventsFetchSeq || live.viewMode !== this._viewMode) return;
-if (this._privacyModeEffectiveApplied === undefined) {
+if (!this._privacyStateKnown) {
 this._cachedEventsWaiting = live;
 return;
 }
@@ -24456,13 +24460,23 @@ this._events[entity] = live.newEvents[entity];
 this._renderGrid();
 }
 // What this live check found goes back to the server, so the next open
-// anywhere gets it.
+// anywhere gets it: only calendars that changed since this board last sent
+// that range, and never over about 1 MB (a websocket message over 4 MB
+// would drop the board's connection).
 _saveCalendarCopy(startIso, endIso, newEvents, newErrors) {
+const sent = (this._calendarCopySent = this._calendarCopySent || {});
 const calendars = {};
+let size = 0;
 Object.keys(newEvents).forEach((id) => {
-if (!newErrors[id]) calendars[id] = newEvents[id];
+if (newErrors[id]) return;
+const key = `${id}|${startIso}|${endIso}`;
+const json = JSON.stringify(newEvents[id]);
+if (sent[key] === json) return;
+sent[key] = json;
+calendars[id] = newEvents[id];
+size += json.length;
 });
-if (!Object.keys(calendars).length || !this._hass.connection) return;
+if (!Object.keys(calendars).length || size > 1000000 || !this._hass.connection) return;
 this._hass.connection.sendMessagePromise({ type: "family_hub/calendar_cache/put", start: startIso, end: endIso, calendars }).catch(() => {});
 }
 // House fork: how long the board takes to open (owner, 2026-10-26). Each

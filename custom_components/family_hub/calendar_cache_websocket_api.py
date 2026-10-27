@@ -26,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 REFRESH_EVERY = timedelta(hours=1)
 # The refreshed window: this month's and next month's grids, with room.
 WINDOW_BEFORE = timedelta(days=42)
-WINDOW_AFTER = timedelta(days=70)
+WINDOW_AFTER = timedelta(days=80)
 
 
 def _cache(hass: HomeAssistant) -> calendar_cache.CalendarCache:
@@ -50,7 +50,7 @@ def _range(hass: HomeAssistant, msg: dict):
 def ws_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     """The copy for each calendar that covers the range; none for the rest."""
     start, end = _range(hass, msg)
-    ids = [e for e in msg["entity_ids"] if e.startswith("calendar.")]
+    ids = [e for e in msg["entity_ids"] if e.startswith("calendar.") and hass.states.get(e)]
     found = _cache(hass).get(ids, start, end) if start and end else {}
     connection.send_result(msg["id"], {"calendars": found})
 
@@ -80,6 +80,7 @@ async def async_refresh(hass: HomeAssistant) -> None:
     component = hass.data.get("calendar")
     if component is None:
         return
+    began = dt_util.now()
     start = dt_util.start_of_local_day() - WINDOW_BEFORE
     end = start + WINDOW_BEFORE + WINDOW_AFTER
     for entity_id in _cache(hass).entities():
@@ -91,7 +92,7 @@ async def async_refresh(hass: HomeAssistant) -> None:
         except Exception as err:  # noqa: BLE001 - keep the old copy on any failure
             _LOGGER.debug("Calendar copy refresh failed for %s: %s", entity_id, err)
             continue
-        _cache(hass).replace(entity_id, start, end, [calendar_cache.api_event(e, dt_util.as_local) for e in events])
+        _cache(hass).replace(entity_id, start, end, [calendar_cache.api_event(e, dt_util.as_local) for e in events], began)
 
 
 def async_register_all(hass: HomeAssistant) -> None:

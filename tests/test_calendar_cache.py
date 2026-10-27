@@ -126,6 +126,14 @@ class Cache(unittest.TestCase):
         self.cache.put("calendar.will", *far, [], far[0])
         self.assertEqual(self.cache.get(["calendar.will"], at(25), at(28)), {})
 
+    def test_a_board_check_during_the_hourly_refresh_stays(self):
+        began = NOW[0]
+        self.cache.put("calendar.will", at(20), at(31), [timed(27, 9, "moved")], began + dtm.timedelta(seconds=2))
+        self.cache.replace("calendar.will", at(1), at(31), [timed(27, 8, "before the move")], began)
+        self.assertEqual(names(self.cache.get(["calendar.will"], at(20), at(31))["calendar.will"]), ["moved"])
+        self.cache.replace("calendar.will", at(1), at(31), [timed(27, 8, "next hour")], began + dtm.timedelta(hours=1))
+        self.assertEqual(names(self.cache.get(["calendar.will"], at(1), at(31))["calendar.will"]), ["next hour"])
+
     def test_bounded(self):
         self.cache.put("calendar.will", at(1), at(8), [timed(2, 9, "x")] * (cc.MAX_EVENTS + 1), NOW[0])
         self.assertEqual(self.cache.get(["calendar.will"], at(1), at(8)), {})

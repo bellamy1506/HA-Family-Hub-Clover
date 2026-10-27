@@ -358,10 +358,12 @@ const CHECKS = [
   {
     name: "Server copy: waits until privacy mode is known", width: 402,
     run: async (page) => {
-      await open(page, "view=month&month=split&cache=1&privacydelay=500");
-      await page.waitForTimeout(200);
+      // The copy answers after the device report (which sets the privacy
+      // overlay) but before privacy mode itself is known.
+      await open(page, "view=month&month=split&cache=1&privacydelay=500&cachedelay=150");
+      await page.waitForTimeout(300);
       assert.ok(!(await page.evaluate(gridText)).includes("CACHED"), "not before privacy mode is known");
-      await page.waitForTimeout(700);
+      await page.waitForTimeout(600);
       assert.ok((await page.evaluate(gridText)).includes("CACHED dentist"), "then the copy");
       return "held until privacy known";
     },
@@ -376,6 +378,30 @@ const CHECKS = [
       const text = await page.evaluate(gridText);
       assert.ok(text.includes("SECRET dentist") && !text.includes("CACHED"), "live events stay");
       return "live events stay";
+    },
+  },
+  {
+    name: "Server copy: a failing calendar doesn't bring it back each poll", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&cache=1&fail=1"));
+      await page.evaluate(() => { window.__el._fetchEvents(); });
+      await page.waitForTimeout(CAL / 2);
+      assert.ok(!(await page.evaluate(gridText)).includes("CACHED"), "the copy stays away");
+      await page.waitForTimeout(CAL);
+      const puts = await page.evaluate(() => window.__cachePuts || []);
+      assert.strictEqual(puts.length, 0, "failed calendars aren't sent back");
+      return "no copy on the poll";
+    },
+  },
+  {
+    name: "Server copy: sent back only when a calendar changed", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&cache=1"));
+      await page.evaluate(() => window.__el._fetchEvents());
+      await page.waitForTimeout(300);
+      const puts = await page.evaluate(() => window.__cachePuts || []);
+      assert.strictEqual(puts.length, 1, `one send for two unchanged checks (${puts.length})`);
+      return "one send";
     },
   },
 ];

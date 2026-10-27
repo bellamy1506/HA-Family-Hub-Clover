@@ -71,6 +71,7 @@ class CalendarCache:
         self._tz = local_tz
         self._entries: dict[str, dict] = {}
         self._known: set[str] = set()
+        self._put_at: dict[str, datetime] = {}
 
     def entities(self) -> list[str]:
         """Every calendar a board has asked about, for the hourly refresh."""
@@ -96,8 +97,11 @@ class CalendarCache:
                 found[entity_id] = [ev for ev in entry["events"] if self._overlaps(ev, start, end)]
         return found
 
-    def replace(self, entity_id: str, start: datetime, end: datetime, events: list) -> None:
-        """The hourly refresh: the whole window, fresh."""
+    def replace(self, entity_id: str, start: datetime, end: datetime, events: list, began: Optional[datetime] = None) -> None:
+        """The hourly refresh: the whole window, fresh. A board's check that
+        landed after the refresh began is newer, so it stays."""
+        if began is not None and entity_id in self._put_at and self._put_at[entity_id] >= began:
+            return
         if len(events) > MAX_EVENTS or end <= start:
             self._entries.pop(entity_id, None)
             return
@@ -110,6 +114,7 @@ class CalendarCache:
         self._known.add(entity_id)
         if end <= start:
             return
+        self._put_at[entity_id] = now
         entry = self._entries.get(entity_id)
         if entry and start <= entry["end"] and end >= entry["start"]:
             new_start, new_end = min(start, entry["start"]), max(end, entry["end"])

@@ -7,7 +7,8 @@
      meals=all (meals in Month and Agenda too), nomeal=1 (no meals planned),
      drop=1 (day +3's events deleted), cache=1 (the server has a copy of every
      calendar, its titles starting CACHED; puts recorded in window.__cachePuts),
-     slow=<entity> (that calendar answers 3x later), privacydelay=<ms>. -->
+     slow=<entity> (that calendar answers 3x later), privacydelay=<ms>,
+     cachedelay=<ms> (the copy answers that much later). -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
 <script>
@@ -56,6 +57,7 @@ const hass = {
       if (msg.type === "family_hub/privacy_mode/get_state") { await sleep(+(q.get("privacydelay") || 0)); return { enabled: q.get("privacy") === "on" }; }
       if (msg.type === "family_hub/calendar_cache/get") {
         if (!q.get("cache")) return { calendars: {} };
+        await sleep(+(q.get("cachedelay") || 0));
         const copy = {};
         msg.entity_ids.forEach((id) => (copy[id] = (events[id] || []).map((e) => ({ ...e, summary: e.summary.replace("SECRET", "CACHED") }))));
         return { calendars: copy };
@@ -66,6 +68,9 @@ const hass = {
         return { response: { [msg.target.entity_id]: { items } } };
       }
       if (msg.type === "family_hub/device_settings/get_pending") return { seq: 0, settings: null, instance: null };
+      // As Home Assistant answers: this sets the card's privacy overlay state
+      // before privacy mode itself is known.
+      if (msg.type === "family_hub/device_settings/report") return { privacy_participates: true };
       return {};
     },
     subscribeMessage: async () => () => {}, subscribeEvents: async () => () => {},
