@@ -76,13 +76,14 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
   - `_holdGridSize`: holds last height (reads only).
   - `_settleShapes`, plus `_shapeMode`, `_shapeEventLike`, `_shapeKeepText`, `_shapeKeepLive`, `_readLayout`:
     - restore each day unit's blanked event shapes;
-    - put back the live parts that load before the calendars (dates, day headers, meal blocks and meal pills, per kind);
+    - put back the live parts that load before the calendars (dates, day headers, meal blocks), and the day's live meal pills however many there are now;
     - carry over the timeline's `.events` scroll;
     - after a view switch, skip days inside `this._eventsRange` (already fetched).
 
     It reads everything first and then writes, so there's one layout pass.
-  - `_recordSettledLayout`, plus `_blankShape`, `_shapeLayoutKey`, `_shapeCalendars`: save the shapes and the height together. It runs only from `_fetchEvents` when no calendar errored, only while the card is on screen (`getClientRects().length`), and only when the events or reminders changed (`this._shapeLayoutSignature`).
-  - Text kept in stored shapes is matched on the element's own class (`matches`, not `closest`), so names, badges and birthday marks are always blanked.
+  - `_recordSettledLayout`, plus `_blankShape`, `_shapeLayoutKey`, `_shapeCalendars`: save the shapes and the height together. It runs only from `_fetchEvents` when no calendar errored, only while the card is on screen (`getClientRects().length`), and only when the board as drawn changed or its layout was dropped from storage (`this._shapeLayoutSignature`, a hash).
+  - Text kept in stored shapes is matched on the element's own class (`matches`, not `closest`), so badges and birthday marks are always blanked. People's names in Planner's phone layout are kept; discreet mode has its own layouts.
+  - `_holdGridSize` holds only on a first open or when `_settleShapes` restored a day (`this._shapesRestored`).
   - `this._eventsViewMode`, set in `_fetchEvents`, means "events are in for this view."
   - Shapes wait until privacy mode is known (`this._privacyModeEffectiveApplied !== undefined`).
 
@@ -107,7 +108,7 @@ Instance-scoped keys end in `__inst_<id>`. The id comes from `_getCardInstanceId
 | `familyHubDeviceSettingsAppliedSeqLocal` (+ `__inst_`) | last applied push seq |
 | `familyHubThemeVarsCache::<key>` | cached theme CSS vars |
 | `familyHubGlobalThemesLocal` | `{ id: theme }` for the themes in use (own override, household), from the last theme list |
-| `familyHubShapesLocal:<view>:<width>:<calendars>:<view-settings hash>__inst_` | `{ h: settled height, u: { "unit key": blanked inner HTML } }`, ±45 days, about 150 KB max |
+| `familyHubShapesLocal:<view>:<width>:<calendars>:<view-settings hash>[:discreet]__inst_` | `{ h: settled height, u: { "unit key": blanked inner HTML } }`, ±45 days, about 150 KB max |
 | `familyHubShapesIndexLocal` | the 4 most recent layout keys in this browser; older ones are removed |
 
 ## Testing

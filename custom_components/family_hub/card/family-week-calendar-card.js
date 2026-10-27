@@ -3094,6 +3094,9 @@ if (this._config.hideTopBar) this.setAttribute("hide-top-bar", "");
 else this.removeAttribute("hide-top-bar");
 this._registerFabCoordinator();
 this._events = {};
+// House fork: no events now, so none are "in" (see _shapeMode).
+this._eventsViewMode = undefined;
+this._eventsRange = undefined;
 this._fetchErrors = {};
 this._reminders = [];
 this._recipes = [];
@@ -9393,7 +9396,7 @@ newErrors[person.entity] = (e && (e.message || e.body || e.error)) || String(e);
 if (fetchId !== this._eventsFetchSeq) return;
 Object.assign(this._events, newEvents);
 this._eventsViewMode = this._viewMode;
-this._eventsRange = [this._dateKey(start), this._dateKey(end)];
+this._eventsRange = Object.keys(newErrors).length ? undefined : [this._dateKey(start), this._dateKey(end)];
 for (const entity of Object.keys(newEvents)) {
 if (newErrors[entity]) this._fetchErrors[entity] = newErrors[entity];
 else delete this._fetchErrors[entity];
@@ -24393,14 +24396,16 @@ this._holdGridSize();
 //    rows in their sizes, places and colors, with blank text).
 // _recordSettledLayout saves both, only after a calendar fetch that
 // succeeded (_fetchEvents) while the card is on screen, and only when the
-// events changed.
+// board as drawn changed or its layout was dropped from storage.
 //
 // Day units are tagged data-fh-unit ("kind|date|calendar") by each renderer.
 // A unit is stored with all text blanked except a few plain labels
 // (_shapeKeepText) and with only class, style and data-date kept, so no
-// title, time, name or id is stored. On restore, the live parts that load
-// before the calendars (_shapeKeepLive: day headers, dates, meals) go back
-// in, and the timeline keeps its scroll. After a view switch, days the
+// title, time or id is stored (people's names are, except in discreet mode,
+// which has its own layouts). On restore, the live parts that load before
+// the calendars (_shapeKeepLive: dates, day headers, meal blocks, and the
+// day's meal pills however many) go back in, and the timeline keeps its
+// scroll. After a view switch, days the
 // already-fetched events cover are left as rendered. One saved layout per
 // copy, view, screen width, set of calendars (the "Hide work calendars" copy
 // keeps its own) and view settings; at most 4 in this browser, ±45 days,
@@ -24413,35 +24418,40 @@ _shapeLayoutKey() {
 const settings = JSON.stringify(this._deviceSettingsSnapshot("instance"));
 let hash = 5381;
 for (let i = 0; i < settings.length; i++) hash = ((hash * 33) ^ settings.charCodeAt(i)) >>> 0;
-return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${this._shapeCalendars()}:${hash.toString(36)}`);
+return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${this._shapeCalendars()}:${hash.toString(36)}${this._isDiscreetMode() ? ":discreet" : ""}`);
 }
 _shapeEventLike() {
 return ".event, .tl-event, .all-day-chip, .agenda-item:not(.mc-meal-pill), .mc-pill:not(.mc-meal-pill), .msd-item:not(.mc-meal-pill)";
 }
 _shapeKeepText() {
-return ".hour-label, .mc-more, .msd-empty, .agenda-empty, .planner-mobile-empty";
+return ".hour-label, .mc-more, .msd-empty, .agenda-empty, .planner-mobile-empty, .planner-mobile-person-name";
 }
 _shapeKeepLive() {
-return [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header", ".mc-meal-pill"];
+return [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header"];
 }
 _shapeMode() {
 if (!this._viewMode || this._privacyModeEffectiveApplied === undefined || this._privacyModeEffectiveLocked()) return "none";
 return this._eventsViewMode === this._viewMode ? "none" : "show";
 }
 _readLayout(key) {
+const k = key || this._shapeLayoutKey();
+if (this._layoutMemo && this._layoutMemo.key === k) return this._layoutMemo.value;
+let value = {};
 try {
-const parsed = JSON.parse(localStorage.getItem(key || this._shapeLayoutKey()) || "{}");
-return parsed && typeof parsed === "object" ? parsed : {};
+const parsed = JSON.parse(localStorage.getItem(k) || "{}");
+if (parsed && typeof parsed === "object") value = parsed;
 } catch (e) {
-return {};
 }
+this._layoutMemo = { key: k, value };
+return value;
 }
 _holdGridSize() {
 const grid = this._root && this._root.querySelector(".grid");
 if (!grid) return;
 const gridEl = grid.querySelector(".month-cells") || grid;
 const waiting = this._viewMode && this._eventsViewMode !== this._viewMode && !this._privacyModeEffectiveLocked();
-const held = waiting ? parseInt(this._readLayout().h, 10) || 0 : 0;
+const restoring = this._eventsViewMode === undefined || this._shapesRestored > 0;
+const held = waiting && restoring ? parseInt(this._readLayout().h, 10) || 0 : 0;
 gridEl.style.minHeight = held ? `${held}px` : "";
 }
 _blankShape(unit) {
@@ -24481,6 +24491,8 @@ el.style.width = `${rect.width}px`;
 return clone.innerHTML;
 }
 _settleShapes() {
+this._shapesRestored = 0;
+this._layoutMemo = null;
 const grid = this._root && this._root.querySelector(".grid");
 if (!grid || this._shapeMode() !== "show") return;
 const stored = this._readLayout().u || {};
@@ -24499,16 +24511,26 @@ plan.push({
 unit,
 html,
 live: keepLive.map((sel) => [...unit.querySelectorAll(sel)]),
+meals: [...unit.querySelectorAll(".mc-meal-pill")].map((m) => [m, m.parentElement && m.parentElement.classList[0]]),
 scrolls: [...unit.querySelectorAll(".events")].map((n) => n.scrollTop),
 });
 });
-plan.forEach(({ unit, html, live }) => {
+plan.forEach(({ unit, html, live, meals }) => {
 unit.innerHTML = html;
 keepLive.forEach((sel, i) => {
 const slots = [...unit.querySelectorAll(sel)];
 if (slots.length === live[i].length) slots.forEach((slot, j) => slot.replaceWith(live[i][j]));
 });
+// Meals: the live ones, however many there are now, at the head of
+// their list (meals render above events).
+unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());
+for (let i = meals.length - 1; i >= 0; i--) {
+const [meal, listClass] = meals[i];
+const list = listClass && unit.querySelector(`.${listClass}`);
+if (list) list.prepend(meal);
+}
 });
+this._shapesRestored = plan.length;
 plan.forEach(({ unit, scrolls }) => {
 const scrollers = [...unit.querySelectorAll(".events")];
 if (scrollers.length === scrolls.length) scrollers.forEach((n, i) => { if (scrolls[i]) n.scrollTop = scrolls[i]; });
@@ -24519,12 +24541,21 @@ const grid = this._root && this._root.querySelector(".grid");
 if (!grid || !this.isConnected || !grid.getClientRects().length || !this._viewMode || this._privacyModeEffectiveLocked()) return;
 if ((this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length) return;
 const key = this._shapeLayoutKey();
-const signature = key + JSON.stringify([this._events, this._reminders || null]);
-if (signature === this._shapeLayoutSignature) return;
+const drawn = key + (this.getAttribute("style") || "") + grid.innerHTML;
+let signature = 5381;
+for (let i = 0; i < drawn.length; i++) signature = ((signature * 33) ^ drawn.charCodeAt(i)) >>> 0;
+let index = [];
+try {
+index = JSON.parse(localStorage.getItem("familyHubShapesIndexLocal") || "[]");
+} catch (e) {
+}
+if (!Array.isArray(index)) index = [];
+if (signature === this._shapeLayoutSignature && index.includes(key)) return;
 const gridEl = grid.querySelector(".month-cells") || grid;
 const height = Math.round(gridEl.getBoundingClientRect().height);
 if (!height) return;
-const stored = this._readLayout(key).u || {};
+this._layoutMemo = null;
+const stored = { ...(this._readLayout(key).u || {}) };
 grid.querySelectorAll("[data-fh-unit]").forEach((unit) => {
 stored[unit.dataset.fhUnit] = this._blankShape(unit);
 });
@@ -24544,7 +24575,7 @@ const keys = Object.keys(stored)
 const kept = {};
 let size = 20;
 for (const k of keys) {
-size += k.length + stored[k].length + 6;
+size += JSON.stringify(k).length + JSON.stringify(stored[k]).length + 1;
 if (size > 150000) break;
 kept[k] = stored[k];
 }
@@ -24552,15 +24583,11 @@ try {
 localStorage.setItem(key, JSON.stringify({ h: height, u: kept }));
 // At most 4 saved layouts in this browser, across every copy placement.
 const indexKey = "familyHubShapesIndexLocal";
-let index = [];
-try {
-index = JSON.parse(localStorage.getItem(indexKey) || "[]");
-} catch (e) {
-}
-index = [key, ...(Array.isArray(index) ? index : []).filter((k) => k !== key)];
+index = [key, ...index.filter((k) => k !== key)];
 index.slice(4).forEach((k) => localStorage.removeItem(k));
 localStorage.setItem(indexKey, JSON.stringify(index.slice(0, 4)));
 this._shapeLayoutSignature = signature;
+this._layoutMemo = null;
 } catch (e) {
 }
 }

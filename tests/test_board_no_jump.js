@@ -40,6 +40,7 @@ const proto = {
   _instanceScopedStorageKey: (k) => `${k}__inst_i1`,
   _privacyModeEffectiveLocked: () => false,
   _deviceSettingsSnapshot: () => ({ familyCalendarShowTimelineLocal: "off" }),
+  _isDiscreetMode: () => false,
 };
 for (const name of ["_shapeCalendars", "_shapeLayoutKey", "_holdGridSize"]) proto[name] = new Function(methodBody(name));
 proto._readLayout = new Function("key", methodBody("_readLayout", "key"));
@@ -57,6 +58,7 @@ assert.ok(KEY.startsWith("familyHubShapesLocal:split:402:calendar.home,calendar.
 assert.ok(KEY.endsWith("__inst_i1"));
 assert.notStrictEqual(card(el(), "split", undefined, { _getPeople: () => [{ entity: "calendar.home" }] })._shapeLayoutKey(), KEY, "calendar set");
 assert.notStrictEqual(card(el(), "split", undefined, { _deviceSettingsSnapshot: () => ({ familyCalendarShowTimelineLocal: "on" }) })._shapeLayoutKey(), KEY, "view settings");
+assert.notStrictEqual(card(el(), "split", undefined, { _isDiscreetMode: () => true })._shapeLayoutKey(), KEY, "discreet mode");
 global.window.innerWidth = 874;
 assert.notStrictEqual(card(el(), "split")._shapeLayoutKey(), KEY, "screen width");
 global.window.innerWidth = 402;
@@ -81,6 +83,12 @@ g = el(); g.style.minHeight = "568px"; card(g, "split", "split")._holdGridSize()
 assert.strictEqual(g.style.minHeight, "", "released once events are in");
 g = el(); card(g, "split", undefined, { _privacyModeEffectiveLocked: () => true })._holdGridSize();
 assert.strictEqual(g.style.minHeight, "", "no hold while privacy mode is on");
+// After a view switch, hold only if some day was restored from memory.
+store = { [card(el(), "week")._shapeLayoutKey()]: JSON.stringify({ h: 568, u: {} }) };
+g = el(); card(g, "week", "month", { _shapesRestored: 0 })._holdGridSize();
+assert.strictEqual(g.style.minHeight, "", "nothing restored after a switch: no hold");
+g = el(); card(g, "week", "month", { _shapesRestored: 2 })._holdGridSize();
+assert.strictEqual(g.style.minHeight, "568px", "days restored after a switch: held");
 // Holding never writes.
 const snapshot = JSON.stringify(store);
 card(el(), "split", undefined)._holdGridSize();

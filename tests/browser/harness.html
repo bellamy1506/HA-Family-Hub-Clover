@@ -4,7 +4,8 @@
      month=month|split, timeline=on|off, cal=<calendar answer delay ms>,
      fail=1 (calendars error), privacy=on (household privacy mode),
      theme=<theme id> (this copy's theme; theme_builder/list answers after 300 ms),
-     meals=all (meals in Month and Agenda too), drop=1 (day +3's events deleted). -->
+     meals=all (meals in Month and Agenda too), nomeal=1 (no meals planned),
+     drop=1 (day +3's events deleted). -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
 <script>
@@ -52,7 +53,7 @@ const hass = {
       if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME] }; }
       if (msg.type === "family_hub/privacy_mode/get_state") return { enabled: q.get("privacy") === "on" };
       if (msg.type === "call_service" && msg.service === "get_items") {
-        const items = msg.target.entity_id === "todo.meal_plan" ? [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }] : [];
+        const items = msg.target.entity_id === "todo.meal_plan" && !q.get("nomeal") ? [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }] : [];
         return { response: { [msg.target.entity_id]: { items } } };
       }
       if (msg.type === "family_hub/device_settings/get_pending") return { seq: 0, settings: null, instance: null };

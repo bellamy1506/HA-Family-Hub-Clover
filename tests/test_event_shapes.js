@@ -38,6 +38,7 @@ const proto = {
   _viewMode: "split",
   _eventsViewMode: undefined,
   _deviceSettingsSnapshot: () => ({}),
+  _isDiscreetMode: () => false,
 };
 for (const name of ["_shapeMode", "_shapeLayoutKey", "_shapeCalendars", "_shapeEventLike", "_shapeKeepText", "_shapeKeepLive"]) proto[name] = new Function(methodBody(name));
 const card = (over = {}) => Object.assign(Object.create(proto), over);
@@ -63,26 +64,32 @@ for (const sel of [".event", ".tl-event", ".all-day-chip", ".agenda-item:not(.mc
 // itself (not an ancestor), so names, badges and birthday marks are blanked
 // too; day headers and dates come back live instead.
 const keep = card()._shapeKeepText();
-assert.deepStrictEqual(keep.split(", "), [".hour-label", ".mc-more", ".msd-empty", ".agenda-empty", ".planner-mobile-empty"]);
+assert.deepStrictEqual(keep.split(", "), [".hour-label", ".mc-more", ".msd-empty", ".agenda-empty", ".planner-mobile-empty", ".planner-mobile-person-name"]);
+assert.ok(card({ _isDiscreetMode: () => true })._shapeLayoutKey().endsWith(":discreet__inst_i1"), "discreet mode has its own layouts, so names saved before it never show");
 assert.ok(methodBody("_blankShape", "unit").includes("const keepText = src.matches(keep);"), "kept only by the element's own class");
 const blank = methodBody("_blankShape", "unit");
 assert.ok(blank.includes('if (a.name !== "class" && a.name !== "style" && a.name !== "data-date") el.removeAttribute(a.name);'), "only class, style, data-date kept");
 assert.ok(blank.includes('node.textContent = "\\u00a0";'), "text replaced by a blank");
 
 // Restoring keeps the live day header and meal blocks, and the scroll.
-assert.deepStrictEqual(card()._shapeKeepLive(), [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header", ".mc-meal-pill"], "live parts, meals in every view");
+assert.deepStrictEqual(card()._shapeKeepLive(), [".mc-date", ".day-header", ".menu-blocks", ".person-lane-header", ".agenda-day-header", ".planner-mobile-day-header"], "live parts");
 const settle = methodBody("_settleShapes");
 assert.ok(settle.includes("slot.replaceWith(live[i][j])"), "live parts put back, per kind");
 assert.ok(settle.includes("n.scrollTop = scrolls[i]"), "timeline scroll carried over");
+assert.ok(settle.includes('unit.querySelectorAll(".mc-meal-pill").forEach((m) => m.remove());') && settle.includes("list.prepend(meal);"), "live meals put back whatever their count");
+assert.ok(settle.includes("this._shapesRestored = plan.length;"), "counts restored days for the size hold");
 assert.ok(settle.includes("if (!firstOpen && range && date >= range[0] && date < range[1]) return;"), "after a view switch, days the fetched events cover stay as rendered");
-assert.ok(src.includes("this._eventsRange = [this._dateKey(start), this._dateKey(end)];"), "fetch records its date range");
+assert.ok(src.includes("this._eventsRange = Object.keys(newErrors).length ? undefined : [this._dateKey(start), this._dateKey(end)];"), "fetch records its date range, only when nothing errored");
+assert.ok(src.includes("this._events = {};\n// House fork: no events now, so none are \"in\" (see _shapeMode).\nthis._eventsViewMode = undefined;\nthis._eventsRange = undefined;"), "a config reload clears it");
 
 // Recording: only after a successful fetch, never while privacy mode is on
 // or a filter hides some events; bounded storage.
 const record = methodBody("_recordSettledLayout");
 assert.ok(methodBody("_fetchEvents").includes("if (!Object.keys(newErrors).length) this._recordSettledLayout();"));
 assert.ok(record.includes("!this.isConnected || !grid.getClientRects().length"), "never saved while hidden or detached");
-assert.ok(record.includes("if (signature === this._shapeLayoutSignature) return;"), "not re-saved when the events haven't changed");
+assert.ok(record.includes('const drawn = key + (this.getAttribute("style") || "") + grid.innerHTML;'), "signature is the board as drawn (meals, weather, theme)");
+assert.ok(record.includes("if (signature === this._shapeLayoutSignature && index.includes(key)) return;"), "not re-saved when unchanged and still stored");
+assert.ok(record.includes("JSON.stringify(stored[k]).length"), "size measured as written");
 assert.ok(record.includes("this._privacyModeEffectiveLocked()) return;"));
 assert.ok(record.includes("(this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length) return;"));
 assert.ok(record.includes("near(-45)") && record.includes("near(45)"), "±45 days");

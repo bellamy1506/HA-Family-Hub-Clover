@@ -167,6 +167,30 @@ const CHECKS = [
     },
   })),
   {
+    name: "Month (split), a meal added since the last open shows before calendars", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&meals=all&nomeal=1"));
+      const calls = await open(page, "view=month&month=split&meals=all");
+      await page.waitForTimeout(CAL / 2);
+      const text = await page.evaluate(() => window.__el.shadowRoot.querySelector(".grid").textContent);
+      assert.ok(text.includes("Tacos tonight"), "the new meal shows before the calendars answer");
+      await settle(page, calls);
+      return "new meal visible before calendars";
+    },
+  },
+  {
+    name: "Planner, phone: person names show while waiting", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=planner"));
+      const calls = await open(page, "view=week&week=planner");
+      await page.waitForTimeout(CAL / 2);
+      const names = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".planner-mobile-person-name")].map((n) => n.textContent.trim()));
+      assert.ok(names.length > 0 && names.every((n) => n.length > 0), `names before the calendars answer: ${JSON.stringify(names)}`);
+      await settle(page, calls);
+      return `${names.length} names shown`;
+    },
+  },
+  {
     name: "Switching Month to Week: no ghost events on days already known empty", width: 1024,
     run: async (page) => {
       // Last time, day +3 had four events in Week; since then they were deleted.
