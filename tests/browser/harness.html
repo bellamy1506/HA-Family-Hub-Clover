@@ -5,7 +5,9 @@
      fail=1 (calendars error), privacy=on (household privacy mode),
      theme=<theme id> (this copy's theme; theme_builder/list answers after 300 ms),
      meals=all (meals in Month and Agenda too), nomeal=1 (no meals planned),
-     drop=1 (day +3's events deleted). -->
+     drop=1 (day +3's events deleted), cache=1 (the server has a copy of every
+     calendar, its titles starting CACHED; puts recorded in window.__cachePuts),
+     slow=<entity> (that calendar answers 3x later), privacydelay=<ms>. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
 <script>
@@ -40,7 +42,7 @@ people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes
 const hass = {
   user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
   callApi: async (m, path) => {
-    await sleep(CAL_DELAY);
+    await sleep(q.get("slow") && path.includes(q.get("slow")) ? CAL_DELAY * 3 : CAL_DELAY);
     setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0);
     if (q.get("fail")) throw new Error("calendar unreachable");
     return dropped(events[path.split("?")[0].replace("calendars/", "")] || []);
@@ -51,7 +53,14 @@ const hass = {
       await sleep(40);
       if (msg.type === "family_hub/get_settings") return { settings };
       if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME] }; }
-      if (msg.type === "family_hub/privacy_mode/get_state") return { enabled: q.get("privacy") === "on" };
+      if (msg.type === "family_hub/privacy_mode/get_state") { await sleep(+(q.get("privacydelay") || 0)); return { enabled: q.get("privacy") === "on" }; }
+      if (msg.type === "family_hub/calendar_cache/get") {
+        if (!q.get("cache")) return { calendars: {} };
+        const copy = {};
+        msg.entity_ids.forEach((id) => (copy[id] = (events[id] || []).map((e) => ({ ...e, summary: e.summary.replace("SECRET", "CACHED") }))));
+        return { calendars: copy };
+      }
+      if (msg.type === "family_hub/calendar_cache/put") { (window.__cachePuts = window.__cachePuts || []).push(msg); return {}; }
       if (msg.type === "call_service" && msg.service === "get_items") {
         const items = msg.target.entity_id === "todo.meal_plan" && !q.get("nomeal") ? [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }] : [];
         return { response: { [msg.target.entity_id]: { items } } };

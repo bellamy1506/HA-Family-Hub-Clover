@@ -27,11 +27,14 @@ _initFirstLoad
   _startPolling                              -> _fetchSettings + _refreshAllData every 60 s
   _reportDeviceSettings().then(_checkPendingDeviceSettings)   (house: report first, see copy sync)
   _subscribeDeviceSettingsPush, ..., _fetchPrivacyModeState  (house: once privacy is known, re-render so shapes show)
-_fetchEvents                                 -> hass.callApi GET calendars/<entity>?start&end, one per person, all at
-                                                once; each iCloud one about 0.3 s more than Local (J008, measured); sets
-                                                _eventsViewMode (house); then
+_fetchEvents                                 -> _askCachedEvents (house: the server's copy, shown at once when it covers
+                                                every column), then hass.callApi GET calendars/<entity>?start&end, one
+                                                per person, all at once; iCloud costs about 0.1 s per event, so Will's
+                                                column took about 3 s on the phone (J008); with the copy showing, each
+                                                answer replaces its column (_showLiveCalendar); sets _eventsViewMode
+                                                (house); then
                                                 _renderGrid, _renderLegend, _updateNavLabel, and with no errors
-                                                _recordSettledLayout (house)
+                                                _recordSettledLayout (house), _saveCalendarCopy (house)
 ```
 
 Anything drawn before `_fetchEvents` lands has no events. That gap caused every "jumps on open" bug fixed in PR #14. Other fetches (meals, reminders, weather, names) also call `_renderGrid` when they land, often before the calendars.
@@ -90,7 +93,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
   - Shapes wait until privacy mode is known (`this._privacyModeEffectiveApplied !== undefined`).
 
   Tests: `tests/test_theme_no_flash.js`, `tests/test_board_no_jump.js`, `tests/test_event_shapes.js`, `tests/browser/test_board_open.js`.
-- **Open timing (owner, 2026-10-26):** `_markOpen` records each step of the first open (file ran, Home Assistant connected, the three setup fetches, calendars asked, each calendar answered, text shown) in ms since the page began loading; `_openTimingLines` lists them at the top of Settings > Debug Info, with the address. Hooks: one line each in `set hass`, `_initFirstLoad`, `_fetchEvents`, `_renderDebug`. Add a mark for any new step on the open path. Test: the "Debug Info shows the open timing" check in `tests/browser/test_board_open.js`.
+- **Server's copy of the calendars (owner, 2026-10-26):** the server (`calendar_cache.py`, no Home Assistant imports; wiring and the hourly refresh in `calendar_cache_websocket_api.py`) keeps each calendar's events in memory, refreshed every hour and by every board's live check. `_askCachedEvents` asks for it beside the live check, but not when this view's range is already showing (the 60 s poll). `_showCachedEvents` shows it only when it covers every column, once privacy mode is known (`_fetchPrivacyModeState` re-calls it), and never after the live check finished; it sets `this._eventsViewMode`, so the saved shapes step aside. `_showLiveCalendar` swaps in each column's live answer; `_saveCalendarCopy` sends the live results back. With no copy (after a restart, or a range nobody has opened), the board waits for every column as before. Tests: `tests/test_calendar_cache.py`, the "Server copy" checks in `tests/browser/test_board_open.js` (harness `cache=1`, `slow=`, `privacydelay=`).
+- **Open timing (owner, 2026-10-26):** `_markOpen` records each step of the first open (file ran, Home Assistant connected, the three setup fetches, calendars asked, server copy shown, each calendar answered, all calendars live) in ms since the page began loading; `_openTimingLines` lists them at the top of Settings > Debug Info, with the address. Hooks: one line each in `set hass`, `_initFirstLoad`, `_fetchEvents`, `_renderDebug`. Add a mark for any new step on the open path. Test: the "Debug Info shows the open timing" check in `tests/browser/test_board_open.js`.
 
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;

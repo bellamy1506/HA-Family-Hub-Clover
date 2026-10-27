@@ -98,6 +98,8 @@ from . import routine_engine
 from . import store as chores_store
 from . import chores_websocket_api as chores_ws_api
 from . import device_settings_websocket_api as device_settings_ws_api
+# House fork: the board's calendar events, kept ready (calendar_cache.py).
+from . import calendar_cache_websocket_api as calendar_cache_ws_api
 
 from .const import (
     CARD_JS_URL,
@@ -12494,6 +12496,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # idiom as chores_ws_api just above, see device_settings_websocket_api.
     # py's own module docstring.
     device_settings_ws_api.async_register_all(hass)
+    # House fork: see calendar_cache.py.
+    calendar_cache_ws_api.async_register_all(hass)
 
     return True
 
