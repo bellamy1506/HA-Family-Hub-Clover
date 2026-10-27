@@ -7,12 +7,13 @@ shopt -s nullglob
 cd "$(dirname "$0")/.."
 failed=()
 skipped=()
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
 for t in tests/*.js tests/browser/test_*.js; do
-  out=$(node "$t" 2>&1)
-  status=$?
-  printf '%s\n' "$out"
-  [ $status -ne 0 ] && failed+=("$t")
-  printf '%s' "$out" | grep -q ': skipped' && skipped+=("$t")
+  # Output streams as it runs; the copy in $log is checked for a skip.
+  node "$t" 2>&1 | tee "$log"
+  [ "${PIPESTATUS[0]}" -ne 0 ] && failed+=("$t")
+  grep -q ': skipped' "$log" && skipped+=("$t")
 done
 python3 -m unittest discover -s tests || failed+=("python unittest")
 [ ${#skipped[@]} -gt 0 ] && printf 'SKIPPED: %s\n' "${skipped[@]}"
