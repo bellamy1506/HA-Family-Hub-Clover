@@ -4,6 +4,7 @@
 // waits. Meals and weather that loaded first stay; the timeline keeps its
 // scroll; nothing shows while privacy mode is on; a failed calendar fetch
 // doesn't erase the remembered layout; no event text is stored.
+// Debug Info lists how long each step of the open took.
 // (owner, 2026-10-26)
 //
 // Run: node tests/browser/test_board_open.js   (ONLY=<text> for a subset)
@@ -280,6 +281,30 @@ const CHECKS = [
       return `background ${early.fcBg}${day2.includes("10-31") ? ", Halloween image from the start" : ""}`;
     },
   })),
+  // Debug Info lists how long each step of the open took (owner, 2026-10-26).
+  {
+    name: "Debug Info shows the open timing", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split"));
+      const text = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".settings-debug-btn").click();
+        return root.querySelector(".debug-content").innerText;
+      });
+      const steps = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "Will answered", "Home answered", "Us answered", "Work answered", "Calendar text shown"];
+      const at = {};
+      for (const m of text.matchAll(/^ {2}(.+): (\d+)/gm)) at[m[1]] = Number(m[2]);
+      for (const s of steps) assert.ok(s in at, `"${s}" listed in:\n${text.slice(0, 600)}`);
+      assert.ok(text.startsWith("Open timing on fh.test"), "timing comes first, with the address");
+      // The setup steps run one after another; the calendars answer in any order.
+      const order = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "Calendar text shown"].map((s) => at[s]);
+      assert.deepStrictEqual([...order].sort((a, b) => a - b), order, `steps in order: ${order.join(", ")}`);
+      for (const s of steps.filter((x) => x.endsWith("answered"))) assert.ok(at[s] >= at["Calendars asked"] && at[s] <= at["Calendar text shown"], `${s} between asked and shown`);
+      assert.ok(at["Calendar text shown"] - at["Calendars asked"] >= CAL, "the calendar wait is counted");
+      assert.ok(!text.includes("not drawn yet"), "marked done once events drew");
+      return `${steps.length} steps, calendars ${at["Calendar text shown"] - at["Calendars asked"]} ms`;
+    },
+  },
 ];
 
 (async () => {

@@ -2984,6 +2984,10 @@ if (!window.__familyHubThemeCache) {
   })();
 }
 
+// House fork: when this file ran, the open timing's first step (see
+// _markOpen).
+const FH_CARD_FILE_RAN = Math.round(performance.now());
+
 class FamilyWeekCalendarCard extends HTMLElement {
 // No general getConfigElement/getConfigForm here on purpose - a graphical
 // editor covering the full config was tried (v33) but reverted (v34): it
@@ -3222,6 +3226,7 @@ this._hass = hass;
 this._ensureTranslationsLoaded();
 this._updateHaStartingBanner();
 if (first) {
+this._markOpen("Home Assistant connected");
 this._firstLoadPromise = this._initFirstLoad();
 // skip the _applySizeVars() call below on this very first
 // assignment - _settingsCache/_globalThemes are still their just-
@@ -3311,6 +3316,7 @@ this._refreshAllData();
 }
 async _initFirstLoad() {
 await this._fetchSettings();
+this._markOpen("Settings loaded");
 // awaited here (unlike every other _fetch* in _refreshAllData,
 // which are fire-and-forget) so the very first render already has real
 // override data to color multi-person events with, rather than briefly
@@ -3319,12 +3325,14 @@ await this._fetchSettings();
 // own render (see its own docstring), so without this the first
 // _fetchEvents()-driven render would run before this ever resolved.
 await this._fetchEventPeopleOverrides();
+this._markOpen("Event people loaded");
 // awaited before the first render so the very first meal
 // editor opened in a session already knows whether this person can edit
 // the menu - otherwise a kid would briefly see (and could tap) the real
 // Save button before the answer arrived. _hasPermission's own admin
 // short-circuit means an admin never has to wait on this at all.
 await this._fetchMyPermissions();
+this._markOpen("Permissions loaded");
 if (!this._viewMode) {
 const s = this._getSettings();
 // the shared setting only picks the family (week vs
@@ -9379,6 +9387,7 @@ const endIso = end.toISOString();
 const people = this._getPeople();
 const newEvents = {};
 const newErrors = {};
+this._markOpen("Calendars asked");
 await Promise.all(
 people.map(async (person) => {
 try {
@@ -9391,6 +9400,7 @@ newEvents[person.entity] = events || [];
 newEvents[person.entity] = [];
 newErrors[person.entity] = (e && (e.message || e.body || e.error)) || String(e);
 }
+this._markOpen(`${person.name} ${newErrors[person.entity] ? "failed" : "answered"}`);
 })
 );
 if (fetchId !== this._eventsFetchSeq) return;
@@ -9402,6 +9412,7 @@ if (newErrors[entity]) this._fetchErrors[entity] = newErrors[entity];
 else delete this._fetchErrors[entity];
 }
 this._renderGrid();
+this._markOpen("Calendar text shown", true);
 this._renderLegend();
 this._updateNavLabel();
 // House fork: remember the settled layout, see _recordSettledLayout.
@@ -18859,6 +18870,8 @@ const end = new Date(start);
 // claim 7 days even for a 14-day (or other custom count) Week view.
 end.setDate(start.getDate() + (this._viewFamily(this._viewMode) === "week" ? this._weekViewDayCount() : 7));
 const lines = [];
+// House fork: open timing first, see _markOpen.
+lines.push(...this._openTimingLines());
 lines.push(`hass connected: ${!!this._hass}`);
 lines.push(`Logged in user: ${this._hass && this._hass.user ? this._hass.user.name + (this._hass.user.is_admin ? " (admin)" : " (non-admin)") : "unknown"}`);
 lines.push(`View mode: ${this._viewMode} ${this._viewFamily(this._viewMode) === "month" ? `(month offset ${this._monthOffset || 0})` : this._viewMode === "agenda" ? `(agenda offset ${this._agendaOffset || 0})` : `(week offset ${this._weekOffset || 0})`}`);
@@ -24387,6 +24400,31 @@ this._renderWeekGrid();
 }
 this._settleShapes();
 this._holdGridSize();
+}
+// House fork: how long the board takes to open (owner, 2026-10-26). Each
+// step of this card's first open is marked once, in ms since the page began
+// loading, and listed at the top of Settings > Debug Info, so an open on a
+// phone shows where the wait goes. Marking stops once events are drawn.
+_markOpen(step, last) {
+if (this._openTimesDone) return;
+if (!this._openTimes) this._openTimes = [["Card file ran", FH_CARD_FILE_RAN]];
+this._openTimes.push([step, Math.round(performance.now())]);
+if (last) this._openTimesDone = true;
+}
+_openTimingLines() {
+const nav = performance.getEntriesByType("navigation")[0];
+const page = nav ? [["Page arrived", nav.responseEnd], ["Page ready", nav.domContentLoadedEventEnd]] : [];
+const steps = page
+.filter(([, t]) => t > 0)
+.map(([step, t]) => [step, Math.round(t)])
+.concat(this._openTimes || [])
+.sort((a, b) => a[1] - b[1]);
+const where = location.hostname.endsWith("nabu.casa") ? "Home Assistant Cloud" : location.host;
+const lines = [`Open timing on ${where}, ms since the page began loading (+ since the step before):`];
+steps.forEach(([step, t], i) => lines.push(`  ${step}: ${t}${i ? ` (+${t - steps[i - 1][1]})` : ""}`));
+if (!this._openTimesDone) lines.push("  (calendars not drawn yet)");
+lines.push("");
+return lines;
 }
 // House fork: the board opens settled (owner, 2026-10-26). The grid drew
 // before any calendar events, then grew and filled in about 2 s later when
