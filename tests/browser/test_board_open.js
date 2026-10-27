@@ -4,7 +4,9 @@
 // waits. Meals and weather that loaded first stay; the timeline keeps its
 // scroll; nothing shows while privacy mode is on; a failed calendar fetch
 // doesn't erase the remembered layout; no event text is stored.
-// Debug Info lists how long each step of the open took.
+// Debug Info lists how long each step of the open took. With the server's
+// copy of the calendars, text shows at once and each calendar's live answer
+// replaces it.
 // (owner, 2026-10-26)
 //
 // Run: node tests/browser/test_board_open.js   (ONLY=<text> for a subset)
@@ -87,6 +89,11 @@ function snapshot(eventLike) {
     bgImage: el.style.getPropertyValue("--fc-bg-image").slice(0, 60),
     answered: window.__calAnswered || 0,
   };
+}
+
+function gridText() {
+  const grid = window.__el && window.__el.shadowRoot && window.__el.shadowRoot.querySelector(".grid");
+  return grid ? grid.textContent : "";
 }
 
 async function withPage(browser, width, date, fn) {
@@ -291,18 +298,110 @@ const CHECKS = [
         root.querySelector(".settings-debug-btn").click();
         return root.querySelector(".debug-content").innerText;
       });
-      const steps = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "Will answered", "Home answered", "Us answered", "Work answered", "Calendar text shown"];
+      const steps = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "Will answered", "Home answered", "Us answered", "Work answered", "All calendars live"];
       const at = {};
       for (const m of text.matchAll(/^ {2}(.+): (\d+)/gm)) at[m[1]] = Number(m[2]);
       for (const s of steps) assert.ok(s in at, `"${s}" listed in:\n${text.slice(0, 600)}`);
       assert.ok(text.startsWith("Open timing on fh.test"), "timing comes first, with the address");
       // The setup steps run one after another; the calendars answer in any order.
-      const order = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "Calendar text shown"].map((s) => at[s]);
+      const order = ["Card file ran", "Home Assistant connected", "Settings loaded", "Event people loaded", "Permissions loaded", "Calendars asked", "All calendars live"].map((s) => at[s]);
       assert.deepStrictEqual([...order].sort((a, b) => a - b), order, `steps in order: ${order.join(", ")}`);
-      for (const s of steps.filter((x) => x.endsWith("answered"))) assert.ok(at[s] >= at["Calendars asked"] && at[s] <= at["Calendar text shown"], `${s} between asked and shown`);
-      assert.ok(at["Calendar text shown"] - at["Calendars asked"] >= CAL, "the calendar wait is counted");
+      for (const s of steps.filter((x) => x.endsWith("answered"))) assert.ok(at[s] >= at["Calendars asked"] && at[s] <= at["All calendars live"], `${s} between asked and shown`);
+      assert.ok(at["All calendars live"] - at["Calendars asked"] >= CAL, "the calendar wait is counted");
       assert.ok(!text.includes("not drawn yet"), "marked done once events drew");
-      return `${steps.length} steps, calendars ${at["Calendar text shown"] - at["Calendars asked"]} ms`;
+      return `${steps.length} steps, calendars ${at["All calendars live"] - at["Calendars asked"]} ms`;
+    },
+  },
+  // The server's copy (calendar_cache.py, owner 2026-10-26): text right
+  // away, each calendar's live answer replacing it, and back to the server.
+  {
+    name: "Server copy: text right away, then live", width: 402,
+    run: async (page) => {
+      await open(page, "view=month&month=split&cache=1");
+      await page.waitForTimeout(CAL / 2);
+      const early = await page.evaluate(gridText);
+      assert.ok(early.includes("CACHED dentist") && !early.includes("SECRET"), `the copy shows before the calendars answer: ${early.slice(0, 200)}`);
+      await settle(page, CALENDARS);
+      const late = await page.evaluate(gridText);
+      assert.ok(late.includes("SECRET dentist") && !late.includes("CACHED"), "live events replace the copy");
+      const puts = await page.evaluate(() => window.__cachePuts || []);
+      assert.strictEqual(puts.length, 1, "one copy sent back");
+      assert.deepStrictEqual(Object.keys(puts[0].calendars).sort(), ["calendar.home", "calendar.us", "calendar.wills_calendar", "calendar.work"]);
+      assert.ok(puts[0].calendars["calendar.wills_calendar"].every((e) => e.summary.startsWith("SECRET")), "the live events, not the copy");
+      return "copy first, then live, then sent back";
+    },
+  },
+  {
+    name: "Server copy: each calendar replaces it as it answers", width: 402,
+    run: async (page) => {
+      await open(page, "view=month&month=split&cache=1&slow=calendar.wills_calendar");
+      await page.waitForFunction(() => (window.__calAnswered || 0) >= 3);
+      await page.waitForTimeout(300);
+      const mid = await page.evaluate(gridText);
+      assert.ok(mid.includes("SECRET trash night"), "Home's live answer is showing");
+      assert.ok(mid.includes("CACHED dentist") && !mid.includes("SECRET dentist"), "Will still shows the copy");
+      await settle(page, CALENDARS);
+      const late = await page.evaluate(gridText);
+      assert.ok(late.includes("SECRET dentist") && !late.includes("CACHED"), "then Will's live answer");
+      return "three columns live while Will waits";
+    },
+  },
+  {
+    name: "Server copy: never while privacy mode is on", width: 402,
+    run: async (page) => {
+      await open(page, "view=month&month=split&cache=1&privacy=on");
+      await page.waitForTimeout(CAL / 2);
+      assert.ok(!(await page.evaluate(gridText)).includes("CACHED"), "nothing from the copy");
+      return "nothing shown";
+    },
+  },
+  {
+    name: "Server copy: waits until privacy mode is known", width: 402,
+    run: async (page) => {
+      // The copy answers after the device report (which sets the privacy
+      // overlay) but before privacy mode itself is known.
+      await open(page, "view=month&month=split&cache=1&privacydelay=500&cachedelay=150");
+      await page.waitForTimeout(300);
+      assert.ok(!(await page.evaluate(gridText)).includes("CACHED"), "not before privacy mode is known");
+      await page.waitForTimeout(600);
+      assert.ok((await page.evaluate(gridText)).includes("CACHED dentist"), "then the copy");
+      return "held until privacy known";
+    },
+  },
+  {
+    name: "Server copy: the 60 s poll never swaps live events for it", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&cache=1"));
+      // Started, not awaited: look while the poll's calendars are out.
+      await page.evaluate(() => { window.__el._fetchEvents(); });
+      await page.waitForTimeout(CAL / 2);
+      const text = await page.evaluate(gridText);
+      assert.ok(text.includes("SECRET dentist") && !text.includes("CACHED"), "live events stay");
+      return "live events stay";
+    },
+  },
+  {
+    name: "Server copy: a failing calendar doesn't bring it back each poll", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&cache=1&fail=1"));
+      await page.evaluate(() => { window.__el._fetchEvents(); });
+      await page.waitForTimeout(CAL / 2);
+      assert.ok(!(await page.evaluate(gridText)).includes("CACHED"), "the copy stays away");
+      await page.waitForTimeout(CAL);
+      const puts = await page.evaluate(() => window.__cachePuts || []);
+      assert.strictEqual(puts.length, 0, "failed calendars aren't sent back");
+      return "no copy on the poll";
+    },
+  },
+  {
+    name: "Server copy: sent back only when a calendar changed", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&cache=1"));
+      await page.evaluate(() => window.__el._fetchEvents());
+      await page.waitForTimeout(300);
+      const puts = await page.evaluate(() => window.__cachePuts || []);
+      assert.strictEqual(puts.length, 1, `one send for two unchanged checks (${puts.length})`);
+      return "one send";
     },
   },
 ];
