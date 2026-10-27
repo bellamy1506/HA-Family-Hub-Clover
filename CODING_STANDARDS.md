@@ -18,7 +18,7 @@ When a change saves rendered state to show on the next open (a theme, a size, ev
 
 - A behavior change gets a test that fails without it. Show it failing first.
 - Prefer a behavior check (the browser test drives the real card) over asserting on the card's source text; keep a source-text assertion for wiring the browser can't see, and expect it to need updating on a refactor.
-- Visual changes: the browser test compares every box in the grid, not only the elements the change is about.
+- A visual change gets a scenario in `tests/browser/test_board_open.js`, whose `assertStable` compares every box in the grid; a check limited to the elements the change is about misses shifts around them.
 
 ## House changes to upstream code
 

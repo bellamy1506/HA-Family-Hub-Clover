@@ -18,18 +18,21 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 
-// Playwright from the project, else where Claude Code cloud sessions keep it.
+// Playwright from the project, else where Claude Code cloud sessions keep
+// it. FH_REQUIRE_PLAYWRIGHT=1 (set in CI) fails instead of skipping.
 let chromium;
+const loadErrors = [];
 for (const where of ["playwright", "/opt/node-tools/node_modules/playwright"]) {
   try {
     ({ chromium } = require(where));
     break;
   } catch (e) {
+    loadErrors.push(`${where}: ${e.message.split("\n")[0]}`);
   }
 }
 if (!chromium) {
-  console.log("board open (browser): skipped, Playwright not installed");
-  process.exit(0);
+  console.log(`board open (browser): skipped, Playwright not installed (${loadErrors.join("; ")})`);
+  process.exit(process.env.FH_REQUIRE_PLAYWRIGHT ? 1 : 0);
 }
 
 const CAL = 1500;
@@ -149,7 +152,8 @@ function assertStable(before, after, { allowText = false } = {}) {
   assert.strictEqual(before.boxes.length, after.boxes.length, `same number of boxes in the grid (${before.boxes.length} vs ${after.boxes.length})`);
   before.boxes.forEach((b, i) => {
     const a = after.boxes[i];
-    for (const k of ["x", "y", "w", "h"]) assert.ok(Math.abs(b[k] - a[k]) <= 1, `box ${i} (.${b.k}) ${k}: ${b[k]} before, ${a[k]} after (.${a.k})`);
+    assert.strictEqual(b.k, a.k, `box ${i}: .${b.k} before, .${a.k} after`);
+    for (const k of ["x", "y", "w", "h"]) assert.ok(Math.abs(b[k] - a[k]) <= 1, `box ${i} (.${b.k}) ${k}: ${b[k]} before, ${a[k]} after`);
   });
 }
 

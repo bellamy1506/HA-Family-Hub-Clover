@@ -27,9 +27,10 @@ jobs:
           python-version: "3.12"
       - name: Install Playwright with Chromium
         run: |
-          npm install --no-save --no-package-lock playwright@1.49.1
+          npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
       - name: Run every test
         env:
           FH_REQUIRE_UPSTREAM: "1"
+          FH_REQUIRE_PLAYWRIGHT: "1"
         run: bash tests/run_all.sh
