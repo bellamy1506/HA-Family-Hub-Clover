@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- House fork test harness: the real served card with a fake Home Assistant.
+     See test_board_open.js. Query: view=week|month, week=week|planner|agenda,
+     month=month|split, timeline=on|off, cal=<calendar answer delay ms>. -->
+<style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
+<body><div id="hdr"></div><div id="stack"></div>
+<script>
+const q = new URLSearchParams(location.search);
+localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "split");
+localStorage.setItem("familyCalendarWeekViewVariantLocal", q.get("week") || "planner");
+localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "off");
+localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
+</script>
+<script src="card.js"></script>
+<script>
+(async () => {
+const CAL_DELAY = +(q.get("cal") || 1500);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const today = new Date();
+const day = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const timed = (o, s, h) => ({ summary: s, start: { dateTime: `${day(o)}T${String(h).padStart(2, "0")}:00:00` }, end: { dateTime: `${day(o)}T${String(h + 1).padStart(2, "0")}:00:00` } });
+const allDay = (o, s) => ({ summary: s, start: { date: day(o) }, end: { date: day(o + 1) } });
+const people = [["calendar.wills_calendar", "Will", "#7ec9d9"], ["calendar.home", "Home", "#9ed97e"], ["calendar.us", "Us", "#d9bf7e"], ["calendar.work", "Work", "#b07ed9"]];
+const events = {
+  "calendar.wills_calendar": [timed(0, "SECRET dentist appointment with a long title that wraps", 9), timed(1, "SECRET flight", 13), allDay(2, "SECRET trip"), timed(-3, "SECRET lunch", 12), timed(3, "SECRET call", 15), timed(3, "SECRET call two", 16), timed(3, "SECRET call three", 17), timed(3, "SECRET call four", 18)],
+  "calendar.home": [timed(0, "SECRET trash night", 19), allDay(1, "SECRET holiday")],
+  "calendar.us": [timed(2, "SECRET dinner", 18)],
+  "calendar.work": [timed(1, "SECRET meeting", 10)],
+};
+const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: [], showMealsInMonth: false, agendaDays: 7, greyOutPastEvents: true, bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
+const states = {};
+people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
+const hass = {
+  user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
+  callApi: async (m, path) => { await sleep(CAL_DELAY); setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0); return events[path.split("?")[0].replace("calendars/", "")] || []; },
+  callWS: async () => ({}), callService: async () => ({}),
+  connection: {
+    sendMessagePromise: async (msg) => {
+      await sleep(40);
+      if (msg.type === "family_hub/get_settings") return { settings };
+      if (msg.type === "theme_builder/list") return { themes: [] };
+      if (msg.type === "family_hub/device_settings/get_pending") return { seq: 0, settings: null, instance: null };
+      return {};
+    },
+    subscribeMessage: async () => () => {}, subscribeEvents: async () => () => {},
+  },
+};
+const el = document.createElement("family-week-calendar-card");
+el.setConfig({ type: "custom:family-week-calendar-card", people: people.map(([entity, name, color]) => ({ entity, name, color })) });
+document.getElementById("stack").appendChild(el);
+el.hass = hass;
+window.__el = el;
+})();
+</script></body></html>

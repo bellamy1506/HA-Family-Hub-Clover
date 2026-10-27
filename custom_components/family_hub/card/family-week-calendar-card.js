@@ -24364,6 +24364,7 @@ this._renderAgendaGrid();
 } else {
 this._renderWeekGrid();
 }
+this._settleShapes();
 this._holdGridSize();
 }
 // House fork: the grid drew before any calendar events, then grew when
@@ -24395,71 +24396,106 @@ localStorage.setItem(key, String(height));
 }
 }
 }
-// House fork: placeholder pills (owner, 2026-10-26). Until this view's
-// events arrive, month cells and the split view's day panel show last
-// time's pills in their colors and places with blank text, so only the
-// text waits. Stored per copy and per set of calendars (the "Hide work
-// calendars" copy keeps its own): each day's pill styles, shape flags and
-// "+N more" count. Never titles, times or ids. Nothing is shown or stored
-// while privacy mode is on, and nothing is stored while a filter hides some.
-_pillLayoutKey() {
+// House fork: event shapes (owner, 2026-10-26). Until this view's events
+// arrive, every view shows last time's pills, cards and rows in their
+// sizes, places and colors with blank text, so only the text waits. Each
+// day unit is tagged data-fh-unit ("kind|date|calendar") by its renderer;
+// after a render with events, each unit's inside is stored with all text
+// blanked except plain labels (_shapeKeepText), and with only class, style
+// and data-date kept, so no title, time or id is stored. Per copy, view,
+// screen width and set of calendars (the "Hide work calendars" copy keeps
+// its own). A day already showing real events (say, after switching
+// views) keeps them. Nothing is shown or stored while privacy mode is on,
+// and nothing is stored while a filter hides some events.
+_shapeEventLike() {
+return ".event, .tl-event, .all-day-chip, .agenda-item, .mc-pill, .msd-item";
+}
+_shapeKeepText() {
+return ".mc-date, .num, .name, .wx-temp, .wx-icon, .hour-label, .block-label, .planner-day-name, .planner-day-number, .planner-mobile-person-name, .person-lane-name, .agenda-day-name, .agenda-day-date, .mc-more, .msd-empty, .agenda-empty, .planner-mobile-empty";
+}
+_shapeStoreKey() {
 const entities = this._getPeople().map((p) => p.entity).sort().join(",");
-return this._instanceScopedStorageKey(`familyHubPillLayoutLocal:${entities}`);
+return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${entities}`);
 }
-_readPillLayout() {
-try {
-const parsed = JSON.parse(localStorage.getItem(this._pillLayoutKey()) || "{}");
-return parsed && typeof parsed === "object" ? parsed : {};
-} catch (e) {
-return {};
+_shapeMode() {
+if (!this._viewMode || this._privacyModeEffectiveLocked()) return "none";
+if (this._eventsViewMode !== this._viewMode) return "show";
+const filtered = (this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length;
+return filtered ? "none" : "record";
 }
-}
-_writePillLayout(cells) {
-const stored = this._readPillLayout();
-Object.keys(cells).forEach((k) => {
-stored[k] = { ...(stored[k] || {}), ...cells[k] };
+_blankShape(unit) {
+const keep = this._shapeKeepText();
+const eventLike = this._shapeEventLike();
+const clone = unit.cloneNode(true);
+const live = [unit, ...unit.querySelectorAll("*")];
+const copy = [clone, ...clone.querySelectorAll("*")];
+copy.forEach((el, i) => {
+const src = live[i];
+if (i > 0) {
+[...el.attributes].forEach((a) => {
+if (a.name !== "class" && a.name !== "style" && a.name !== "data-date") el.removeAttribute(a.name);
 });
-const keep = (offset) => {
+}
+const keepText = src.closest(keep);
+let blanked = false;
+el.childNodes.forEach((node) => {
+if (node.nodeType === 3 && node.textContent.trim() && !(keepText && unit.contains(keepText))) {
+node.textContent = "\u00a0";
+blanked = true;
+}
+});
+if (i > 0 && (blanked || src.matches(eventLike))) {
+const cs = window.getComputedStyle(src);
+if (cs.display !== "inline") {
+const rect = src.getBoundingClientRect();
+el.style.boxSizing = "border-box";
+el.style.height = `${rect.height}px`;
+const parentCs = src.parentElement ? window.getComputedStyle(src.parentElement) : null;
+if (cs.display.startsWith("inline-") || (parentCs && parentCs.display.includes("flex") && parentCs.flexDirection.startsWith("row"))) {
+el.style.width = `${rect.width}px`;
+}
+}
+}
+});
+return clone.innerHTML;
+}
+_settleShapes() {
+const grid = this._root && this._root.querySelector(".grid");
+const mode = this._shapeMode();
+if (!grid || mode === "none") return;
+const units = [...grid.querySelectorAll("[data-fh-unit]")];
+const key = this._shapeStoreKey();
+let stored = {};
+try {
+const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+if (parsed && typeof parsed === "object") stored = parsed;
+} catch (e) {
+}
+if (mode === "show") {
+units.forEach((unit) => {
+const html = stored[unit.dataset.fhUnit];
+if (typeof html === "string" && !unit.querySelector(this._shapeEventLike())) unit.innerHTML = html;
+});
+return;
+}
+units.forEach((unit) => {
+stored[unit.dataset.fhUnit] = this._blankShape(unit);
+});
+const near = (offset) => {
 const d = new Date();
 d.setDate(d.getDate() + offset);
 return this._dateKey(d);
 };
-const from = keep(-70);
-const to = keep(70);
+const from = near(-70);
+const to = near(70);
 Object.keys(stored).forEach((k) => {
-if (k < from || k > to) delete stored[k];
+const date = k.split("|")[1] || "";
+if (date < from || date > to) delete stored[k];
 });
 try {
-localStorage.setItem(this._pillLayoutKey(), JSON.stringify(stored));
+localStorage.setItem(key, JSON.stringify(stored));
 } catch (e) {
 }
-}
-_pillLayoutForRender() {
-if (this._privacyModeEffectiveLocked()) return { record: false, show: false, cells: {} };
-if (!this._viewMode) return { record: false, show: false, cells: {} };
-if (this._eventsViewMode === this._viewMode) {
-const filtered = (this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length;
-return { record: !filtered, show: false, cells: {} };
-}
-return { record: false, show: true, cells: this._readPillLayout() };
-}
-_placeholderPillsHtml(entry, allPast) {
-const safe = (style) => typeof style === "string" && !/["<>]/.test(style);
-const pills = (Array.isArray(entry && entry.p) ? entry.p : [])
-.filter((x) => Array.isArray(x) && safe(x[0]) && typeof x[1] === "string")
-.map(([style, f]) => {
-const cls = `mc-pill fh-pill-placeholder${f.includes("r") ? " mc-reminder-pill" : ""}${f.includes("<") ? " mc-continue-prev" : ""}${f.includes(">") ? " mc-continue-next" : ""}${f.includes("p") || allPast ? " past" : ""}`;
-return `<div class="${cls}" style="${style}">&nbsp;</div>`;
-})
-.join("");
-const more = Number.isInteger(entry && entry.m) && entry.m > 0 ? `<div class="mc-more">+${entry.m} more</div>` : "";
-return pills + more;
-}
-_placeholderDetailHtml(styles) {
-return (Array.isArray(styles) ? styles : [])
-.filter((style) => typeof style === "string" && !/["<>]/.test(style))
-.map((style) => `<div class="msd-item event fh-pill-placeholder" style="${style}"><span class="msd-item-time">&nbsp;</span><span class="msd-item-summary">&nbsp;</span></div>`)
-.join("");
 }
 _renderMonthGrid() {
 const gridEl = this._root.querySelector(".grid");
@@ -24489,7 +24525,6 @@ const eventPeople = filterKeys.length ? people.filter((p) => filterKeys.includes
 // should still surface when filtering to just one of its tagged people.
 const filterEntitySet = filterKeys.length ? new Set(eventPeople.map((p) => p.entity)) : null;
 let cellsHtml = "";
-const pillLayout = this._pillLayoutForRender();
 for (let i = 0; i < 42; i++) {
 const cellDate = new Date(gridStart);
 cellDate.setDate(gridStart.getDate() + i);
@@ -24619,13 +24654,6 @@ return e.isReminder ? e.start.getTime() <= nowMs : e.end.getTime() <= nowMs;
 };
 const shown = dayEvents.slice(0, 3);
 const more = dayEvents.length - shown.length;
-if (pillLayout.record) pillLayout.cells[dateKey] = {
-p: shown.map((e) => [
-e.bg || `background:${e.color}`,
-`${e.isReminder ? "r" : ""}${!e.isReminder && e.start && e.start.getTime() < dayStart.getTime() ? "<" : ""}${!e.isReminder && e.end && e.end.getTime() > dayEnd.getTime() ? ">" : ""}${isPastEvent(e) ? "p" : ""}`,
-]),
-m: more,
-};
 let pillsHtml =
 shown
 .map((e) => {
@@ -24647,7 +24675,6 @@ const suffix = continuesToNext ? " ▸" : "";
 return `<div class="mc-pill${e.isReminder ? " mc-reminder-pill" : ""}${continueClass}${isPastEvent(e) ? " past" : ""}" style="${e.bg || `background:${e.color}`}">${e.isReminder ? "&#128276; " : ""}${prefix}${e.summary}${suffix}</div>`;
 })
 .join("") + (more > 0 ? `<div class="mc-more">+${more} more</div>` : "");
-if (!dayEvents.length && pillLayout.show && pillLayout.cells[dateKey]) pillsHtml = this._placeholderPillsHtml(pillLayout.cells[dateKey], greyOutPast && isBeforeToday);
 // meals render BEFORE (above) events/reminders in each cell,
 // not after - a household glancing at Month view is usually checking
 // "what's for dinner" alongside the day's schedule, and meals used to
@@ -24675,12 +24702,11 @@ matchedHolidayBg
 ? ` style="background-image: linear-gradient(rgba(0,0,0,0.32), rgba(0,0,0,0.32)), url('${matchedHolidayBg.imageUrl.replace(/'/g, "%27")}'); background-size: cover; background-position: center;"`
 : "";
 const dayColHolidayDark = matchedHolidayBg ? this._isHolidayBackgroundDark(matchedHolidayBg.imageUrl) : false;
-cellsHtml += `<div class="month-cell ${isToday ? "today" : ""} ${outside ? "outside" : ""} ${selectedDateKey && dateKey === selectedDateKey ? "selected" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-date="${dateKey}"${dayColHolidayStyle}>
+cellsHtml += `<div class="month-cell ${isToday ? "today" : ""} ${outside ? "outside" : ""} ${selectedDateKey && dateKey === selectedDateKey ? "selected" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-date="${dateKey}" data-fh-unit="cell|${dateKey}"${dayColHolidayStyle}>
 <div class="mc-date">${cellDate.getDate()}${hasBirthday ? " \u{1F382}" : ""}${badgesHtml}</div>
 <div class="mc-events">${pillsHtml}</div>
 </div>`;
 }
-if (pillLayout.record) this._writePillLayout(pillLayout.cells);
 return { dayNames, cellsHtml };
 }
 // v145+ task: the "split" Month variant - classic month grid on one side
@@ -24838,11 +24864,6 @@ const itemsHtml = items.length
 )
 .join("")
 : `<div class="msd-empty">Nothing scheduled</div>`;
-// House fork: placeholder rows, see _pillLayoutForRender.
-const pillLayout = this._pillLayoutForRender();
-if (pillLayout.record) this._writePillLayout({ [dateKey]: { d: items.map((it) => it.bg || `background:${it.color}`) } });
-const placeholderRows = !items.length && pillLayout.show ? this._placeholderDetailHtml((pillLayout.cells[dateKey] || {}).d) : "";
-const shownItemsHtml = placeholderRows || itemsHtml;
 let mealsHtml = "";
 if (settings.showMealsInMonth) {
 const dayBlocks = this._getBlocksForDay(cellDate);
@@ -24861,7 +24882,7 @@ return `<div class="msd-header">
 <div class="msd-date">${dateLabel}${isToday ? ' <span class="msd-today-tag">Today</span>' : ""}</div>
 <button type="button" class="msd-goto-week-btn" data-date="${dateKey}">Go to this week &#8594;</button>
 </div>
-<div class="msd-items">${mealsHtml}${shownItemsHtml}</div>`;
+<div class="msd-items" data-fh-unit="detail|${dateKey}">${mealsHtml}${itemsHtml}</div>`;
 }
 // v1.134.0+: Week and the old "Portrait" variant merged into one mode -
 // household ask, verbatim: "I think that we have built enough
@@ -25217,7 +25238,7 @@ return `<div class="event${ev.isReminder ? " reminder-event" : ""}${isPastEvent(
 // .month-cell already uses.
 const isSelected = this._weekSelectedDate === dateKey;
 return `
-<div class="day-col ${isToday ? "today" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}>
+<div class="day-col ${isToday ? "today" : ""}${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-fh-unit="day|${dateKey}"${dayColHolidayStyle}>
 <div class="day-header ${isSelected ? "selected" : ""}" data-date="${dateKey}">
 <div class="name-row"><div class="name">${dayNames[dayStart.getDay()]}</div>${wxIconHtml}</div>
 <div class="num">${dayStart.getDate()}${badges
@@ -25432,7 +25453,7 @@ const timeLabel = ev.allDay ? "All day" : ev.start.toLocaleTimeString([], { hour
 return `<div class="event planner-event${ev.isReminder ? " reminder-event" : ""}" style="${ev.bg}" data-event-id="${ev.id}"><span class="time">${ev.isReminder ? "&#128276; " : ""}${timeLabel}</span><span class="summary">${ev.summary}</span></div>`;
 })
 .join("");
-rowsHtml += `<div class="planner-person-cell">${cellHtml}</div>`;
+rowsHtml += `<div class="planner-person-cell" data-fh-unit="planner|${this._dateKey(dayStart)}|${person.entity}">${cellHtml}</div>`;
 // Mobile view skips a person entirely for this day when they have
 // nothing planned - unlike the desktop grid's fixed columns (which
 // always show every person's cell, empty or not, since the grid shape
@@ -25445,7 +25466,7 @@ dayMobileSections += `<div class="planner-mobile-person"><div class="planner-mob
 }
 if (isMobile) {
 const dayBody = dayMobileSections || `<div class="planner-mobile-empty">Nothing planned</div>`;
-mobileHtml += `<div class="planner-mobile-day${isToday ? " today" : ""}"><div class="planner-mobile-day-header${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}><span class="planner-day-name">${dayNames[dayStart.getDay()]}</span><span class="planner-day-number">${dayStart.getDate()}${dayBadgesHtml}</span></div><div class="planner-mobile-persons">${dayBody}</div></div>`;
+mobileHtml += `<div class="planner-mobile-day${isToday ? " today" : ""}" data-fh-unit="planner-m|${this._dateKey(dayStart)}"><div class="planner-mobile-day-header${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}><span class="planner-day-name">${dayNames[dayStart.getDay()]}</span><span class="planner-day-number">${dayStart.getDate()}${dayBadgesHtml}</span></div><div class="planner-mobile-persons">${dayBody}</div></div>`;
 }
 }
 gridEl.innerHTML = isMobile
@@ -25654,7 +25675,7 @@ return `<div class="tl-event${ev.isReminder ? " reminder-event" : ""}${isPastEve
 .join("");
 const eventsHtml = `${allDayHtml}<div class="timeline" style="height:${((rangeEndMin - rangeStartMin) / 60) * PX_PER_HOUR}px">${hourRowsHtml}${tlEventsHtml}</div>`;
 return `
-<div class="day-col person-lane${dayColHolidayDark ? " holiday-bg-dark" : ""}"${dayColHolidayStyle}>
+<div class="day-col person-lane${dayColHolidayDark ? " holiday-bg-dark" : ""}" data-fh-unit="lane|${this._dateKey(dayStart)}|${person ? person.entity : "family"}"${dayColHolidayStyle}>
 <div class="person-lane-header">
 <div class="person-lane-avatar" style="background:${laneColor};color:${this._textColorFor(laneColor)}">${isFamily ? "&#128506;" : laneInitial}</div>
 <div class="person-lane-name">${laneName}</div>
@@ -25821,7 +25842,7 @@ return `<div class="agenda-item mc-meal-pill" style="background:${m.color || "#f
 }
 const dayName = dayStart.toLocaleDateString(undefined, { weekday: "short" });
 const dateLabel = dayStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-groupsHtml += `<div class="agenda-day-group${isToday ? " agenda-today" : ""}">
+groupsHtml += `<div class="agenda-day-group${isToday ? " agenda-today" : ""}" data-fh-unit="agenda|${this._dateKey(dayStart)}">
 <div class="agenda-day-header"><span class="agenda-day-name">${dayName}</span><span class="agenda-day-date">${dateLabel}</span></div>
 <div class="agenda-day-items">${mealsHtml}${itemsHtml}</div>
 </div>`;
