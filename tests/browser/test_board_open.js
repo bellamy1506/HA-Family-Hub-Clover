@@ -7,9 +7,8 @@
 // (owner, 2026-10-26)
 //
 // Run: node tests/browser/test_board_open.js   (ONLY=<text> for a subset)
-// Needs Playwright with Chromium. Skips (exit 0) when Playwright isn't
-// installed; in a Claude Code cloud session use
-//   NODE_PATH=/opt/node-tools/node_modules node tests/browser/test_board_open.js
+// Needs Playwright with Chromium (the project's, or a Claude Code cloud
+// session's preinstalled one); skips (exit 0) without it.
 //
 // Loads the served card (card/family-week-calendar-card.js) into
 // harness.html with a fake Home Assistant whose calendars answer after
@@ -19,10 +18,16 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 
+// Playwright from the project, else where Claude Code cloud sessions keep it.
 let chromium;
-try {
-  ({ chromium } = require("playwright"));
-} catch (e) {
+for (const where of ["playwright", "/opt/node-tools/node_modules/playwright"]) {
+  try {
+    ({ chromium } = require(where));
+    break;
+  } catch (e) {
+  }
+}
+if (!chromium) {
   console.log("board open (browser): skipped, Playwright not installed");
   process.exit(0);
 }
@@ -55,12 +60,22 @@ function snapshot(eventLike) {
   if (!grid) return null;
   const items = [...grid.querySelectorAll(eventLike)].map((n) => {
     const r = n.getBoundingClientRect();
-    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), bg: getComputedStyle(n).backgroundColor, text: n.textContent.replace(/ /g, "").trim() };
+    return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), bg: getComputedStyle(n).backgroundColor, text: n.textContent.replace(/\u00a0/g, "").trim() };
   });
+  // Every box in the grid except inside event elements (whose own box is in
+  // items): headers, meals, day panels, rows. Inline text runs are skipped,
+  // since blank text is narrower than real text.
+  const boxes = [...grid.querySelectorAll("*")]
+    .filter((n) => getComputedStyle(n).display !== "inline" && !(n.parentElement && n.parentElement.closest(eventLike)))
+    .map((n) => {
+      const r = n.getBoundingClientRect();
+      return { k: (n.getAttribute("class") || n.tagName).split(" ")[0], x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+    });
   const today = grid.querySelector(".day-col.today");
   return {
     gridH: Math.round(grid.getBoundingClientRect().height),
     items,
+    boxes,
     scrolls: [...grid.querySelectorAll(".events")].map((e) => e.scrollTop),
     todayText: today ? today.textContent : "",
     meals: [...grid.querySelectorAll(".mc-meal-pill")].map((m) => { const r = m.getBoundingClientRect(); return `${m.textContent.trim()}@${Math.round(r.x)},${Math.round(r.y)}`; }),
@@ -131,6 +146,11 @@ function assertStable(before, after, { allowText = false } = {}) {
   });
   assert.ok(Math.abs(before.gridH - after.gridH) <= 1, `grid height ${before.gridH} before, ${after.gridH} after`);
   assert.deepStrictEqual(before.scrolls, after.scrolls, "timeline scroll unchanged");
+  assert.strictEqual(before.boxes.length, after.boxes.length, `same number of boxes in the grid (${before.boxes.length} vs ${after.boxes.length})`);
+  before.boxes.forEach((b, i) => {
+    const a = after.boxes[i];
+    for (const k of ["x", "y", "w", "h"]) assert.ok(Math.abs(b[k] - a[k]) <= 1, `box ${i} (.${b.k}) ${k}: ${b[k]} before, ${a[k]} after (.${a.k})`);
+  });
 }
 
 const CHECKS = [
@@ -259,11 +279,12 @@ const CHECKS = [
 ];
 
 (async () => {
-  const browser = await chromium.launch();
   let failures = 0;
   // ONLY=<text> runs just the checks whose name contains it.
   const only = process.env.ONLY;
   for (const check of CHECKS.filter((c) => !only || c.name.includes(only))) {
+    // One browser per check keeps memory flat over a full run.
+    const browser = await chromium.launch();
     try {
       let note;
       await withPage(browser, check.width, check.date, async (page) => { note = await check.run(page); });
@@ -271,9 +292,10 @@ const CHECKS = [
     } catch (e) {
       failures++;
       console.log(`  FAIL ${check.name}: ${e.message.split("\n")[0]}`);
+    } finally {
+      await browser.close();
     }
   }
-  await browser.close();
   if (failures) {
     console.log(`board open (browser): ${failures} failed`);
     process.exit(1);

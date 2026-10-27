@@ -4,26 +4,8 @@
 // Checks card/family-week-calendar-card.js, the copy Home Assistant serves.
 // Runs the real method bodies against a stub `this` and a fake localStorage.
 const assert = require("assert");
-const fs = require("fs");
-const path = require("path");
 
-const src = fs.readFileSync(
-  path.join(__dirname, "..", "custom_components", "family_hub", "card", "family-week-calendar-card.js"),
-  "utf8",
-);
-
-function methodBody(name, isAsync, params = "") {
-  const start = src.indexOf(`\n${isAsync ? "async " : ""}${name}(${params}) {\n`);
-  assert.ok(start >= 0, `${name} not found`);
-  const open = src.indexOf("{", start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === "{") depth++;
-    if (src[i] === "}") depth--;
-    if (depth === 0) return src.slice(open + 1, i);
-  }
-  throw new Error(`${name} has no end`);
-}
+const { src, methodBody } = require("./lib/card_source");
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
 let store = {};

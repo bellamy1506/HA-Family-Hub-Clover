@@ -7,6 +7,7 @@
 - **Edit the served copy only:** `card/family-week-calendar-card.js`. `__init__.py` registers it (`card_path`, in `async_setup`). The same-named file directly under `custom_components/family_hub/` is an unused, newer, 31,000-line copy. Editing it changes nothing on the board, and that mistake has happened (fork PR #2).
 - **Code style:** methods and statements start at column 0; the file isn't indented. Two classes live in it: `FamilyWeekCalendarCardEditor` near the top, then `FamilyWeekCalendarCard`. Comments are long and narrative. House changes are marked `// House fork:`, so `grep -n "House fork" <file>` lists every house change in the card.
 - **Upstream merges:** every house change is a future merge conflict (see the fork's CLAUDE.md). Prefer new house-only methods called from one line in upstream code over edits spread through it.
+- **Escapes in tool calls:** tool-call text is decoded as JSON, so a `\u00a0` escape typed into a file-writing call arrives in the file as the character itself. That's how an invisible no-break space reached the card twice on 2026-10-26. Type the backslash twice in the call, or write the line from a script. `tests/test_house_lines_clean.js` fails on any invisible character the house adds, and on any edit to the unused copies.
 - **The served card is older than upstream's top-level copy.** Read behavior from the served copy, not from upstream docs or the unused copy. For example, the served card's own registry lacks Week's `agenda` choice, which the server accepts.
 
 ## Load sequence
@@ -113,10 +114,12 @@ Instance-scoped keys end in `__inst_<id>`. The id comes from `_getCardInstanceId
 
 ## Testing
 
-- **Node checks:** `node tests/<name>.js`, no dependencies. They read the card source and run real method bodies extracted with a `methodBody(name, params)` helper, which needs the `\nname(params) {\n` shape, against a stub `this`. Copy the helper from any `tests/test_*.js`.
+- **Everything:** `bash tests/run_all.sh` (CI runs it on each PR).
+- **Node checks:** `node tests/<name>.js`, no dependencies. They read the card source and run real method bodies, extracted with `tests/lib/card_source.js` (`const { src, methodBody } = require("./lib/card_source")`), against a stub `this`.
+- **One method, from a shell:** `node tests/lib/card_source.js _settleShapes` prints it with its line number. It's cheaper than grepping the 26,000-line file.
 - **Python:** `python3 -m unittest discover -s tests`. It doesn't pick up `.js` files.
 - **Browser:**
-  - Run `node tests/browser/test_board_open.js`. It needs Playwright and skips without it; in a Claude Code cloud session prefix `NODE_PATH=/opt/node-tools/node_modules`. Don't run `playwright install`.
+  - Run `node tests/browser/test_board_open.js`, or `ONLY=<text>` for a subset. It finds Playwright itself, including a cloud session's preinstalled copy, and skips without it. Don't run `playwright install` in a cloud session. One browser per check keeps a full run within memory.
   - `tests/browser/harness.html` mounts the served card with a fake `hass`. Query parameters: `view`, `week`, `month`, `timeline`, `cal` (calendar delay in ms), `fail=1`, `privacy=on`, `theme=<id>`. It serves a meal for today and counts calendar answers in `window.__calAnswered`. The test fixes the clock (`page.clock.setFixedTime`) so timelines scroll and holidays can be tested.
   - The harness page must declare UTF-8, or the card fails to parse with "Range out of order in character class."
   - It's the quickest way to reproduce a visual bug: screenshot `window.__el`'s shadow root at timed points.
