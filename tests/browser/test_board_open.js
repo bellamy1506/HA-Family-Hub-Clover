@@ -436,6 +436,73 @@ const CHECKS = [
       return "closes after scrolling and from outside";
     },
   },
+  // Every popup, not just Debug Info: filled until it scrolls, its close
+  // button stays visible, on top, and below Home Assistant's bar.
+  {
+    name: "Every popup: close button stays reachable", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split"));
+      const results = await page.evaluate(() => {
+        const el = window.__el;
+        const root = el.shadowRoot;
+        const header = parseInt(getComputedStyle(el).getPropertyValue("--fh-header-offset"), 10) || 0;
+        const out = [];
+        root.querySelectorAll(".modal-overlay").forEach((overlay) => {
+          const box = overlay.querySelector(".modal-box");
+          const close = box && box.querySelector(":scope > .modal-close");
+          if (!close) return;
+          const name = [...overlay.classList].find((c) => c !== "modal-overlay");
+          root.querySelectorAll(".modal-overlay.open").forEach((o) => o.classList.remove("open"));
+          el._openModal(overlay);
+          const filler = document.createElement("div");
+          filler.style.height = "3000px";
+          box.appendChild(filler);
+          box.scrollTop = 0;
+          const b0 = box.getBoundingClientRect();
+          const c0 = close.getBoundingClientRect();
+          box.scrollTop = box.scrollHeight;
+          const b = box.getBoundingClientRect();
+          const c = close.getBoundingClientRect();
+          const hit = root.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2);
+          out.push({
+            name, scrolled: box.scrollTop > 0, boxTop: Math.round(b.top), closeTop: Math.round(c.top),
+            onTop: !!(hit && hit.closest(".modal-close") === close), inside: c.top >= b.top - 1 && c.bottom <= b.bottom + 1,
+            startTop: Math.round(c0.top - b0.top), startRight: Math.round(b0.right - c0.right),
+          });
+          filler.remove();
+          overlay.classList.remove("open");
+        });
+        return { header, out };
+      });
+      const { header, out } = results;
+      assert.ok(header > 0 && out.length >= 20, `${out.length} popups checked, top bar ${header}px`);
+      const bad = out.filter((r) => !(r.scrolled && r.onTop && r.inside && r.boxTop >= header && r.closeTop >= header));
+      assert.deepStrictEqual(bad, [], `every close button stays reachable after scrolling: ${JSON.stringify(bad)}`);
+      const moved = out.filter((r) => !["grocy-recipe-viewer-overlay", "fh-step-editor-overlay"].includes(r.name) && (Math.abs(r.startTop - 10) > 1 || Math.abs(r.startRight - 10) > 1));
+      assert.deepStrictEqual(moved, [], `each close button starts where it always sat, 10px in from the corner: ${JSON.stringify(moved)}`);
+      return `${out.length} popups`;
+    },
+  },
+  {
+    name: "Every popup: the + button doesn't cover it", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split"));
+      const fabShown = () => page.evaluate(() => { const f = window.__el.shadowRoot.querySelector(".add-event-fab"); return !!f && getComputedStyle(f).display !== "none" && f.getClientRects().length > 0; });
+      assert.ok(await fabShown(), "the + button shows on the board");
+      const names = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".modal-overlay")].map((o) => [...o.classList].find((c) => c !== "modal-overlay")));
+      const covered = [];
+      for (const name of names) {
+        await page.evaluate((n) => window.__el._openModal(window.__el.shadowRoot.querySelector("." + n)), name);
+        await page.waitForTimeout(50);
+        if (await fabShown()) covered.push(name);
+        await page.evaluate((n) => window.__el.shadowRoot.querySelector("." + n).classList.remove("open"), name);
+        await page.waitForTimeout(50);
+      }
+      assert.deepStrictEqual(covered, [], "hidden while each popup is open");
+      assert.ok(await fabShown(), "back once they close");
+      return `${names.length} popups`;
+    },
+  },
 ];
 
 (async () => {
