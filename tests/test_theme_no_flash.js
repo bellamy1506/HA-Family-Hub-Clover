@@ -2,10 +2,12 @@
 // the card's plain default look first (2026-10-26).
 // Run: node tests/test_theme_no_flash.js   (no dependencies)
 //
-// On open, _fetchSettings re-applied the theme before the theme list had
-// loaded, so _resolveTheme fell back to the plain cream look until
-// _fetchGlobalThemes arrived. Checks card/family-week-calendar-card.js, the
-// copy Home Assistant serves, by running the real method bodies.
+// Settings loaded before the theme list, so _resolveTheme couldn't find the
+// copy's theme and fell back to the cream default until _fetchGlobalThemes
+// arrived. Now the themes in use are remembered from the last list and used
+// until it loads, so the normal path runs (holiday backgrounds included).
+// Checks card/family-week-calendar-card.js, the copy Home Assistant serves,
+// by running the real method bodies. The browser test covers it end to end.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -16,7 +18,8 @@ const src = fs.readFileSync(
 );
 
 function methodBody(name, params = "") {
-  const start = src.indexOf(`\n${name}(${params}) {\n`);
+  let start = src.indexOf(`\n${name}(${params}) {\n`);
+  if (start < 0) start = src.indexOf(`\nasync ${name}(${params}) {\n`);
   assert.ok(start >= 0, `${name} not found`);
   const open = src.indexOf("{", start);
   let depth = 0;
@@ -28,44 +31,50 @@ function methodBody(name, params = "") {
   throw new Error(`${name} has no end`);
 }
 
-// _themeListPending: true only while a wanted global theme can't resolve yet.
-const pending = new Function("settings", methodBody("_themeListPending", "settings"));
-const card = (override, globalThemes, error) => ({
-  _getDeviceThemeOverride: () => override,
-  _globalThemes: globalThemes,
-  _globalThemesError: error,
-});
-const household = { useGlobalTheme: true, globalThemeId: "liquidglass" };
-const plain = { useGlobalTheme: false, globalThemeId: "" };
-assert.strictEqual(pending.call(card("liquidglassdark", undefined, false), plain), true, "override, list not loaded");
-assert.strictEqual(pending.call(card("", undefined, false), household), true, "household theme, list not loaded");
-assert.strictEqual(pending.call(card("liquidglassdark", [], false), plain), false, "list loaded");
-assert.strictEqual(pending.call(card("liquidglassdark", undefined, true), plain), false, "list failed: fall back as before");
-assert.strictEqual(pending.call(card("__default__", undefined, false), household), false, "own look needs no list");
-assert.strictEqual(pending.call(card("", undefined, false), plain), false, "no global theme wanted");
-
-// _applySizeVars while pending: the cached look stays, nothing resolves to
-// the default, and the cache isn't overwritten.
-const set = {};
-let cacheWrites = 0;
-let resolved = 0;
-let scrollLock = 0;
-const applying = {
-  _getSettings: () => household,
-  _sizeVars: () => ({ minHeight: "42px", padding: "6px 20px" }),
-  style: { setProperty: (k, v) => { set[k] = v; }, removeProperty: () => {} },
-  _themeListPending: () => true,
-  _applyCachedThemeVarsIfAny: () => { set["--fc-bg"] = "#0b1020"; return true; },
-  _resolveTheme: () => { resolved++; return { colors: { bg: "#fbf7e5" } }; },
-  _applyScrollLock: () => { scrollLock++; },
+let store = {};
+global.localStorage = {
+  getItem: (k) => (k in store ? store[k] : null),
+  setItem: (k, v) => { store[k] = String(v); },
 };
-const realCache = global.window;
-global.window = { __familyHubThemeCache: { set: () => { cacheWrites++; } } };
-new Function(methodBody("_applySizeVars")).call(applying);
-global.window = realCache;
-assert.strictEqual(set["--fc-bg"], "#0b1020", "cached background kept");
-assert.strictEqual(resolved, 0, "theme not resolved to the default");
-assert.strictEqual(cacheWrites, 0, "cache not overwritten");
-assert.strictEqual(scrollLock, 1, "scroll lock still applied");
+const DARK = { id: "liquidglassdark", colors: { bg: "#0b1020" }, fonts: {}, cardOpacity: 55, glassBlur: 18 };
+const LIGHT = { id: "liquidglass", colors: { bg: "#eef3f8" }, fonts: {} };
+const defaults = { colors: { bg: "#fbf7e5" }, fonts: {} };
+const proto = {
+  _defaultTheme: () => defaults,
+  _getSettings: () => ({ useGlobalTheme: true, globalThemeId: "liquidglass" }),
+};
+proto._rememberGlobalThemes = new Function(methodBody("_rememberGlobalThemes"));
+proto._rememberedGlobalTheme = new Function("id", methodBody("_rememberedGlobalTheme", "id"));
+proto._resolveTheme = new Function("settings", methodBody("_resolveTheme", "settings"));
+const card = (over) => Object.assign(Object.create(proto), over);
+const settings = { useGlobalTheme: true, globalThemeId: "liquidglass", theme: null };
+
+// Remembering: the copy's own theme and the household's, nothing else.
+store = {};
+card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: [DARK, LIGHT, { id: "other" }] })._rememberGlobalThemes();
+assert.deepStrictEqual(Object.keys(store).sort(), ["familyHubGlobalThemeLocal:liquidglass", "familyHubGlobalThemeLocal:liquidglassdark"]);
+store = {};
+card({ _getDeviceThemeOverride: () => "__default__", _globalThemes: [DARK, LIGHT] })._rememberGlobalThemes();
+assert.deepStrictEqual(Object.keys(store), ["familyHubGlobalThemeLocal:liquidglass"], "__default__ isn't a theme id");
+
+// Resolving before the list loads: the remembered theme, not the default.
+store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(DARK) };
+const early = card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings);
+assert.strictEqual(early.colors.bg, "#0b1020", "remembered theme used before the list loads");
+assert.strictEqual(early.cardOpacity, 55);
+// Nothing remembered yet (first open ever): the default, as before.
+store = {};
+assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings).colors.bg, "#fbf7e5");
+// List loaded without the theme (deleted) or failed (empty): the default, as before.
+store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(DARK) };
+assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: [] })._resolveTheme(settings).colors.bg, "#fbf7e5");
+// A remembered entry under the wrong id is ignored.
+store = { "familyHubGlobalThemeLocal:liquidglassdark": JSON.stringify(LIGHT) };
+assert.strictEqual(card({ _getDeviceThemeOverride: () => "liquidglassdark", _globalThemes: undefined })._resolveTheme(settings).colors.bg, "#fbf7e5");
+
+// Wiring: remembered after each successful list; no early return left in
+// _applySizeVars (it skipped holiday backgrounds).
+assert.ok(methodBody("_fetchGlobalThemes").includes("this._globalThemesError = false;\nthis._rememberGlobalThemes();"));
+assert.ok(!src.includes("_themeListPending"), "old early-return guard removed");
 
 console.log("theme no flash: all checks passed");

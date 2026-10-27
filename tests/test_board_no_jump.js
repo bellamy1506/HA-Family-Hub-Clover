@@ -2,10 +2,10 @@
 // jump when the calendars answer (2026-10-26).
 // Run: node tests/test_board_no_jump.js   (no dependencies)
 //
-// On open the grid drew before any events, then grew when they arrived
-// (month cells fill with pills), and the title said "This Week" over the
-// Month view until then. Checks card/family-week-calendar-card.js, the copy
-// Home Assistant serves, by running the real method bodies.
+// On open the grid drew before any events, then grew when they arrived, and
+// the title said "This Week" over the Month view until then. Checks
+// card/family-week-calendar-card.js, the copy Home Assistant serves, by
+// running the real method bodies. The browser test covers it end to end.
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
@@ -16,7 +16,8 @@ const src = fs.readFileSync(
 );
 
 function methodBody(name, params = "") {
-  const start = src.indexOf(`\n${name}(${params}) {\n`);
+  let start = src.indexOf(`\n${name}(${params}) {\n`);
+  if (start < 0) start = src.indexOf(`\nasync ${name}(${params}) {\n`);
   assert.ok(start >= 0, `${name} not found`);
   const open = src.indexOf("{", start);
   let depth = 0;
@@ -33,75 +34,57 @@ global.localStorage = {
   getItem: (k) => (k in store ? store[k] : null),
   setItem: (k, v) => { store[k] = String(v); },
 };
-const hold = new Function(methodBody("_holdGridSize"));
-const gridEl = (height, inner) => ({ style: { minHeight: "" }, getBoundingClientRect: () => ({ height }), querySelector: (sel) => (sel === ".month-cells" ? inner || null : null) });
-const card = (grid, viewMode, eventsFor) => ({
-  _root: { querySelector: (sel) => (sel === ".grid" ? grid : null) },
-  _viewMode: viewMode,
-  _eventsViewMode: eventsFor,
+const proto = {
+  _getPeople: () => [{ entity: "calendar.work" }, { entity: "calendar.home" }],
   _instanceScopedStorageKey: (k) => `${k}__inst_i1`,
-});
-const KEY = "familyHubGridHeightLocal:split__inst_i1";
+  _privacyModeEffectiveLocked: () => false,
+};
+proto._shapeCalendars = new Function(methodBody("_shapeCalendars"));
+proto._gridHeightKey = new Function(methodBody("_gridHeightKey"));
+proto._holdGridSize = new Function(methodBody("_holdGridSize"));
+const el = (inner) => ({ style: { minHeight: "" }, querySelector: (sel) => (sel === ".month-cells" ? inner || null : null) });
+const card = (grid, viewMode, eventsFor, over = {}) => Object.assign(Object.create(proto), {
+  _root: { querySelector: (sel) => (sel === ".grid" ? grid : null) }, _viewMode: viewMode, _eventsViewMode: eventsFor,
+}, over);
+
+// The key includes the calendar set: the full board and its "Hide work
+// calendars" copy share one URL path, so they'd otherwise share a height.
+const KEY = "familyHubGridHeightLocal:split:calendar.home,calendar.work__inst_i1";
+assert.strictEqual(card(el(), "split")._gridHeightKey(), KEY);
+assert.notStrictEqual(card(el(), "split", undefined, { _getPeople: () => [{ entity: "calendar.home" }] })._gridHeightKey(), KEY);
 
 // Before this view's events arrive: held at last time's height.
 store = { [KEY]: "568" };
-let g = gridEl(304);
-hold.call(card(g, "split", undefined));
+let g = el();
+card(g, "split", undefined)._holdGridSize();
 assert.strictEqual(g.style.minHeight, "568px", "held at the remembered height");
-assert.strictEqual(store[KEY], "568", "pre-events height not remembered");
-
-// Nothing remembered yet (first open): no hold, as before.
+// Month views hold the cells, so their six rows share the height.
+const cells = el();
+g = el(cells);
+card(g, "split", undefined)._holdGridSize();
+assert.strictEqual(cells.style.minHeight, "568px", "month cells held");
+assert.strictEqual(g.style.minHeight, "");
+// Nothing remembered: no hold. Events in, or privacy mode on: released.
 store = {};
-g = gridEl(304);
-hold.call(card(g, "split", undefined));
-assert.strictEqual(g.style.minHeight, "", "no hold without a remembered height");
-assert.ok(!(KEY in store));
-
-// After this view's events arrive: hold released, settled height remembered.
+g = el(); card(g, "split", undefined)._holdGridSize();
+assert.strictEqual(g.style.minHeight, "");
 store = { [KEY]: "568" };
-g = gridEl(600);
-g.style.minHeight = "568px";
-hold.call(card(g, "split", "split"));
-assert.strictEqual(g.style.minHeight, "", "hold released");
-assert.strictEqual(store[KEY], "600", "settled height remembered");
+g = el(); g.style.minHeight = "568px"; card(g, "split", "split")._holdGridSize();
+assert.strictEqual(g.style.minHeight, "", "released once events are in");
+g = el(); card(g, "split", undefined, { _privacyModeEffectiveLocked: () => true })._holdGridSize();
+assert.strictEqual(g.style.minHeight, "", "no hold while privacy mode is on");
+// Holding never writes.
+store = { [KEY]: "568" };
+card(el(), "split", undefined)._holdGridSize();
+card(el(), "split", "split")._holdGridSize();
+assert.deepStrictEqual(store, { [KEY]: "568" }, "_holdGridSize only reads");
 
-// Switching to another view before its events arrive doesn't overwrite
-// that view's remembered height with an empty one.
-store = { "familyHubGridHeightLocal:planner__inst_i1": "700" };
-g = gridEl(200);
-hold.call(card(g, "planner", "split"));
-assert.strictEqual(g.style.minHeight, "700px");
-assert.strictEqual(store["familyHubGridHeightLocal:planner__inst_i1"], "700");
-
-// Month views hold the cells themselves: their six rows share the held
-// height, so the day panel below doesn't move when pills arrive.
-store = { "familyHubGridHeightLocal:split__inst_i1": "420" };
-const cells = gridEl(200);
-g = gridEl(500, cells);
-hold.call(card(g, "split", undefined));
-assert.strictEqual(cells.style.minHeight, "420px", "cells held");
-assert.strictEqual(g.style.minHeight, "", "grid itself not held");
-cells.style.minHeight = "420px";
-const cellsLoaded = gridEl(430);
-cellsLoaded.style.minHeight = "420px";
-hold.call(card(gridEl(560, cellsLoaded), "split", "split"));
-assert.strictEqual(cellsLoaded.style.minHeight, "", "cells released");
-assert.strictEqual(store["familyHubGridHeightLocal:split__inst_i1"], "430", "cells height remembered");
-
-// Before the view is chosen on open, nothing counts as loaded.
-store = {};
-g = gridEl(1350);
-hold.call(card(g, undefined, undefined));
-assert.deepStrictEqual(store, {}, "nothing remembered before the view is known");
-
-// Wiring: every grid render ends with the hold, events record their view,
-// and the title is set as soon as the view is known on open.
-const renderGrid = methodBody("_renderGrid");
-assert.ok(/this\._holdGridSize\(\);\s*$/.test(renderGrid), "_renderGrid ends with _holdGridSize");
-assert.ok(
-  src.includes("Object.assign(this._events, newEvents);\nthis._eventsViewMode = this._viewMode;"),
-  "_fetchEvents records which view its events are for",
-);
+// Wiring: the height is remembered only after a successful fetch, every grid
+// render holds, and the title is set as soon as the view is known.
+assert.ok(/this\._holdGridSize\(\);\s*$/.test(methodBody("_renderGrid")), "_renderGrid ends with _holdGridSize");
+assert.ok(src.includes("Object.assign(this._events, newEvents);\nthis._eventsViewMode = this._viewMode;"), "_fetchEvents records which view its events are for");
+assert.ok(methodBody("_fetchEvents").includes("if (!Object.keys(newErrors).length) this._recordSettledLayout();"), "remembered only after a fetch with no errors");
+assert.ok(methodBody("_recordSettledLayout").includes("localStorage.setItem(this._gridHeightKey(), String(height));"));
 assert.ok(
   /this\._viewMode = s\.defaultView === "month" \? this\._getMonthViewVariant\(\) : this\._getWeekViewVariant\(\);\n\/\/[^\n]*\n(\/\/[^\n]*\n)*this\._updateNavLabel\(\);/.test(src),
   "title set right after the view is chosen on open",

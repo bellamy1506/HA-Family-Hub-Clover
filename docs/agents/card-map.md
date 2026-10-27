@@ -16,7 +16,8 @@ set hass (first time)                        -> _initFirstLoad (not awaited)
   connectedCallback                          -> _registerFabCoordinator, _syncHeight timers (rAF, 300 ms, 1200 ms, every 1.5 s)
   _build (once)                              -> _applyCachedThemeVarsIfAny: paints last session's theme vars
 _initFirstLoad
-  await _fetchSettings                       -> _applySizeVars, _renderGrid   (theme list not loaded yet)
+  await _fetchSettings                       -> _applySizeVars, _renderGrid   (theme list not loaded yet: _resolveTheme
+                                                uses _rememberedGlobalTheme, house)
   await _fetchEventPeopleOverrides, _fetchMyPermissions
   this._viewMode = defaultView ? _getMonthViewVariant() : _getWeekViewVariant()
   _updateNavLabel                            (house: title right away)
@@ -24,16 +25,18 @@ _initFirstLoad
                                                 _fetchReminders, ... (all fire-and-forget)
   _startPolling                              -> _fetchSettings + _refreshAllData every 60 s
   _reportDeviceSettings().then(_checkPendingDeviceSettings)   (house: report first, see copy sync)
-  _subscribeDeviceSettingsPush, ..., _fetchPrivacyModeState
+  _subscribeDeviceSettingsPush, ..., _fetchPrivacyModeState  (house: once privacy is known, re-render so shapes show)
 _fetchEvents                                 -> hass.callApi GET calendars/<entity>?start&end, one per person, about 2 s
-                                                for the house's four iCloud calendars; then _renderGrid, _renderLegend, _updateNavLabel
+                                                for the house's four iCloud calendars; sets _eventsViewMode (house); then
+                                                _renderGrid, _renderLegend, _updateNavLabel, and with no errors
+                                                _recordSettledLayout (house)
 ```
 
-Anything drawn before `_fetchEvents` lands has no events. That gap caused every "jumps on open" bug fixed in PR #14.
+Anything drawn before `_fetchEvents` lands has no events. That gap caused every "jumps on open" bug fixed in PR #14. Other fetches (meals, reminders, weather, names) also call `_renderGrid` when they land, often before the calendars.
 
 ## Rendering
 
-`_renderGrid` calls `_applySizeVars` (theme and size CSS variables), then dispatches on `this._viewMode`. Then come the house methods `_settleShapes` and `_holdGridSize`.
+`_renderGrid` calls `_applySizeVars` (theme and size CSS variables), then dispatches on `this._viewMode`. Then come the house methods `_settleShapes` and `_holdGridSize`. Several renderers run a post-render step that a later DOM change must respect: `_afterRenderDayColumns` and `_afterRenderPersonLanes` scroll each timeline `.events` to the current hour.
 
 | `_viewMode` | Renderer | Day unit (house tag `data-fh-unit`) | Event elements |
 |---|---|---|---|
@@ -55,7 +58,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Resolving:** `_resolveTheme(settings)` applies `_getDeviceThemeOverride` (localStorage `familyHubDeviceThemeOverrideLocal`: `""` means household, `__default__` means local, else a theme id) over the household `useGlobalTheme`/`globalThemeId`. It looks the id up in `this._globalThemes`, which `_fetchGlobalThemes` (`theme_builder/list`) loads. If the id isn't found, it falls back to `_defaultTheme()`, which is cream (#fbf7e5) with brown (#8f5a00).
 - **Cache:** `window.__familyHubThemeCache` stores the applied CSS vars per `_familyHubThemeCacheKey`, and `_build` repaints them before the first render.
-- **House guard:** `_applySizeVars` keeps the cached look while `_themeListPending(settings)`. Without it, `_fetchSettings` painted cream on every open.
+- **House fix:** `_rememberGlobalThemes` saves the themes in use after each list. Until the list loads, `_resolveTheme` uses `_rememberedGlobalTheme`. Without it, `_fetchSettings` painted cream on every open.
+- **Don't early-return from `_applySizeVars`:** it also sets holiday and Halloween backgrounds and block sizes. An earlier fix did, and the review caught it.
 
 ## House-only changes in this file
 
@@ -67,11 +71,13 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
   Tests: `tests/test_copy_sync.py`, `tests/test_copy_sync_report.py` (Home Assistant stubbed), `tests/test_copy_sync_card.js`.
 - **Opens settled (PR #14):**
-  - `_themeListPending`: no cream flash.
+  - `_rememberGlobalThemes`, `_rememberedGlobalTheme`: no cream flash.
   - `_updateNavLabel` in `_initFirstLoad`: right title immediately.
-  - `_holdGridSize`: last height per view (`familyHubGridHeightLocal`).
-  - `_settleShapes`, `_blankShape`, `_shapeMode`, `_shapeStoreKey`, `_shapeKeepText`, `_shapeEventLike`: each day unit's event shapes with text blanked (`familyHubShapesLocal`).
+  - `_holdGridSize`: holds last height (reads only).
+  - `_settleShapes`, plus `_shapeMode`, `_shapeEventLike`, `_shapeKeepText`, `_shapeKeepLive`, `_readShapes`: restore each day unit's blanked event shapes, then put the live day header and meal blocks back and carry scroll over.
+  - `_recordSettledLayout`, plus `_blankShape`, `_shapeStoreKey`, `_gridHeightKey`, `_shapeCalendars`: save, only from `_fetchEvents` when no calendar errored.
   - `this._eventsViewMode`, set in `_fetchEvents`, means "events are in for this view."
+  - Shapes wait until privacy mode is known (`this._privacyModeEffectiveApplied !== undefined`).
 
   Tests: `tests/test_theme_no_flash.js`, `tests/test_board_no_jump.js`, `tests/test_event_shapes.js`, `tests/browser/test_board_open.js`.
 
@@ -79,6 +85,7 @@ When adding a new layout or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;
 - add any plain label class to `_shapeKeepText`;
+- add any part that loads before the calendars (header, meals) to `_shapeKeepLive`;
 - add a scenario to `tests/browser/test_board_open.js`.
 
 ## Browser storage keys (per copy)
@@ -92,8 +99,10 @@ Instance-scoped keys end in `__inst_<id>`. The id comes from `_getCardInstanceId
 | `familyHubDeviceCustomNameLocal`, `familyHubDeviceThemeOverrideLocal` | copy name (never synced), theme |
 | `familyHubDeviceSettingsAppliedSeqLocal` (+ `__inst_`) | last applied push seq |
 | `familyHubThemeVarsCache::<key>` | cached theme CSS vars |
-| `familyHubGridHeightLocal:<view>__inst_` | last settled grid or month-cells height |
-| `familyHubShapesLocal:<view>:<width>:<calendars>__inst_` | `{ "unit key": blanked inner HTML }`, ±70 days |
+| `familyHubGlobalThemeLocal:<theme id>` | the theme in use, from the last theme list |
+| `familyHubGridHeightLocal:<view>:<calendars>__inst_` | last settled grid or month-cells height |
+| `familyHubShapesLocal:<view>:<width>:<calendars>__inst_` | `{ "unit key": blanked inner HTML }`, ±45 days, about 150 KB max |
+| `familyHubShapesIndexLocal__inst_` | the 4 most recent shapes keys; older ones are removed |
 
 ## Testing
 
@@ -101,7 +110,7 @@ Instance-scoped keys end in `__inst_<id>`. The id comes from `_getCardInstanceId
 - **Python:** `python3 -m unittest discover -s tests`. It doesn't pick up `.js` files.
 - **Browser:**
   - Run `node tests/browser/test_board_open.js`. It needs Playwright and skips without it; in a Claude Code cloud session prefix `NODE_PATH=/opt/node-tools/node_modules`. Don't run `playwright install`.
-  - `tests/browser/harness.html` mounts the served card with a fake `hass`. Query parameters: `view`, `week`, `month`, `timeline`, `cal` (calendar delay in ms). It counts answers in `window.__calAnswered`.
+  - `tests/browser/harness.html` mounts the served card with a fake `hass`. Query parameters: `view`, `week`, `month`, `timeline`, `cal` (calendar delay in ms), `fail=1`, `privacy=on`, `theme=<id>`. It serves a meal for today and counts calendar answers in `window.__calAnswered`. The test fixes the clock (`page.clock.setFixedTime`) so timelines scroll and holidays can be tested.
   - The harness page must declare UTF-8, or the card fails to parse with "Range out of order in character class."
   - It's the quickest way to reproduce a visual bug: screenshot `window.__el`'s shadow root at timed points.
 - **Live checks, read-only:** use the Home Assistant connector (`ha_call_service` with `ws_command`):

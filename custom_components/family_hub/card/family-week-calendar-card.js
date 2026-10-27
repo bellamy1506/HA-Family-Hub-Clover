@@ -5111,6 +5111,8 @@ if (!this._hass || !this._hass.connection) return;
 try {
 const result = await this._hass.connection.sendMessagePromise({ type: "family_hub/privacy_mode/get_state" });
 this._applyPrivacyModeState(result && result.enabled);
+// House fork: shapes wait for this, see _shapeMode.
+if (this._root && this._shapeMode() === "show") this._renderGrid();
 } catch (e) {
 // best-effort - see _reportDeviceSettings's own docstring.
 }
@@ -8039,6 +8041,30 @@ raw = localStorage.getItem("familyHubDeviceThemeOverrideLocal") || "";
 }
 return raw;
 }
+// House fork: the themes this copy uses (its own override and the
+// household's), kept from the last theme list for _resolveTheme to use
+// before the list loads.
+_rememberGlobalThemes() {
+const settings = this._getSettings();
+const override = this._getDeviceThemeOverride();
+[override && override !== "__default__" ? override : "", settings.globalThemeId || ""].forEach((id) => {
+const theme = id && this._globalThemes.find((t) => t && t.id === id);
+if (!theme) return;
+try {
+localStorage.setItem(`familyHubGlobalThemeLocal:${id}`, JSON.stringify(theme));
+} catch (e) {
+}
+});
+}
+_rememberedGlobalTheme(id) {
+if (!id) return null;
+try {
+const theme = JSON.parse(localStorage.getItem(`familyHubGlobalThemeLocal:${id}`) || "null");
+return theme && typeof theme === "object" && theme.id === id ? theme : null;
+} catch (e) {
+return null;
+}
+}
 _resolveTheme(settings) {
 const override = this._getDeviceThemeOverride();
 const useGlobalTheme = override ? override !== "__default__" : settings.useGlobalTheme;
@@ -8046,7 +8072,10 @@ const globalThemeId = override ? (override === "__default__" ? "" : override) : 
 const local = settings.theme || this._defaultTheme();
 if (!useGlobalTheme || !globalThemeId) return local;
 const list = Array.isArray(this._globalThemes) ? this._globalThemes : [];
-const g = list.find((t) => t && t.id === globalThemeId);
+// House fork: until the theme list loads, use the theme as it was last
+// time (_rememberGlobalThemes), not the plain default look, which
+// flashed on every open (2026-10-26).
+const g = list.find((t) => t && t.id === globalThemeId) || (Array.isArray(this._globalThemes) ? null : this._rememberedGlobalTheme(globalThemeId));
 if (!g) return local;
 const defaultTheme = this._defaultTheme();
 const colors = {};
@@ -8100,6 +8129,7 @@ const result = await this._hass.connection.sendMessagePromise({ type: "theme_bui
 const custom = (result && Array.isArray(result.themes)) ? result.themes : [];
 this._globalThemes = custom.concat(this._nativeHaThemeEntries());
 this._globalThemesError = false;
+this._rememberGlobalThemes();
 } catch (e) {
 this._globalThemes = [];
 this._globalThemesError = true;
@@ -9154,17 +9184,6 @@ if (typeof cached[name] === "string") this.style.setProperty(name, cached[name])
 });
 return true;
 }
-// House fork: true while the theme this copy wants (its own override, or
-// the household's global theme) can't resolve yet because the theme list
-// hasn't loaded. _resolveTheme would fall back to the plain default look,
-// and _fetchSettings applies the theme before the list arrives, so that
-// look flashed on every open (2026-10-26).
-_themeListPending(settings) {
-if (Array.isArray(this._globalThemes) || this._globalThemesError) return false;
-const override = this._getDeviceThemeOverride();
-if (override) return override !== "__default__";
-return !!(settings.useGlobalTheme && settings.globalThemeId);
-}
 _applySizeVars() {
 const settings = this._getSettings();
 const v = this._sizeVars(settings);
@@ -9178,12 +9197,6 @@ this.style.setProperty("--menu-block-padding", v.padding);
 // every resize/keyboard-open the way this card's own height used to be.
 const bottomPadding = Math.max(0, Math.min(2000, Math.round(settings.bottomPadding || 0)));
 this.style.setProperty("--fh-bottom-padding", `${bottomPadding}px`);
-// House fork: keep the cached look until the theme list arrives (see
-// _themeListPending); _fetchGlobalThemes re-applies once it does.
-if (this._themeListPending(settings) && this._applyCachedThemeVarsIfAny()) {
-this._applyScrollLock();
-return;
-}
 const theme = this._resolveTheme(settings);
 // "Card / chip transparency" (Theme Builder's cardOpacity slider) and the
 // new "glass blur" field only ever existed as Theme Builder preview-only
@@ -9385,6 +9398,8 @@ else delete this._fetchErrors[entity];
 this._renderGrid();
 this._renderLegend();
 this._updateNavLabel();
+// House fork: remember the settled layout, see _recordSettledLayout.
+if (!Object.keys(newErrors).length) this._recordSettledLayout();
 if (this._root.querySelector(".debug-overlay.open")) this._renderDebug();
 }
 // Whether entityId's calendar integration can delete an
@@ -24367,61 +24382,59 @@ this._renderWeekGrid();
 this._settleShapes();
 this._holdGridSize();
 }
-// House fork: the grid drew before any calendar events, then grew when
-// they arrived (month cells fill with pills), so the board jumped on every
-// open (2026-10-26). Until this view's events land, hold the grid at the
-// height it had last time with events; once they have, remember it. Month
-// views hold their cells instead: the six rows share the height, so the
-// split view's day panel below them doesn't move either.
-_holdGridSize() {
-const grid = this._root && this._root.querySelector(".grid");
-if (!grid) return;
-const gridEl = grid.querySelector(".month-cells") || grid;
-const key = this._instanceScopedStorageKey(`familyHubGridHeightLocal:${this._viewMode}`);
-if (!this._viewMode || this._eventsViewMode !== this._viewMode) {
-let held = 0;
-try {
-held = parseInt(localStorage.getItem(key), 10) || 0;
-} catch (e) {
+// House fork: the board opens settled (owner, 2026-10-26). The grid drew
+// before any calendar events, then grew and filled in about 2 s later when
+// they arrived, in every layout. Now, until this view's events arrive:
+//  - _holdGridSize holds the grid (or a month's cells) at last time's height;
+//  - _settleShapes restores each day unit's last pills, cards and rows in
+//    their sizes, places and colors, with blank text.
+// _recordSettledLayout saves both, only after a fetch that succeeded
+// (_fetchEvents), so a failed fetch or a navigation can't save an empty grid.
+//
+// Day units are tagged data-fh-unit ("kind|date|calendar") by each renderer.
+// A unit is stored with all text blanked except plain labels
+// (_shapeKeepText) and with only class, style and data-date kept, so no
+// title, time or id is stored. On restore, the live day header and meal
+// blocks (_shapeKeepLive) go back in and scroll positions carry over, so
+// weather, meals and the timeline's scroll stay as rendered. Stored per
+// copy, view, screen width and set of calendars (the "Hide work calendars"
+// copy keeps its own), at most 4 layouts, ±45 days. Nothing is shown before
+// privacy mode is known to be off, or at all while it's on.
+_shapeCalendars() {
+return this._getPeople().map((p) => p.entity).sort().join(",");
 }
-gridEl.style.minHeight = held ? `${held}px` : "";
-return;
+_gridHeightKey() {
+return this._instanceScopedStorageKey(`familyHubGridHeightLocal:${this._viewMode}:${this._shapeCalendars()}`);
 }
-gridEl.style.minHeight = "";
-const height = Math.round(gridEl.getBoundingClientRect().height);
-if (height > 0) {
-try {
-localStorage.setItem(key, String(height));
-} catch (e) {
+_shapeStoreKey() {
+return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${this._shapeCalendars()}`);
 }
-}
-}
-// House fork: event shapes (owner, 2026-10-26). Until this view's events
-// arrive, every view shows last time's pills, cards and rows in their
-// sizes, places and colors with blank text, so only the text waits. Each
-// day unit is tagged data-fh-unit ("kind|date|calendar") by its renderer;
-// after a render with events, each unit's inside is stored with all text
-// blanked except plain labels (_shapeKeepText), and with only class, style
-// and data-date kept, so no title, time or id is stored. Per copy, view,
-// screen width and set of calendars (the "Hide work calendars" copy keeps
-// its own). A day already showing real events (say, after switching
-// views) keeps them. Nothing is shown or stored while privacy mode is on,
-// and nothing is stored while a filter hides some events.
 _shapeEventLike() {
-return ".event, .tl-event, .all-day-chip, .agenda-item, .mc-pill, .msd-item";
+return ".event, .tl-event, .all-day-chip, .agenda-item:not(.mc-meal-pill), .mc-pill:not(.mc-meal-pill), .msd-item:not(.mc-meal-pill)";
 }
 _shapeKeepText() {
 return ".mc-date, .num, .name, .wx-temp, .wx-icon, .hour-label, .block-label, .planner-day-name, .planner-day-number, .planner-mobile-person-name, .person-lane-name, .agenda-day-name, .agenda-day-date, .mc-more, .msd-empty, .agenda-empty, .planner-mobile-empty";
 }
-_shapeStoreKey() {
-const entities = this._getPeople().map((p) => p.entity).sort().join(",");
-return this._instanceScopedStorageKey(`familyHubShapesLocal:${this._viewMode}:${window.innerWidth}:${entities}`);
+_shapeKeepLive() {
+return ".day-header, .menu-blocks, .person-lane-header, .agenda-day-header, .planner-mobile-day-header";
 }
 _shapeMode() {
-if (!this._viewMode || this._privacyModeEffectiveLocked()) return "none";
-if (this._eventsViewMode !== this._viewMode) return "show";
-const filtered = (this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length;
-return filtered ? "none" : "record";
+if (!this._viewMode || this._privacyModeEffectiveApplied === undefined || this._privacyModeEffectiveLocked()) return "none";
+return this._eventsViewMode === this._viewMode ? "none" : "show";
+}
+_holdGridSize() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid) return;
+const gridEl = grid.querySelector(".month-cells") || grid;
+const waiting = this._viewMode && this._eventsViewMode !== this._viewMode && !this._privacyModeEffectiveLocked();
+let held = 0;
+if (waiting) {
+try {
+held = parseInt(localStorage.getItem(this._gridHeightKey()), 10) || 0;
+} catch (e) {
+}
+}
+gridEl.style.minHeight = held ? `${held}px` : "";
 }
 _blankShape(unit) {
 const keep = this._shapeKeepText();
@@ -24459,26 +24472,45 @@ el.style.width = `${rect.width}px`;
 });
 return clone.innerHTML;
 }
-_settleShapes() {
-const grid = this._root && this._root.querySelector(".grid");
-const mode = this._shapeMode();
-if (!grid || mode === "none") return;
-const units = [...grid.querySelectorAll("[data-fh-unit]")];
-const key = this._shapeStoreKey();
-let stored = {};
+_readShapes(key) {
 try {
 const parsed = JSON.parse(localStorage.getItem(key) || "{}");
-if (parsed && typeof parsed === "object") stored = parsed;
+return parsed && typeof parsed === "object" ? parsed : {};
 } catch (e) {
+return {};
 }
-if (mode === "show") {
-units.forEach((unit) => {
+}
+_settleShapes() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid || this._shapeMode() !== "show") return;
+const stored = this._readShapes(this._shapeStoreKey());
+const firstOpen = this._eventsViewMode === undefined;
+const keepLive = this._shapeKeepLive();
+grid.querySelectorAll("[data-fh-unit]").forEach((unit) => {
 const html = stored[unit.dataset.fhUnit];
-if (typeof html === "string" && !unit.querySelector(this._shapeEventLike())) unit.innerHTML = html;
+if (typeof html !== "string") return;
+// After a view switch, a day already showing real events keeps them.
+if (!firstOpen && unit.querySelector(this._shapeEventLike())) return;
+const live = [...unit.querySelectorAll(keepLive)];
+const scrolled = [...unit.querySelectorAll("*")].filter((n) => n.scrollTop > 0).map((n) => [n.className, n.scrollTop]);
+unit.innerHTML = html;
+const slots = [...unit.querySelectorAll(keepLive)];
+if (slots.length === live.length) slots.forEach((slot, i) => slot.replaceWith(live[i]));
+scrolled.forEach(([cls, top]) => {
+const n = [...unit.querySelectorAll("*")].find((x) => x.className === cls);
+if (n) n.scrollTop = top;
 });
-return;
+});
 }
-units.forEach((unit) => {
+_recordSettledLayout() {
+const grid = this._root && this._root.querySelector(".grid");
+if (!grid || !this._viewMode || this._privacyModeEffectiveLocked()) return;
+if ((this._legendFilterKeys || []).length || (this._eventTypeFilter || []).length) return;
+const gridEl = grid.querySelector(".month-cells") || grid;
+const height = Math.round(gridEl.getBoundingClientRect().height);
+const key = this._shapeStoreKey();
+const stored = this._readShapes(key);
+grid.querySelectorAll("[data-fh-unit]").forEach((unit) => {
 stored[unit.dataset.fhUnit] = this._blankShape(unit);
 });
 const near = (offset) => {
@@ -24486,14 +24518,36 @@ const d = new Date();
 d.setDate(d.getDate() + offset);
 return this._dateKey(d);
 };
-const from = near(-70);
-const to = near(70);
-Object.keys(stored).forEach((k) => {
+const today = near(0);
+const from = near(-45);
+const to = near(45);
+const keys = Object.keys(stored).filter((k) => {
 const date = k.split("|")[1] || "";
-if (date < from || date > to) delete stored[k];
+return date >= from && date <= to;
 });
+// Nearest days first; drop the farthest until it fits about 150 KB.
+const distance = (k) => Math.abs(new Date(`${k.split("|")[1]}T00:00:00`) - new Date(`${today}T00:00:00`));
+keys.sort((x, y) => distance(x) - distance(y));
+const kept = {};
+let size = 2;
+for (const k of keys) {
+size += k.length + stored[k].length + 6;
+if (size > 150000) break;
+kept[k] = stored[k];
+}
 try {
-localStorage.setItem(key, JSON.stringify(stored));
+if (height > 0) localStorage.setItem(this._gridHeightKey(), String(height));
+localStorage.setItem(key, JSON.stringify(kept));
+// At most 4 layouts per copy (views, screen widths, calendar sets).
+const indexKey = this._instanceScopedStorageKey("familyHubShapesIndexLocal");
+let index = [];
+try {
+index = JSON.parse(localStorage.getItem(indexKey) || "[]");
+} catch (e) {
+}
+index = [key, ...(Array.isArray(index) ? index : []).filter((k) => k !== key)];
+index.slice(4).forEach((k) => localStorage.removeItem(k));
+localStorage.setItem(indexKey, JSON.stringify(index.slice(0, 4)));
 } catch (e) {
 }
 }

@@ -1,7 +1,9 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <!-- House fork test harness: the real served card with a fake Home Assistant.
      See test_board_open.js. Query: view=week|month, week=week|planner|agenda,
-     month=month|split, timeline=on|off, cal=<calendar answer delay ms>. -->
+     month=month|split, timeline=on|off, cal=<calendar answer delay ms>,
+     fail=1 (calendars error), privacy=on (household privacy mode),
+     theme=<theme id> (this copy's theme; theme_builder/list answers after 300 ms). -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
 <script>
@@ -10,6 +12,7 @@ localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "s
 localStorage.setItem("familyCalendarWeekViewVariantLocal", q.get("week") || "planner");
 localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "off");
 localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
+localStorage.setItem("familyHubDeviceThemeOverrideLocal", q.get("theme") || "");
 </script>
 <script src="card.js"></script>
 <script>
@@ -20,6 +23,7 @@ const today = new Date();
 const day = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const timed = (o, s, h) => ({ summary: s, start: { dateTime: `${day(o)}T${String(h).padStart(2, "0")}:00:00` }, end: { dateTime: `${day(o)}T${String(h + 1).padStart(2, "0")}:00:00` } });
 const allDay = (o, s) => ({ summary: s, start: { date: day(o) }, end: { date: day(o + 1) } });
+const THEME = { id: "liquidglassdark", name: "Liquid Glass Dark", colors: { bg: "#0b1020", card: "#1b2133", border: "#2a3350", text: "#e8ecf5", textSecondary: "#9aa3b8", accent: "#4f8cff", accentText: "#ffffff", accent2: "#7ec9d9", accent3: "#b07ed9", surfaceAlt: "#222a40", surface2: "#1f2638" }, fonts: { dayName: 13, dayNumber: 22, wxTemp: 14, event: 14, chip: 13, headerTitle: 15, countdown: 11, blockLabel: 9, blockMeal: 13 }, cardOpacity: 55, glassBlur: 18 };
 const people = [["calendar.wills_calendar", "Will", "#7ec9d9"], ["calendar.home", "Home", "#9ed97e"], ["calendar.us", "Us", "#d9bf7e"], ["calendar.work", "Work", "#b07ed9"]];
 const events = {
   "calendar.wills_calendar": [timed(0, "SECRET dentist appointment with a long title that wraps", 9), timed(1, "SECRET flight", 13), allDay(2, "SECRET trip"), timed(-3, "SECRET lunch", 12), timed(3, "SECRET call", 15), timed(3, "SECRET call two", 16), timed(3, "SECRET call three", 17), timed(3, "SECRET call four", 18)],
@@ -32,13 +36,23 @@ const states = {};
 people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
 const hass = {
   user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
-  callApi: async (m, path) => { await sleep(CAL_DELAY); setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0); return events[path.split("?")[0].replace("calendars/", "")] || []; },
+  callApi: async (m, path) => {
+    await sleep(CAL_DELAY);
+    setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0);
+    if (q.get("fail")) throw new Error("calendar unreachable");
+    return events[path.split("?")[0].replace("calendars/", "")] || [];
+  },
   callWS: async () => ({}), callService: async () => ({}),
   connection: {
     sendMessagePromise: async (msg) => {
       await sleep(40);
       if (msg.type === "family_hub/get_settings") return { settings };
-      if (msg.type === "theme_builder/list") return { themes: [] };
+      if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME] }; }
+      if (msg.type === "family_hub/privacy_mode/get_state") return { enabled: q.get("privacy") === "on" };
+      if (msg.type === "call_service" && msg.service === "get_items") {
+        const items = msg.target.entity_id === "todo.meal_plan" ? [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }] : [];
+        return { response: { [msg.target.entity_id]: { items } } };
+      }
       if (msg.type === "family_hub/device_settings/get_pending") return { seq: 0, settings: null, instance: null };
       return {};
     },
@@ -46,7 +60,7 @@ const hass = {
   },
 };
 const el = document.createElement("family-week-calendar-card");
-el.setConfig({ type: "custom:family-week-calendar-card", people: people.map(([entity, name, color]) => ({ entity, name, color })) });
+el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", people: people.map(([entity, name, color]) => ({ entity, name, color })) });
 document.getElementById("stack").appendChild(el);
 el.hass = hass;
 window.__el = el;
