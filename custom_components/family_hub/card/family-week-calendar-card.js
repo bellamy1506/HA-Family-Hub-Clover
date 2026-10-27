@@ -11445,7 +11445,8 @@ On a phone it scrolled away with the popup and sat behind Home Assistant's
 own top bar. Popups now start below that bar (--fh-header-offset, as the
 recipe viewer and step editor already did) and fit the space left, and the
 close button is pinned where it always sat (10px in from the corner) while
-the popup scrolls (the 42px is the popup's own top and bottom padding).
+the popup scrolls (the 42px is the popup's own top and bottom padding; 85vh,
+the old limit, still holds on a tall screen such as the wall tablet).
 :where() keeps popups that size themselves (recipe viewer, step editor) on
 their own sizes. Those two fill the screen, so their close buttons are
 fixed in the corner instead, as the recipe viewer's was meant to be: the
@@ -11453,7 +11454,7 @@ glass themes' backdrop-filter on .modal-box made "fixed" scroll with the
 box, so it's off on those two (their own background fills the screen, so
 the blur showed nothing). */
 .modal-overlay { top: var(--fh-header-offset, 0px); }
-:where(.modal-overlay) .modal-box { max-height: calc(100% - 24px - 42px); }
+:where(.modal-overlay) .modal-box { max-height: min(85vh, calc(100% - 24px - 42px)); }
 /* Sticking happens inside the popup's padding, so top: -14px pins it 10px
 from the popup's edge, where it always sat; the margins put it there. */
 .modal-overlay:not(.grocy-recipe-viewer-overlay):not(.fh-step-editor-overlay) .modal-box > .modal-close { position: sticky; top: -14px; right: auto; margin: -14px -12px -22px auto; z-index: 1; }
@@ -11463,7 +11464,7 @@ card is open (.modal-open, set on the card while one is). */
 :host(.modal-open) .add-event-fab { display: none; }
 /* Debug Info keeps fitting a phone's width (fork change 7). */
 .debug-overlay .debug-box { box-sizing: border-box; max-height: calc(100% - 24px); }
-.fh-step-editor-overlay .fh-step-editor-close { position: fixed; top: calc(14px + var(--fh-header-offset, 0px)); right: 14px; z-index: 1; }
+.fh-step-editor-overlay .fh-step-editor-close { position: fixed; top: calc(10px + var(--fh-header-offset, 0px)); right: 10px; z-index: 1; }
 .grocy-recipe-viewer-overlay .modal-box, .fh-step-editor-overlay .fh-step-editor-box { backdrop-filter: none; -webkit-backdrop-filter: none; }
 .settings-box { width: min(94vw, 520px); }
 /* Tab bar at the top of Settings (General / Notifications) - a horizontal

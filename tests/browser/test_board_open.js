@@ -438,10 +438,12 @@ const CHECKS = [
   },
   // Every popup, not just Debug Info: filled until it scrolls, its close
   // button stays visible, on top, and below Home Assistant's bar.
-  {
-    name: "Every popup: close button stays reachable", width: 402,
+  // On the phone, and on the wall tablet with and without Home Assistant's
+  // top bar (Fully Kiosk may hide it).
+  ...[["phone", 402, ""], ["tablet", 1200, ""], ["tablet, no top bar", 1200, "&hdr=0"]].map(([where, width, bar]) => ({
+    name: `Every popup: close button stays reachable (${where})`, width,
     run: async (page) => {
-      await settle(page, await open(page, "view=month&month=split"));
+      await settle(page, await open(page, `view=month&month=split${bar}`));
       const results = await page.evaluate(() => {
         const el = window.__el;
         const root = el.shadowRoot;
@@ -475,14 +477,14 @@ const CHECKS = [
         return { header, out };
       });
       const { header, out } = results;
-      assert.ok(header > 0 && out.length >= 20, `${out.length} popups checked, top bar ${header}px`);
+      assert.ok((bar ? header === 0 : header > 0) && out.length >= 20, `${out.length} popups checked, top bar ${header}px`);
       const bad = out.filter((r) => !(r.scrolled && r.onTop && r.inside && r.boxTop >= header && r.closeTop >= header));
       assert.deepStrictEqual(bad, [], `every close button stays reachable after scrolling: ${JSON.stringify(bad)}`);
       const moved = out.filter((r) => !["grocy-recipe-viewer-overlay", "fh-step-editor-overlay"].includes(r.name) && (Math.abs(r.startTop - 10) > 1 || Math.abs(r.startRight - 10) > 1));
       assert.deepStrictEqual(moved, [], `each close button starts where it always sat, 10px in from the corner: ${JSON.stringify(moved)}`);
       return `${out.length} popups`;
     },
-  },
+  })),
   {
     name: "Every popup: the + button doesn't cover it", width: 402,
     run: async (page) => {
