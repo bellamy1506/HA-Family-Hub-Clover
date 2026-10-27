@@ -31,11 +31,23 @@ The Family Hub dashboard on the wall tablet (and on phones); "tell the board" an
 _Avoid_: Skylight, hub, kiosk
 
 **Copy**:
-One browser storage at one address; what Family Hub's code calls a "device". One phone can hold several: the owner's iPhone has one for `http://192.168.4.58` and one for Home Assistant Cloud. One user's view settings and theme follow them between their copies (issue #5); the copy's name doesn't.
+One browser storage at one address, belonging to whoever last signed in on it; what Family Hub's code calls a "device". One phone can hold several (the owner's iPhone has one for home and one for Home Assistant Cloud), and a user's view settings and theme follow them between their copies, while each copy keeps its own name.
 _Avoid_: device (except when quoting the code), browser, session
 
+**View**:
+Which calendar the board shows: Week (or what the Week button is set to show, Planner or Agenda), Month (or Split), or Day.
+_Avoid_: layout, layout type, mode, variant
+
+**Settled**:
+How the board looks once everything has loaded; "opens settled" means it looks that way from the first moment.
+_Avoid_: loaded, stable
+
+**Event shape**:
+An event's place, size and color on the board without its words, shown from memory while the calendars load.
+_Avoid_: placeholder, skeleton, blank pill
+
 **Person column**:
-One person's lane on the week view; a person's first calendar is the column, more calendars show inside it.
+One person's lane on the Week view; a person's first calendar is the column, more calendars show inside it.
 _Avoid_: row, track
 
 **Household list**:

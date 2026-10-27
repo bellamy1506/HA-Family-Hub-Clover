@@ -1,6 +1,6 @@
 # Map of the week calendar card (for agents)
 
-`custom_components/family_hub/card/family-week-calendar-card.js` is the board: one unbundled browser file, about 26,000 lines. Read this map before opening it. Find code by **method name** (`grep -n "^_name(\|^async _name("`), never by line number: lines move with every change. `tests/test_card_map.js` fails if a method named here disappears, so the names stay true. Written 2026-10-27 from the work on issue #5 and PR #14.
+`custom_components/family_hub/card/family-week-calendar-card.js` is the board: one unbundled browser file, about 26,000 lines. Read this map before opening it. Find code by **method name** (`grep -n "^_name(\|^async _name("`), never by line number: lines move with every change. `tests/test_card_map.js` fails if a method named here disappears, so the names stay true. Written 2026-10-27 from the work on issue #5 and PR #14. Terms (copy, view, settled, event shape) are defined in [CONTEXT.md](../../CONTEXT.md); the code calls a copy a "device" and a view a "mode" or "variant".
 
 ## Before you edit
 
@@ -81,7 +81,7 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
   Tests: `tests/test_theme_no_flash.js`, `tests/test_board_no_jump.js`, `tests/test_event_shapes.js`, `tests/browser/test_board_open.js`.
 
-When adding a new layout or a new kind of event element, also:
+When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;
 - add any plain label class to `_shapeKeepText`;
