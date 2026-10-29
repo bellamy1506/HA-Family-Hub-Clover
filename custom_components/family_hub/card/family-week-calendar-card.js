@@ -12151,7 +12151,35 @@ shows one title line and the time, so neither is cut in half. 2.45em is a
 title line, a time line and the padding, 3.65em adds a second title line; em
 in the query is the event's own text size. */
 .tl-event { font-size: var(--fs-event, 14px); line-height: 1.2; display: flex; flex-direction: column; container-type: size; }
-.tl-event .tl-time { order: 1; font-size: 0.8em; }
+.tl-event .tl-time { order: 1; font-size: 0.8em; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 2026-10-29: an event shorter than one title line (15 or 30 minutes at large
+text) shrinks its title to fit (83% of the event's height, at line height
+1.2); a long title gives way to the time instead of pushing it out, and the
+time keeps to one line, so the steps below hold in narrow columns too. */
+.tl-event .tl-summary { font-size: min(1em, 83cqh); min-height: 0; overflow: hidden; }
+/* Taller events: as many whole title lines as fit above the time (each step
+adds a 1.2em line), so no line shows cut in half. */
+@container (max-height: 12.05em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; }
+}
+@container (max-height: 10.85em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 7; }
+}
+@container (max-height: 9.65em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; }
+}
+@container (max-height: 8.45em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
+}
+@container (max-height: 7.25em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+}
+@container (max-height: 6.05em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+}
+@container (max-height: 4.85em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+}
 @container (max-height: 3.65em) {
 .tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 }

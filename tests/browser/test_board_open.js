@@ -434,6 +434,37 @@ const CHECKS = [
       return `title ${found.title}px, time ${found.time}px${found.timeShown ? "" : " (hidden)"}`;
     },
   }))),
+  // Every timeline event, short or long, shows its title's first line whole
+  // and its time whole or not at all, at the default and the tablet's large
+  // text (Clover Tablet loop, 2026-10-29: 30-minute events cut the title at
+  // 20 px; a long title pushed the time out of a 90-minute event).
+  ...[["Day", "day"], ["Week timeline", null]].flatMap(([where, switchTo]) => [14, 20, 22].map((size) => ({
+    name: `Timeline fit: ${where}, every event (${size}px)`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week&timeline=on&lengths=1&theme=liquidglassdark&eventfont=${size}&hdr=0`, switchTo));
+      await page.waitForTimeout(400);
+      const found = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".grid .tl-event")].map((ev) => {
+        const box = ev.getBoundingClientRect();
+        const title = ev.querySelector(".tl-summary");
+        const time = ev.querySelector(".tl-time");
+        const line = title.getClientRects()[0];
+        const lh = parseFloat(getComputedStyle(title).lineHeight) || parseFloat(getComputedStyle(title).fontSize) * 1.2;
+        const hidden = !time || getComputedStyle(time).display === "none";
+        const t = time && time.getBoundingClientRect();
+        // No title line shows partly: each line is inside the title's box or
+        // wholly outside it (clipped away).
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        const tb = title.getBoundingClientRect();
+        const halfLine = [...range.getClientRects()].some((r) => r.top < tb.bottom - 1 && r.bottom > tb.bottom + 1);
+        return { text: title.textContent.trim().slice(0, 30), h: Math.round(box.height), titleWhole: !!line && line.top >= box.top - 1 && line.top + lh <= box.bottom + 1, timeWhole: hidden || (t.top >= box.top - 1 && t.bottom <= box.bottom + 1), halfLine };
+      }));
+      assert.ok(found.length >= 6, `the extra events render: ${found.length}`);
+      const cut = found.filter((e) => !e.titleWhole || !e.timeWhole || e.halfLine);
+      assert.ok(!cut.length, `cut: ${JSON.stringify(cut)}`);
+      return `${found.length} events, all whole`;
+    },
+  }))),
   // A line across today's timeline at the current time, as Skylight's "now"
   // bar (Clover Tablet loop, 2026-10-28). Only today; moves with the clock;
   // the saved shapes aren't rewritten as it moves.

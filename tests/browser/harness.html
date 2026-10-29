@@ -12,7 +12,8 @@
      Assistant top bar, as in a kiosk), eventfont=<px> (the theme's event
      text size, with theme=liquidglassdark), wx=1 (a weather entity with a
      daily forecast, so Week's day headers show temperatures), grey=off
-     ("Grey out past events" off; on by default). Themes:
+     ("Grey out past events" off; on by default), lengths=1 (today's
+     timeline gets 15, 30, 90 and 120 minute events). Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
@@ -34,6 +35,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const today = new Date();
 const day = (offset) => { const d = new Date(today); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const timed = (o, s, h) => ({ summary: s, start: { dateTime: `${day(o)}T${String(h).padStart(2, "0")}:00:00` }, end: { dateTime: `${day(o)}T${String(h + 1).padStart(2, "0")}:00:00` } });
+const span = (o, s, h, m, mins) => { const at = (t) => `${day(o)}T${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}:00`; return { summary: s, start: { dateTime: at(h * 60 + m) }, end: { dateTime: at(h * 60 + m + mins) } }; };
 const allDay = (o, s) => ({ summary: s, start: { date: day(o) }, end: { date: day(o + 1) } });
 const THEME = { id: "liquidglassdark", name: "Liquid Glass Dark", colors: { bg: "#0b1020", card: "#1b2133", border: "#2a3350", text: "#e8ecf5", textSecondary: "#9aa3b8", accent: "#4f8cff", accentText: "#ffffff", accent2: "#7ec9d9", accent3: "#b07ed9", surfaceAlt: "#222a40", surface2: "#1f2638" }, fonts: { dayName: 13, dayNumber: 22, wxTemp: 14, event: 14, chip: 13, headerTitle: 15, countdown: 11, blockLabel: 9, blockMeal: 13 }, cardOpacity: 55, glassBlur: 18 };
 if (q.get("eventfont")) THEME.fonts.event = +q.get("eventfont");
@@ -52,6 +54,9 @@ const events = {
   "calendar.us": [timed(2, "SECRET dinner", 18)],
   "calendar.work": [timed(1, "SECRET meeting", 10)],
 };
+// lengths=1: today's events of other lengths on the Us calendar (15 and 30
+// minutes, a long title in 90 minutes, and 2 hours sharing its hour).
+if (q.get("lengths")) events["calendar.us"].push(span(0, "SECRET quick call", 11, 0, 30), span(0, "SECRET pills", 11, 30, 15), span(0, "SECRET parent teacher conference at the elementary school", 13, 0, 90), span(0, "SECRET long meeting about the kitchen renovation plans", 14, 0, 120));
 const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
 const states = {};
 people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
