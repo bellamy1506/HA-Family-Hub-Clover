@@ -127,3 +127,12 @@ Read from Home Assistant tonight: the tablet's copy shows Week, 7 days, timeline
 ## Stopping new items (00:57)
 
 Nine changes merged (#20 to #28). What's left is marginal for the household: hour labels still 9 px, the now line covering today's hour label at the top of the hour, Month pills (need a layout decision). The rest of the night: verification, the setting proposals in the owner's format, and the wrap-up.
+
+## Wrap-up: the house put back (00:57 to 01:02)
+
+- 00:57 pushed the tablet copy's original values plus Start view household (the new server accepted the key), let the tablet apply them, then pushed the originals again without the new key, so no pending push names a key the old build doesn't know.
+- 00:58 expanded the sidebar again (one tap). HACS Family Hub back to `5237f66`, restarted Home Assistant.
+- 01:00 removed the four orphaned "Start view" select entities #28 had created (one per board copy; platform family_hub, unavailable after the downgrade). Cleared Fully's cache, loaded the start URL.
+- 01:01 the restored board opened as Month with the day panel, not the baseline's look: the tablet had never stored a Month variant and so fell back to "split", and my restore push had set "month". Pushed "split"; after two reloads the screenshot matched the baseline (Month with today's panel, sidebar open, full top bar).
+- **One difference that remains:** the tablet copy's view settings are now stored explicitly (Week button week, Month button split, 7 days, 1 row, timeline off, small screen off, top bar normal, current day first off) where some were inherited before. What shows is the same today. If you later change the household's Timeline or Small screen setting, the tablet won't follow it until that copy is changed too. Push buttons can't un-set a key.
+- Nothing else in Home Assistant was changed: no automations, no other integrations, no calendars.
