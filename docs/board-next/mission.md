@@ -66,7 +66,7 @@ A move up a tier needs a reason this file's measures can see (capture time, trus
 
 - Installed: Family Hub at fork `32c486e` with the owner's 2026-10-29 picks; the Clover Tablet's own settings (Week, 4 days from today, timeline, Liquid Glass Tablet theme). J008 has the details.
 - Capture that exists: "Hey Siri, tell the board / ask the board" through Assist with the `board_add_event`, `board_add_note`, `board_set_meal` scripts; the email bot in the house repo; iCloud calendars writable from the board (create only).
-- Planned, not built: the Clover Tablet watchdog; Kiosk Mode for the tablet login (J008 build step 6); the house reminders two-way sync (J008 build step 4); Jenn's calendar and her Shortcuts.
+- Planned, not built: the Clover Tablet watchdog; Kiosk Mode for the tablet login (J008 build step 6); the house reminders two-way sync (J008 build step 4); Jenn's calendar. (Both board Shortcuts already work on Jenn's iPhone, J006 2026-10-29.)
 - Open: fork issue [#31](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/31) (meal slots, per-column icons in place of "W", the first-hour label, timeline and Agenda text, Split wrapping, a more premium now line, the sidebar and dashboard switching, a DST bug inherited from upstream).
 
 ## The work on this branch, in order
