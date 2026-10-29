@@ -28,11 +28,13 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 |---|---|---|---|
 | 1 | Timeline (Day, Week timeline) and Agenda text follow the theme's text sizes | high: Day view had the smallest text; lets a tablet theme raise every view's text | merged (01) |
 | 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | merged (02) |
-| 3 | Agenda dims past events, as Week does | medium | building (part 2, branch -04-agenda-past) |
-| 4 | First hour label no longer cut off (real tablet: "8 AM" sits half under the dinner slot in Week with the timeline) | low, polish | building (part 2, branch -05-first-hour-label) |
-| 6 | Split view's day list follows the theme's text size, as item 1 did for Agenda (`.msd-item-time` 10 px, `.msd-item-summary` 12 px, `.msd-date` 14 px are fixed) | low to medium | building (part 2, branch -06-split-text) |
+| 3 | Agenda dims past events, as Week does | medium | merged (#24) |
+| 4 | First hour label no longer cut off (real tablet: "8 AM" sits half under the dinner slot in Week with the timeline) | low, polish | merged (#25) |
+| 6 | Split view's day list follows the theme's text size, as item 1 did for Agenda (`.msd-item-time` 10 px, `.msd-item-summary` 12 px, `.msd-date` 14 px are fixed) | low to medium | merged (#23) |
 | 5 | Today stands out from across the room | medium | merged (03) |
-| 7 | Weather temperatures readable: non-today `.wx-temp` measured 2.3:1 on the real tablet (Liquid Glass theme), below 4.5:1 | medium: weather is a Q3 feature, glanceable | building (part 2, branch -07-weather-contrast) |
+| 7 | Weather temperatures readable: non-today `.wx-temp` measured 2.3:1 on the real tablet (Liquid Glass theme), below 4.5:1 | medium: weather is a Q3 feature, glanceable | merged (#26) |
+| 8 | Now line covers today's hour label at the top of each hour (e.g. 3 PM at 3:00) | low | idea, not started |
+| - | Month view pills follow the theme size | medium for Month, but 20 px pills truncate to a few letters in 140 px cells; needs a layout decision (fewer, taller pills), not CSS | skipped, logged |
 | - | Skipped: per-person avatars/initials beyond the first letter (Will and Work both "W") | needs a config field and edits in four upstream templates; logged as a question | skipped |
 | - | Skipped: hiding empty meal slots in code | the household's meal blocks setting already does it (proposal) | skipped |
 
@@ -58,6 +60,16 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 - Shots: `shots/03-before-week.png`, `shots/03-after-week.png`, `shots/03-after-week-dark.png`.
 - Upstream-merge cost: none in upstream lines; CSS in the house block that overrides upstream's `.today .day-header .num` color.
 
+### 04 to 07: parallel burst (00:00 to 00:25)
+
+Four worktree agents each built one item; this session reviewed each diff, opened its PR, merged in order, resolved conflicts (all keep-both: house CSS lines, card-map bullets, test scenarios, harness comment) and reran the suite on each merged branch.
+
+- **#23 Split view's day list follows the theme's text size** (`d703750`). `.msd-item-time`, `.msd-item-summary`, `.msd-date` use `--fs-event` as Agenda does. Default theme: titles 12 to 14 px, times 10 to 11.2 px. Shots `06-before-split.png`, `06-after-split.png`. Upstream-merge cost: none in upstream lines; overrides upstream's three fixed sizes.
+- **#24 Agenda dims events that have ended** (`96c99fe`). House method `_agendaPastClass`, one attribute in `_renderAgendaGrid`'s item template; upstream's `.event.past` dims. Harness gains `grey=off`. Shots `04-before-agenda.png`, `04-after-agenda.png`. Upstream-merge cost: one attribute and one comment line in `_renderAgendaGrid`.
+- **#25 Timeline shows its first hour label whole** (`f1d8bbd`). `.timeline > .hour-row:first-child > .hour-label { top: 1px }`. Covers Day view and Week with the timeline under meal slots (the tablet's case). Shots `05-before-day.png`, `05-after-day.png`, `05-*-week-meals-crop.png`. Upstream-merge cost: none in upstream lines; overrides `.hour-label { top: -7px }` for the first row.
+- **#26 Weather temperatures are darker** (`f2bd798`). Non-today `.wx-temp` mixed 55% accent2 / 45% text color, full opacity. Liquid Glass 2.26 to 5.24:1, HA Light 2.90 to 6.71:1; dark themes lighten. Harness gains `wx=1` and the built-in light presets. Shots `07-before-week.png`, `07-after-week.png`. Upstream-merge cost: none in upstream lines; overrides `.wx-temp` color and opacity.
+- Note for later worktrees: `tests/test_house_lines_clean.js` skips (suite says "passed, with skips") unless `upstream-1.168.84` is fetched; `git fetch origin upstream-1.168.84` first.
+
 ## Part 2 (from 2026-10-29 00:00 EDT, hard stop 04:20)
 
 Took over from the handover below. Burst until 01:00: four worktree agents build items 3, 4, 6, 7; this session reviews, merges, and tests on the tablet.
@@ -75,10 +87,10 @@ Took over from the handover below. Burst until 01:00: four worktree agents build
 
 | Time | Change | Original | Undo |
 |---|---|---|---|
-| 00:02 | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
+| 00:02, again 00:25 (`f2bd798`) | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
 | 00:05 | Tablet view button: Week | Month | tap the view button, Month |
 | 00:06 | HA sidebar collapsed on the tablet | expanded | tap the menu icon (54, 54 physical) |
-| 00:10 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:17) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
+| 00:07 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:09) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
 
 ## Handover (for the session that continues)
 
