@@ -12190,6 +12190,13 @@ above its hour line, so the first one, at the very top of the scrolling box,
 was cut in half. Only that one moves, to just under its line; the other
 labels, the hour lines, the events and the now line stay put. */
 .timeline > .hour-row:first-child > .hour-label { top: 1px; }
+/* House fork (Clover Tablet loop, 2026-10-29): Week view's temperatures keep
+the theme's second accent but mixed toward its text color, at full opacity, so
+they read at 4.5:1 or better: Liquid Glass's light teal measured 2.3:1 on the
+wall tablet. Mixing toward a light text color lightens them on dark themes.
+Today's header has its own color (above); a dark holiday photo keeps
+upstream's. */
+.day-col:not(.today):not(.holiday-bg-dark) .wx-temp { color: color-mix(in srgb, var(--fc-accent2) 55%, var(--fc-text)); opacity: 1; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>

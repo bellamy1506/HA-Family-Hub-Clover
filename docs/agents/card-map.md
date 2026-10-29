@@ -108,6 +108,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **First hour label whole (Clover Tablet loop, 2026-10-29):** CSS only, in the house block before `</style>`: `.timeline > .hour-row:first-child > .hour-label` sits just under its line (`top: 1px`) instead of upstream's 7 px above it, which the scrolling `.events` cut in half. Other labels, hour lines, events and the now line don't move. Test: the "First hour label" checks in `tests/browser/test_board_open.js`.
 
+- **Weather temperatures (Clover Tablet loop, 2026-10-29):** CSS only, in the house block before `</style>`: Week view's `.wx-temp` (the only place it renders, from `_buildDayColumnHtml`) on days other than today is `color-mix` of `--fc-accent2` (55%) and `--fc-text`, at full opacity, instead of upstream's `--fc-accent2` at 0.9. Liquid Glass's light teal was 2.3:1 on the tablet; now 5.2:1. Today keeps `--fc-accent-text`; a `.holiday-bg-dark` column keeps upstream's color. Test: the "Weather:" checks in `tests/browser/test_board_open.js` (harness `wx=1`, which adds a forecast; `theme=liquidglass`, `halight`, `midnight` are the built-in presets' colors).
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;
