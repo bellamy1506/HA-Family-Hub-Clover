@@ -90,6 +90,7 @@ Took over from the handover below. Burst until 01:00: four worktree agents build
 - The tablet was showing **Month view** (the view button's last choice, kept in the browser). Month pills are the smallest text on the board.
 - **Recipe Box and Suggestions buttons show** in the full top bar, though the recipe box is off (Q3). "Title only" top bar hides them with the rest of the row; no code needed.
 - Tried the proposed default by pushing per-copy settings: 3 days, today first, title-only top bar. Readable layout, roomy columns; see the proposals. Non-today weather temperatures measured 2.3:1 contrast (item 7).
+- 00:52 deployed `248f709` (#20 to #28). Pushed Start view week + Title only on. The first reload still opened Month (the pushed setting is applied after the first view is chosen, so a push takes effect from the next open); the second opened the 3-day Week from today with the title-only bar. This is the proposed resting view, working on the real screen. Friday's temperature measured 5.05:1 (was 2.3:1).
 - Week with the timeline: "8 AM" cut in half under the dinner slot (item 4). Hour labels stay 9 px (item 01 left them).
 
 ### Home Assistant changes to undo by 04:15
@@ -99,7 +100,7 @@ Took over from the handover below. Burst until 01:00: four worktree agents build
 | 00:02, again 00:25 (`f2bd798`), 00:51 (`248f709`) | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
 | 00:05 | Tablet view button: Week (00:05, again 00:31) | Month (the household default; a reload restores it) | nothing, a reload opens Month |
 | 00:06 | HA sidebar collapsed on the tablet | expanded | tap the menu icon (54, 54 physical) |
-| 00:07 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:09; Title only off again at 00:31) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
+| 00:07, 00:31, 00:52 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:09; Title only off again at 00:31; 00:52 Start view week and Title only on) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals, and Start view household |
 
 ## Handover (for the session that continues)
 
@@ -122,3 +123,7 @@ Read from Home Assistant tonight: the tablet's copy shows Week, 7 days, timeline
 - **A large-text theme for the tablet copy only** (This device's theme): a Theme Builder copy of the household theme with event text about 20 to 22 px and larger day numbers. Item 1 makes every view, the timeline and Agenda included, follow it. Checked in the harness at 22 px: Week, 3 days, Day, Planner and Agenda hold; long words break mid-word in 7-day Week columns; Month pills and the Split day list stay small (item 6).
 - **Meal blocks: Dinner only** (household setting), so "Tap to add breakfast / lunch" stops taking a third of each column. Applies to every copy.
 - **Top bar: Title only** on the tablet copy, as the owner's phones already use.
+
+## Stopping new items (00:57)
+
+Nine changes merged (#20 to #28). What's left is marginal for the household: hour labels still 9 px, the now line covering today's hour label at the top of the hour, Month pills (need a layout decision). The rest of the night: verification, the setting proposals in the owner's format, and the wrap-up.
