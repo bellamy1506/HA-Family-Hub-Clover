@@ -12161,6 +12161,13 @@ in the query is the event's own text size. */
 .agenda-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
 .agenda-item-summary { font-size: var(--fs-event, 14px); }
 .agenda-day-name, .agenda-day-date { font-size: var(--fs-day-name, 13px); }
+/* House fork: the current-time line on today's timeline, see _drawNowLine.
+Red, whatever the theme, as calendars mark "now"; over the hour lines and
+under the events, so it doesn't strike through a title, and taps go through
+it. Its height is set in style.fh-now-style. */
+.fh-now-line { position: absolute; left: 0; right: 0; height: 3px; margin-top: -1px; background: #e03131; z-index: 1; pointer-events: none; }
+.timeline > .tl-event { z-index: 2; }
+.fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>
@@ -24460,6 +24467,7 @@ this._renderWeekGrid();
 }
 this._settleShapes();
 this._holdGridSize();
+this._drawNowLine();
 }
 // House fork: the server's copy of the calendars (calendar_cache.py, owner
 // 2026-10-26). Will's iCloud calendar took about 3 s on every open, about
@@ -24611,6 +24619,40 @@ if (parsed && typeof parsed === "object") value = parsed;
 }
 this._layoutMemo = { key: k, value };
 return value;
+}
+// House fork (Clover Tablet loop, 2026-10-28): a line across today's
+// timeline at the current time, as Skylight's "now" bar, so where the day
+// stands reads from across the room. Runs after _settleShapes, since a
+// restored day can carry a line saved with it; this removes every line and
+// draws today's. The board redraws on each 60 s poll, which moves it.
+_drawNowLine() {
+if (!this._root) return;
+this._root.querySelectorAll(".fh-now-line").forEach((line) => line.remove());
+const today = this._dateKey(new Date());
+this._root.querySelectorAll(".grid [data-fh-unit]").forEach((unit) => {
+const timeline = unit.querySelector(".timeline");
+if (timeline && unit.dataset.fhUnit.split("|")[1] === today) timeline.insertAdjacentHTML("beforeend", '<div class="fh-now-line"></div>');
+});
+this._placeNowLine();
+}
+// The line's height goes in a stylesheet outside the grid, not on the line:
+// the grid's HTML, which _recordSettledLayout hashes, then changes only when
+// the day does, so the saved shapes aren't rewritten every minute. 40 px an
+// hour from the first hour shown, as _buildWeekLikeContext and
+// _buildDayLikeContext lay the timeline out; hidden outside those hours.
+_placeNowLine() {
+let style = this._root.querySelector("style.fh-now-style");
+if (!style) {
+style = document.createElement("style");
+style.className = "fh-now-style";
+this._root.appendChild(style);
+}
+const settings = this._getSettings();
+const start = settings.timelineStartHour * 60;
+const end = settings.timelineEndHour >= 24 ? 1440 : (settings.timelineEndHour + 1) * 60;
+const now = new Date();
+const minutes = now.getHours() * 60 + now.getMinutes();
+style.textContent = minutes < start || minutes > end ? ".fh-now-line { display: none; }" : `.fh-now-line { top: ${Math.round(((minutes - start) / 60) * 40)}px; }`;
 }
 _holdGridSize() {
 const grid = this._root && this._root.querySelector(".grid");
