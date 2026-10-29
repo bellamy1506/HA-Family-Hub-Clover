@@ -3338,7 +3338,8 @@ const s = this._getSettings();
 // the shared setting only picks the family (week vs
 // month) - which variant within that family renders is this device's
 // own choice, same as _getShowTimeline etc.
-this._viewMode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: this copy's Start view can pick the other family.
+this._viewMode = this._startViewFamily() === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
 // House fork: set the title now, not when events arrive, so a Month
 // view doesn't open titled "This Week".
 this._updateNavLabel();
@@ -4381,6 +4382,8 @@ return {
 familyCalendarHideTopBarDeviceLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: this._t("settings.hide_top_bar_device_label", "Calendar top bar style: Hidden") },
 // House fork: "Title only" top bar style, see _getTopBarTitleOnly.
 familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: "Calendar top bar style: Title only" },
+// House fork: which view this copy opens in, see _startViewFamily.
+familyCalendarStartViewLocal: { type: "enum", choices: ["household", "week", "month"], default: "household", scope: "instance", label: "Start view" },
   // See _getDeviceName's own comment for how this overrides the
   // auto-guessed browser/OS name once set, either right here in the
   // admin Devices tab (like any other field - edit, then Push to this
@@ -5998,6 +6001,23 @@ local = this._getScopedSettingItem("familyCalendarTopBarTitleOnlyLocal");
 } catch (e) {
 }
 return local === "on";
+}
+// House fork: the view family ("week" or "month") this copy opens in, and
+// returns to when it wakes from the screensaver. The household's defaultView
+// unless this copy's Start view says "week" or "month" (anything else,
+// including nothing stored, is "household"). Which variant of the family
+// renders stays the copy's own choice. Under the shared static layout, which
+// has no field for it, the household decides.
+_startViewFamily() {
+let local = null;
+if (!this._getStaticLayoutAcrossDevices()) {
+try {
+local = this._getScopedSettingItem("familyCalendarStartViewLocal");
+} catch (e) {
+}
+}
+if (local === "week" || local === "month") return local;
+return this._getSettings().defaultView === "month" ? "month" : "week";
 }
 _getHideTopBarDevice() {
 if (this._getStaticLayoutAcrossDevices()) return !!this._getSettings().hideTopBarDeviceShared;
@@ -12140,6 +12160,40 @@ instead of the usual stacked field layout. */
    real heads-up" regardless of which household theme is active. */
 .ha-starting-banner { padding: 8px 14px; background: #fff3cd; color: #7a5c00; font-size: 13px; font-weight: 600; text-align: center; }
 .ha-starting-banner[hidden] { display: none; }
+/* House fork (Clover Tablet loop, 2026-10-29): Split view's day list follows
+the theme's event size too, as Agenda does; it was fixed at 10 px times,
+12 px titles and a 14 px date. The date heading is never smaller than the
+titles under it (14 px in the default theme, as before). */
+.msd-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
+.msd-item-summary { font-size: var(--fs-event, 14px); }
+.msd-date { font-size: max(var(--fs-day-name, 13px), var(--fs-event, 14px)); }
+/* House fork: the current-time line on today's timeline, see _drawNowLine.
+Red, whatever the theme, as calendars mark "now"; over the hour lines and
+under the events, so it doesn't strike through a title, and taps go through
+it. Its height is set in style.fh-now-style. */
+.fh-now-line { position: absolute; left: 0; right: 0; height: 3px; margin-top: -1px; background: #e03131; z-index: 1; pointer-events: none; }
+.timeline > .tl-event { z-index: 2; }
+/* House fork (Clover Tablet loop, 2026-10-28): Week view fills today's header
+with the theme's accent, as Planner already marks today, so today reads from
+across the room; a thin outline and a colored date didn't. The fill reaches
+4 px past the header through box-shadow, which takes no room, so today's
+meals and events stay level with the other days'. A selected today keeps a
+ring in the accent's text color. */
+.day-col.today > .day-header { background: var(--fc-accent); box-shadow: 0 0 0 4px var(--fc-accent); }
+.day-col.today > .day-header.selected { box-shadow: 0 0 0 4px var(--fc-accent), inset 0 0 0 2px var(--fc-accent-text); }
+.day-col.today > .day-header .name, .day-col.today > .day-header .num, .day-col.today > .day-header .wx-temp { color: var(--fc-accent-text); }
+.fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
+/* House fork (Clover Tablet loop, 2026-10-29): Week view's temperatures keep
+the theme's second accent but mixed toward its text color, at full opacity, so
+they read at 4.5:1 or better: Liquid Glass's light teal measured 2.3:1 on the
+wall tablet. Mixing toward a light text color lightens them on dark themes.
+Today's header has its own color (above); a dark holiday photo keeps
+upstream's. */
+.day-col:not(.today):not(.holiday-bg-dark) .wx-temp { color: color-mix(in srgb, var(--fc-accent2) 55%, var(--fc-text)); opacity: 1; }
+/* House fork (owner, 2026-10-29): Agenda's finished events fade less than
+upstream's .event.past (0.45), so they stay easy to read; what's ahead still
+stands out. Week's past events keep upstream's fade. */
+.agenda-item.event.past { opacity: 0.6; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>
@@ -18111,7 +18165,8 @@ this._goToReturnDashboard();
 _resetToDefaultView() {
 if (!this._root) return;
 const s = this._getSettings();
-const mode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: back to this copy's Start view, see _startViewFamily.
+const mode = this._startViewFamily() === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
 if (mode !== "week" && this._mealEditMode) {
 this._mealEditMode = false;
 const editBtn = this._root.querySelector(".edit-meals-btn");
@@ -24439,6 +24494,7 @@ this._renderWeekGrid();
 }
 this._settleShapes();
 this._holdGridSize();
+this._drawNowLine();
 }
 // House fork: the server's copy of the calendars (calendar_cache.py, owner
 // 2026-10-26). Will's iCloud calendar took about 3 s on every open, about
@@ -24590,6 +24646,55 @@ if (parsed && typeof parsed === "object") value = parsed;
 }
 this._layoutMemo = { key: k, value };
 return value;
+}
+// House fork (Clover Tablet loop, 2026-10-28): a line across today's
+// timeline at the current time, as Skylight's "now" bar, so where the day
+// stands reads from across the room. Runs after _settleShapes, since a
+// restored day can carry a line saved with it; this removes every line and
+// draws today's. The board redraws on each 60 s poll, which moves it.
+_drawNowLine() {
+if (!this._root) return;
+this._root.querySelectorAll(".fh-now-line").forEach((line) => line.remove());
+const today = this._dateKey(new Date());
+this._root.querySelectorAll(".grid [data-fh-unit]").forEach((unit) => {
+const timeline = unit.querySelector(".timeline");
+if (timeline && unit.dataset.fhUnit.split("|")[1] === today) timeline.insertAdjacentHTML("beforeend", '<div class="fh-now-line"></div>');
+});
+this._placeNowLine();
+}
+// The line's height goes in a stylesheet outside the grid, not on the line:
+// the grid's HTML, which _recordSettledLayout hashes, then changes only when
+// the day does, so the saved shapes aren't rewritten every minute. 40 px an
+// hour from the first hour shown, as _buildWeekLikeContext and
+// _buildDayLikeContext lay the timeline out; hidden outside those hours.
+_placeNowLine() {
+let style = this._root.querySelector("style.fh-now-style");
+if (!style) {
+style = document.createElement("style");
+style.className = "fh-now-style";
+this._root.appendChild(style);
+}
+const settings = this._getSettings();
+const start = settings.timelineStartHour * 60;
+const end = settings.timelineEndHour >= 24 ? 1440 : (settings.timelineEndHour + 1) * 60;
+const now = new Date();
+const minutes = now.getHours() * 60 + now.getMinutes();
+style.textContent = minutes < start || minutes > end ? ".fh-now-line { display: none; }" : `.fh-now-line { top: ${Math.round(((minutes - start) / 60) * 40)}px; }`;
+}
+// House fork (Clover Tablet loop, 2026-10-29): Agenda dims events that have
+// ended, as Week view does with "Grey out past events" on; called from the
+// item template in _renderAgendaGrid. Same rule as the other views'
+// isPastEvent: a day that's over is dimmed whole; today, an event once it
+// ends (a reminder once its time passes). An all-day event ends at the next
+// midnight, so it stays until the day is over. `.event.past` dims it.
+_agendaPastClass(eventId, dayEnd) {
+if (!this._getSettings().greyOutPastEvents) return "";
+const d = this._eventDetails[eventId];
+if (!d) return "";
+const now = Date.now();
+if (dayEnd.getTime() <= now) return " past";
+const ends = d.isReminder ? d.start : d.end;
+return ends && ends.getTime() <= now ? " past" : "";
 }
 _holdGridSize() {
 const grid = this._root && this._root.querySelector(".grid");
@@ -26059,8 +26164,9 @@ items.sort((a, b) => (a.allDay === b.allDay ? a.start - b.start : a.allDay ? -1 
 const itemsHtml = items.length
 ? items
 .map(
+// House fork: past events dimmed, see _agendaPastClass.
 (it) =>
-`<div class="agenda-item event" data-event-id="${it.id}" style="${it.bg || `background:${it.color}`}">
+`<div class="agenda-item event${this._agendaPastClass(it.id, dayEnd)}" data-event-id="${it.id}" style="${it.bg || `background:${it.color}`}">
 <span class="agenda-item-time">${it.allDay ? "All day" : fmtTime(it.start)}</span>
 <span class="agenda-item-summary">${it.isReminder ? "&#128276; " : ""}${it.isBirthday ? "\u{1F382} " : ""}${it.summary}</span>
 </div>`

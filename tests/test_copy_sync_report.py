@@ -24,6 +24,7 @@ _NOW = ["2026-10-26T22:00:00+00:00"]
 OWNER = "1fd0c2c4a19241c192c77dc39bf472f4"
 JENN = "6e16c1f58eef48e0ab02f0db8be9b21c"
 TITLE = "familyCalendarTopBarTitleOnlyLocal"
+START = "familyCalendarStartViewLocal"
 NAME = "familyHubDeviceCustomNameLocal"
 THEME = "familyHubDeviceThemeOverrideLocal"
 EVENT_PUSH = "family_hub_device_settings_push"
@@ -304,6 +305,62 @@ class WsReport(unittest.TestCase):
         self.report(OWNER, "dev-home", "inst-home", name="Will")
         self.assertEqual(self.pushes(), [])
         self.assertEqual(self.devices["dev-cloud"]["settings"][NAME], "")
+
+
+class StartView(unittest.TestCase):
+    """House fork: the per-copy Start view (Clover Tablet loop, 2026-10-29).
+    An admin push to one copy's instance accepts household/week/month and
+    rejects anything else; a report carrying it is accepted."""
+
+    def setUp(self):
+        self.entry_data = {"device_settings": {"devices": {}, "presets": {}}, "device_settings_store": _Store()}
+        self.bus = _Bus()
+        self.hass = types.SimpleNamespace(bus=self.bus)
+        ws._get_entry_data = lambda hass: self.entry_data
+
+    def push(self, settings, instance_id="inst-tablet"):
+        connection = _Connection(OWNER)
+        connection.user.is_admin = True
+        msg = {"id": 1, "type": "family_hub/device_settings/push", "device_id": "dev-tablet", "settings": settings}
+        if instance_id:
+            msg["instance_id"] = instance_id
+        asyncio.run(ws.ws_push(self.hass, connection, msg))
+        return connection
+
+    def test_field_is_instance_scoped_like_title_only(self):
+        field = ws.INSTANCE_SCOPED_SETTINGS_FIELDS[START]
+        self.assertEqual(field, {"type": "enum", "choices": ["household", "week", "month"], "default": "household", "label": "Start view", "scope": "instance"})
+        self.assertNotIn(START, ws.DEVICE_SCOPED_SETTINGS_FIELDS)
+
+    def test_push_accepts_each_choice(self):
+        for value in ("week", "month", "household"):
+            connection = self.push({START: value})
+            self.assertEqual(connection.errors, [], value)
+            instance = self.entry_data["device_settings"]["devices"]["dev-tablet"]["instances"]["inst-tablet"]
+            self.assertEqual(instance["pending_settings"], {START: value})
+            self.assertEqual(instance["settings"][START], value)
+        fired = [data for event_type, data in self.bus.fired if event_type == EVENT_PUSH]
+        self.assertEqual(fired[0], {"device_id": "dev-tablet", "instance_id": "inst-tablet", "seq": 1, "settings": {START: "week"}})
+
+    def test_push_rejects_other_values(self):
+        for value in ("day", "planner", "split", "Week", "", None, 1):
+            connection = self.push({START: value})
+            self.assertEqual(connection.errors, ["invalid_format"], repr(value))
+        self.assertEqual(self.bus.fired, [])
+
+    def test_push_without_an_instance_is_rejected(self):
+        # Instance-scoped: a device-level push can't carry it.
+        self.assertEqual(self.push({START: "week"}, instance_id=None).errors, ["invalid_format"])
+
+    def test_report_carrying_it_is_accepted(self):
+        connection = _Connection(OWNER)
+        msg = {
+            "id": 1, "device_id": "dev-tablet", "settings": {NAME: "", THEME: ""}, "instance_id": "inst-tablet",
+            "instance_settings": {**view(), START: "week"}, "instance_label": "family-hub", "applied_seq": 0, "instance_applied_seq": 0,
+        }
+        asyncio.run(ws.ws_report(self.hass, connection, msg))
+        self.assertEqual(connection.errors, [])
+        self.assertEqual(self.entry_data["device_settings"]["devices"]["dev-tablet"]["instances"]["inst-tablet"]["settings"][START], "week")
 
 
 if __name__ == "__main__":

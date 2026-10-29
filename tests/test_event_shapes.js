@@ -80,7 +80,8 @@ assert.ok(record.includes("index.slice(4).forEach((k) => localStorage.removeItem
 
 // Wiring: every grid render settles shapes, then holds the size; shapes are
 // drawn once privacy mode is known; every view's day unit is tagged.
-assert.ok(/this\._settleShapes\(\);\nthis\._holdGridSize\(\);\s*$/.test(methodBody("_renderGrid")), "_renderGrid ends with _settleShapes, _holdGridSize");
+// _drawNowLine (the current-time line) may follow; it runs after the shapes.
+assert.ok(/this\._settleShapes\(\);\nthis\._holdGridSize\(\);\s*(this\._drawNowLine\(\);\s*)?$/.test(methodBody("_renderGrid")), "_renderGrid ends with _settleShapes, _holdGridSize");
 assert.ok(methodBody("_fetchPrivacyModeState").includes('if (this._root && this._shapeMode() === "show") this._renderGrid();'));
 for (const tag of [
   'data-fh-unit="cell|${dateKey}"',

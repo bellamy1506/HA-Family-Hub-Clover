@@ -78,12 +78,13 @@ assert.strictEqual(JSON.stringify(store), snapshot, "_holdGridSize only reads");
 
 // Wiring: the height is remembered only after a successful fetch, every grid
 // render holds, and the title is set as soon as the view is known.
-assert.ok(/this\._holdGridSize\(\);\s*$/.test(methodBody("_renderGrid")), "_renderGrid ends with _holdGridSize");
+// _drawNowLine (the current-time line) may follow; it changes no sizes.
+assert.ok(/this\._holdGridSize\(\);\s*(this\._drawNowLine\(\);\s*)?$/.test(methodBody("_renderGrid")), "_renderGrid ends with _holdGridSize");
 assert.ok(src.includes("Object.assign(this._events, newEvents);\nthis._eventsViewMode = this._viewMode;"), "_fetchEvents records which view its events are for");
 assert.ok(methodBody("_fetchEvents").includes("if (!Object.keys(newErrors).length) this._recordSettledLayout();"), "remembered only after a fetch with no errors");
 assert.ok(methodBody("_recordSettledLayout").includes("localStorage.setItem(key, JSON.stringify({ h: height, u: kept }));"), "height saved with the layout");
 assert.ok(
-  /this\._viewMode = s\.defaultView === "month" \? this\._getMonthViewVariant\(\) : this\._getWeekViewVariant\(\);\n\/\/[^\n]*\n(\/\/[^\n]*\n)*this\._updateNavLabel\(\);/.test(src),
+  /this\._viewMode = this\._startViewFamily\(\) === "month" \? this\._getMonthViewVariant\(\) : this\._getWeekViewVariant\(\);\n\/\/[^\n]*\n(\/\/[^\n]*\n)*this\._updateNavLabel\(\);/.test(src),
   "title set right after the view is chosen on open",
 );
 
