@@ -33,3 +33,15 @@ Create a GitHub issue as above.
 ## When a skill says "fetch the relevant ticket"
 
 Read it with `mcp__github__issue_read`, including comments.
+
+## Wayfinding operations
+
+Used by `/wayfinder` (the owner starts it; it doesn't run on its own). The **map** is one issue; its **tickets** are child issues. This environment has no `gh`, so:
+
+- **Map:** an issue labelled `wayfinder:map` (`mcp__github__issue_write`), body as the skill lays out: Destination, Notes, Decisions so far, Not yet specified, Out of scope. For the next board, the Destination comes from [docs/board-next/mission.md](../board-next/mission.md) and the route so far from [synthesis.md](../board-next/synthesis.md); link them, don't copy them.
+- **Child ticket:** an issue with a `wayfinder:<type>` label (`research`, `prototype`, `grilling`, `task`), linked to the map as a GitHub sub-issue with `mcp__github__sub_issue_write`. Put `Part of #<map>` at the top of the body too, so it reads right anywhere.
+- **Blocking:** no MCP tool sets GitHub's native dependencies here, so use the fallback: a `Blocked by: #<n>, #<n>` line at the top of the child's body. A ticket is unblocked when every issue on that line is closed.
+- **Frontier:** the map's open sub-issues (`mcp__github__issue_read` on the map lists them; else search `"Part of #<map>" is:open`), minus any with an open blocker or an assignee; first in map order wins.
+- **Claim:** assign the ticket to `bellamy1506` with `mcp__github__issue_write`, as the session's first write.
+- **Resolve:** a resolution comment (`mcp__github__add_issue_comment`), close the issue with a state reason, then add a one-line pointer (gist + link) under the map's Decisions so far.
+- **Owner time:** grilling and prototype tickets need the owner live; batch them so each session asks for one decision at most, per the house rule on decision load.

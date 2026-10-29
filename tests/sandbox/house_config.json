@@ -52,13 +52,7 @@
     "goalsShowInRewards": false,
     "choresConfettiOnComplete": true,
     "notificationClickPath": "",
-    "people": [
-      {"entity": "calendar.wills_calendar", "name": "Will", "color": "#7ec9d9", "countdown": false, "badges": [], "remindersEntity": ""},
-      {"entity": "calendar.jenns_calendar", "name": "Jenn", "color": "#d97e9e", "countdown": false, "badges": [], "remindersEntity": "", "sandbox_added": true},
-      {"entity": "calendar.home", "name": "Home", "color": "#9ed97e", "countdown": false, "badges": [], "remindersEntity": ""},
-      {"entity": "calendar.us", "name": "Us", "color": "#d9bf7e", "countdown": false, "badges": [], "remindersEntity": ""},
-      {"entity": "calendar.work", "name": "Work", "color": "#b07ed9", "countdown": false, "badges": [], "remindersEntity": ""}
-    ],
+    "people": [],
     "weekendBreakfast": false,
     "showMealsInMonth": false,
     "agendaDays": 7,
