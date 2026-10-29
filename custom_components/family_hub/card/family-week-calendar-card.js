@@ -12161,6 +12161,13 @@ in the query is the event's own text size. */
 .agenda-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
 .agenda-item-summary { font-size: var(--fs-event, 14px); }
 .agenda-day-name, .agenda-day-date { font-size: var(--fs-day-name, 13px); }
+/* House fork (Clover Tablet loop, 2026-10-29): Split view's day list follows
+the theme's event size too, as Agenda does; it was fixed at 10 px times,
+12 px titles and a 14 px date. The date heading is never smaller than the
+titles under it (14 px in the default theme, as before). */
+.msd-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
+.msd-item-summary { font-size: var(--fs-event, 14px); }
+.msd-date { font-size: max(var(--fs-day-name, 13px), var(--fs-event, 14px)); }
 /* House fork: the current-time line on today's timeline, see _drawNowLine.
 Red, whatever the theme, as calendars mark "now"; over the hour lines and
 under the events, so it doesn't strike through a title, and taps go through
@@ -24669,6 +24676,21 @@ const now = new Date();
 const minutes = now.getHours() * 60 + now.getMinutes();
 style.textContent = minutes < start || minutes > end ? ".fh-now-line { display: none; }" : `.fh-now-line { top: ${Math.round(((minutes - start) / 60) * 40)}px; }`;
 }
+// House fork (Clover Tablet loop, 2026-10-29): Agenda dims events that have
+// ended, as Week view does with "Grey out past events" on; called from the
+// item template in _renderAgendaGrid. Same rule as the other views'
+// isPastEvent: a day that's over is dimmed whole; today, an event once it
+// ends (a reminder once its time passes). An all-day event ends at the next
+// midnight, so it stays until the day is over. `.event.past` dims it.
+_agendaPastClass(eventId, dayEnd) {
+if (!this._getSettings().greyOutPastEvents) return "";
+const d = this._eventDetails[eventId];
+if (!d) return "";
+const now = Date.now();
+if (dayEnd.getTime() <= now) return " past";
+const ends = d.isReminder ? d.start : d.end;
+return ends && ends.getTime() <= now ? " past" : "";
+}
 _holdGridSize() {
 const grid = this._root && this._root.querySelector(".grid");
 if (!grid) return;
@@ -26137,8 +26159,9 @@ items.sort((a, b) => (a.allDay === b.allDay ? a.start - b.start : a.allDay ? -1 
 const itemsHtml = items.length
 ? items
 .map(
+// House fork: past events dimmed, see _agendaPastClass.
 (it) =>
-`<div class="agenda-item event" data-event-id="${it.id}" style="${it.bg || `background:${it.color}`}">
+`<div class="agenda-item event${this._agendaPastClass(it.id, dayEnd)}" data-event-id="${it.id}" style="${it.bg || `background:${it.color}`}">
 <span class="agenda-item-time">${it.allDay ? "All day" : fmtTime(it.start)}</span>
 <span class="agenda-item-summary">${it.isReminder ? "&#128276; " : ""}${it.isBirthday ? "\u{1F382} " : ""}${it.summary}</span>
 </div>`

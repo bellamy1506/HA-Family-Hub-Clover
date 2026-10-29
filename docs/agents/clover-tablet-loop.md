@@ -1,5 +1,3 @@
-STOPPED, handed over at 2026-10-28 23:57 EDT
-
 # Clover Tablet improvement loop (log)
 
 Unattended overnight run to make the board better on the Clover Tablet (TCL NXTPAPER 14, 1200×800 CSS px at device pixel ratio 2, read from 6 to 12 ft). Small tested changes merge into `house/clover-tablet-loop`; one draft PR from there to `main` is the morning menu. Nothing merges into `main`.
@@ -30,10 +28,11 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 |---|---|---|---|
 | 1 | Timeline (Day, Week timeline) and Agenda text follow the theme's text sizes | high: Day view had the smallest text; lets a tablet theme raise every view's text | merged (01) |
 | 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | merged (02) |
-| 3 | Agenda dims past events, as Week does | medium | todo (next; plan below) |
-| 4 | First hour label no longer cut off | low, polish | todo |
-| 6 | Split view's day list follows the theme's text size, as item 1 did for Agenda (`.msd-item-time` 10 px, `.msd-item-summary` 12 px, `.msd-date` 14 px are fixed) | low to medium | todo |
+| 3 | Agenda dims past events, as Week does | medium | building (part 2, branch -04-agenda-past) |
+| 4 | First hour label no longer cut off (real tablet: "8 AM" sits half under the dinner slot in Week with the timeline) | low, polish | building (part 2, branch -05-first-hour-label) |
+| 6 | Split view's day list follows the theme's text size, as item 1 did for Agenda (`.msd-item-time` 10 px, `.msd-item-summary` 12 px, `.msd-date` 14 px are fixed) | low to medium | building (part 2, branch -06-split-text) |
 | 5 | Today stands out from across the room | medium | merged (03) |
+| 7 | Weather temperatures readable: non-today `.wx-temp` measured 2.3:1 on the real tablet (Liquid Glass theme), below 4.5:1 | medium: weather is a Q3 feature, glanceable | building (part 2, branch -07-weather-contrast) |
 | - | Skipped: per-person avatars/initials beyond the first letter (Will and Work both "W") | needs a config field and edits in four upstream templates; logged as a question | skipped |
 | - | Skipped: hiding empty meal slots in code | the household's meal blocks setting already does it (proposal) | skipped |
 
@@ -58,6 +57,28 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 - Week view (7 days or the 3-day setting) fills today's day name and date block with the theme's accent color, as Planner already does; before, today had only a thin outline and a colored number. No layout moves: the fill's margin is a shadow.
 - Shots: `shots/03-before-week.png`, `shots/03-after-week.png`, `shots/03-after-week-dark.png`.
 - Upstream-merge cost: none in upstream lines; CSS in the house block that overrides upstream's `.today .day-header .num` color.
+
+## Part 2 (from 2026-10-29 00:00 EDT, hard stop 04:20)
+
+Took over from the handover below. Burst until 01:00: four worktree agents build items 3, 4, 6, 7; this session reviews, merges, and tests on the tablet.
+
+### Real tablet, 00:00 to 00:20 (screenshots sent to the owner privately, never committed)
+
+- 00:02 deployed `house/clover-tablet-loop` at `e48fffe` (items 01 to 03) through HACS, restarted Home Assistant, cleared Fully's cache. Board came back; item 03's filled today header shows on the real screen.
+- **Home Assistant's sidebar is open on the tablet** and takes about 256 of 1200 px. Collapsing it (one tap on the menu icon, remembered by that browser) gives the board about 200 px more. Setting proposal below.
+- The tablet was showing **Month view** (the view button's last choice, kept in the browser). Month pills are the smallest text on the board.
+- **Recipe Box and Suggestions buttons show** in the full top bar, though the recipe box is off (Q3). "Title only" top bar hides them with the rest of the row; no code needed.
+- Tried the proposed default by pushing per-copy settings: 3 days, today first, title-only top bar. Readable layout, roomy columns; see the proposals. Non-today weather temperatures measured 2.3:1 contrast (item 7).
+- Week with the timeline: "8 AM" cut in half under the dinner slot (item 4). Hour labels stay 9 px (item 01 left them).
+
+### Home Assistant changes to undo by 04:15
+
+| Time | Change | Original | Undo |
+|---|---|---|---|
+| 00:02 | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
+| 00:05 | Tablet view button: Week | Month | tap the view button, Month |
+| 00:06 | HA sidebar collapsed on the tablet | expanded | tap the menu icon (54, 54 physical) |
+| 00:10 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:17) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
 
 ## Handover (for the session that continues)
 

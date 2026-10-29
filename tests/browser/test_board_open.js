@@ -404,11 +404,11 @@ const CHECKS = [
       return "one send";
     },
   },
-  // Wall tablet (1200x800): timeline and Agenda text follow the theme's
-  // event text size, as the other views do, instead of fixed 9-13 px
-  // (Clover Tablet loop, 2026-10-28). A one-hour event still shows its title,
-  // and no half-cut time.
-  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
+  // Wall tablet (1200x800): timeline, Agenda and Split's day list text follow
+  // the theme's event text size, as the other views do, instead of fixed
+  // 9-13 px (Clover Tablet loop, 2026-10-28 and 2026-10-29). A one-hour event
+  // still shows its title, and no half-cut time.
+  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null], ["Split", "view=month&month=split", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
     name: `Tablet text: ${where} follows the theme's event size (${size}px)`, width: 1200, height: 800,
     run: async (page) => {
       await settle(page, await open(page, `${query}&theme=liquidglassdark&eventfont=${size}&hdr=0`, switchTo));
@@ -416,20 +416,21 @@ const CHECKS = [
       const found = await page.evaluate(() => {
         const grid = window.__el.shadowRoot.querySelector(".grid");
         const px = (n) => (n ? parseFloat(getComputedStyle(n).fontSize) : 0);
-        const ev = grid.querySelector(".tl-event, .agenda-item.event");
-        const title = ev.querySelector(".tl-summary, .agenda-item-summary");
-        const time = ev.querySelector(".tl-time, .agenda-item-time");
+        const ev = grid.querySelector(".tl-event, .agenda-item.event, .msd-item.event");
+        const title = ev.querySelector(".tl-summary, .agenda-item-summary, .msd-item-summary");
+        const time = ev.querySelector(".tl-time, .agenda-item-time, .msd-item-time");
         const box = ev.getBoundingClientRect();
         const line = title.getClientRects()[0];
         const t = time.getBoundingClientRect();
         const hidden = getComputedStyle(time).display === "none";
-        return { title: px(title), time: px(time), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
+        return { title: px(title), time: px(time), date: px(grid.querySelector(".msd-date")), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
       });
       assert.strictEqual(found.title, size, `title at the theme's ${size}px (${found.title})`);
       assert.ok(found.time >= Math.min(11, size * 0.8), `time at least 0.8 of it (${found.time})`);
       assert.ok(found.titleShows, `the title's first line shows in a ${found.h}px event`);
       assert.ok(found.timeWhole, `the time shows whole or not at all in a ${found.h}px event`);
-      if (where === "Agenda") assert.ok(found.timeShown, "Agenda shows the time");
+      if (where === "Agenda" || where === "Split") assert.ok(found.timeShown, `${where} shows the time`);
+      if (where === "Split") assert.ok(found.date >= size, `the day's date at least the event size (${found.date})`);
       return `title ${found.title}px, time ${found.time}px${found.timeShown ? "" : " (hidden)"}`;
     },
   }))),
@@ -551,6 +552,29 @@ const CHECKS = [
       assert.ok(t.bg === t.accent && t.name === t.accentText && t.num === t.accentText, `today's header in accent: ${JSON.stringify(t)}`);
       assert.ok(found.filter((d) => !d.today).every((d) => d.bg !== t.accent), "other days plain");
       return `today ${t.bg}`;
+    },
+  })),
+  // Agenda dims events that have ended, as Week does with "Grey out past
+  // events" on (Clover Tablet loop, 2026-10-29). At 3 pm the 9 am dentist is
+  // dimmed, the 7 pm trash night isn't; with the setting off, nothing is.
+  ...[["on", ""], ["off", "&grey=off"]].map(([grey, param]) => ({
+    name: `Agenda: past events dimmed (setting ${grey})`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=agenda&hdr=0${param}`));
+      const rows = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".grid .agenda-item.event")].map((n) => ({
+        title: n.querySelector(".agenda-item-summary").textContent.trim(), past: n.classList.contains("past"), opacity: getComputedStyle(n).opacity,
+      })));
+      const row = (text) => rows.find((r) => r.title.includes(text));
+      const dentist = row("dentist"), trash = row("trash night");
+      assert.ok(dentist && trash, `rows found: ${JSON.stringify(rows)}`);
+      if (grey === "on") {
+        assert.ok(dentist.past && dentist.opacity === "0.45", `9 am dimmed: ${JSON.stringify(dentist)}`);
+        assert.ok(!trash.past && trash.opacity === "1", `7 pm not: ${JSON.stringify(trash)}`);
+        assert.deepStrictEqual(rows.filter((r) => r.past).map((r) => r.title), [dentist.title], "only the 9 am one");
+      } else {
+        assert.ok(rows.every((r) => !r.past && r.opacity === "1"), `none dimmed: ${JSON.stringify(rows.filter((r) => r.past))}`);
+      }
+      return `${rows.filter((r) => r.past).length} of ${rows.length} dimmed`;
     },
   })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
