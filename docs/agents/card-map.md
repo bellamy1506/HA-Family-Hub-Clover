@@ -102,6 +102,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Current-time line (Clover Tablet loop, 2026-10-28):** `_drawNowLine`, one hook at the end of `_renderGrid` (after `_settleShapes`, since a restored day can carry a saved line), puts a `.fh-now-line` in each timeline whose unit (`data-fh-unit`) is today: one in Week with the timeline, one per lane in Day view. `_placeNowLine` sets its height in `style.fh-now-style`, a stylesheet in the shadow root outside the grid, so the grid's HTML (which `_recordSettledLayout` hashes) changes only when the day does. It uses the timeline's own geometry: 40 px an hour from `timelineStartHour`. The 60 s poll's redraw moves it; there's no timer of its own. CSS in the house block before `</style>` (under the events: `.timeline > .tl-event { z-index: 2 }`). Test: the "Now line" checks in `tests/browser/test_board_open.js`.
 
+- **Today's header (Clover Tablet loop, 2026-10-28):** CSS only, in the house block before `</style>`: `.day-col.today > .day-header` filled with `--fc-accent` (text `--fc-accent-text`), as Planner's `.planner-day-cell.today` already is; the fill's extra 4 px is a box-shadow, so no layout moves. Applies to Week (any number of days) only. Test: the "Today:" checks in `tests/browser/test_board_open.js`.
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;

@@ -476,6 +476,33 @@ const CHECKS = [
       return "none";
     },
   },
+  // Week view: today's header is filled with the theme's accent, as Planner
+  // already marks today, so today reads from across the room (Clover Tablet
+  // loop, 2026-10-28). Other days stay plain.
+  ...[["default theme", ""], ["dark theme", "&theme=liquidglassdark"]].map(([which, theme]) => ({
+    name: `Today: Week fills today's header (${which})`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week&hdr=0${theme}`));
+      const found = await page.evaluate(() => {
+        const el = window.__el;
+        const probe = document.createElement("div");
+        el.shadowRoot.appendChild(probe);
+        const color = (v) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
+        const accent = color("--fc-accent"), accentText = color("--fc-accent-text");
+        probe.remove();
+        return [...el.shadowRoot.querySelectorAll(".grid .day-col")].map((col) => {
+          const h = col.querySelector(".day-header");
+          return { today: col.classList.contains("today"), bg: getComputedStyle(h).backgroundColor, name: getComputedStyle(h.querySelector(".name")).color, num: getComputedStyle(h.querySelector(".num")).color, accent, accentText };
+        });
+      });
+      const today = found.filter((d) => d.today);
+      assert.strictEqual(today.length, 1, "one today");
+      const t = today[0];
+      assert.ok(t.bg === t.accent && t.name === t.accentText && t.num === t.accentText, `today's header in accent: ${JSON.stringify(t)}`);
+      assert.ok(found.filter((d) => !d.today).every((d) => d.bg !== t.accent), "other days plain");
+      return `today ${t.bg}`;
+    },
+  })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
   // 2026-10-26: the close button scrolled away under Home Assistant's bar).
   {
