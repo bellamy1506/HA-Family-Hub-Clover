@@ -70,10 +70,14 @@ if (unused.length) {
 }
 
 // New files not yet added to git aren't in the diff: check all their lines.
+// Binary files (a NUL byte, as git decides; screenshots) have no lines, and
+// git's diff leaves them out once added.
 for (const rel of git("ls-files", "--others", "--exclude-standard", "-z", "--", ...DIRS).split("\0").filter(Boolean)) {
   let text;
   try {
-    text = fs.readFileSync(path.join(root, rel), "utf8");
+    const bytes = fs.readFileSync(path.join(root, rel));
+    if (bytes.subarray(0, 8000).includes(0)) continue;
+    text = bytes.toString("utf8");
   } catch (e) {
     found.push(`${rel}: couldn't read it to check (${e.code || e.message})`);
     continue;
