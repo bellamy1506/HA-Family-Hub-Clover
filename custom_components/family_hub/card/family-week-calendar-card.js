@@ -12160,55 +12160,6 @@ instead of the usual stacked field layout. */
    real heads-up" regardless of which household theme is active. */
 .ha-starting-banner { padding: 8px 14px; background: #fff3cd; color: #7a5c00; font-size: 13px; font-weight: 600; text-align: center; }
 .ha-starting-banner[hidden] { display: none; }
-/* House fork (Clover Tablet loop, 2026-10-28): timeline and Agenda text follow
-the theme's text sizes, as every other view's events do. They were fixed at
-9 to 13 px, so Day view, the closest to the wall tablet's "a few days in large
-text" default, had the smallest text on the board. On the timeline the title
-comes first and the time under it. An event too short for both (a one-hour
-event is 40 px tall) shows one line of title: its place on the timeline
-already says when it starts. One too short for two title lines and the time
-shows one title line and the time, so neither is cut in half. 2.45em is a
-title line, a time line and the padding, 3.65em adds a second title line; em
-in the query is the event's own text size. */
-.tl-event { font-size: var(--fs-event, 14px); line-height: 1.2; display: flex; flex-direction: column; container-type: size; }
-.tl-event .tl-time { order: 1; font-size: 0.8em; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* 2026-10-29: an event shorter than one title line (15 or 30 minutes at large
-text) shrinks its title to fit (83% of the event's height, at line height
-1.2); a long title gives way to the time instead of pushing it out, and the
-time keeps to one line, so the steps below hold in narrow columns too. */
-.tl-event .tl-summary { font-size: min(1em, 83cqh); min-height: 0; overflow: hidden; }
-/* Taller events: as many whole title lines as fit above the time (each step
-adds a 1.2em line), so no line shows cut in half. */
-@container (max-height: 12.05em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; }
-}
-@container (max-height: 10.85em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 7; }
-}
-@container (max-height: 9.65em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; }
-}
-@container (max-height: 8.45em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
-}
-@container (max-height: 7.25em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
-}
-@container (max-height: 6.05em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-}
-@container (max-height: 4.85em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-}
-@container (max-height: 3.65em) {
-.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
-}
-@container (max-height: 2.45em) {
-.tl-event .tl-time { display: none; }
-}
-.agenda-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
-.agenda-item-summary { font-size: var(--fs-event, 14px); }
-.agenda-day-name, .agenda-day-date { font-size: var(--fs-day-name, 13px); }
 /* House fork (Clover Tablet loop, 2026-10-29): Split view's day list follows
 the theme's event size too, as Agenda does; it was fixed at 10 px times,
 12 px titles and a 14 px date. The date heading is never smaller than the
@@ -12232,12 +12183,6 @@ ring in the accent's text color. */
 .day-col.today > .day-header.selected { box-shadow: 0 0 0 4px var(--fc-accent), inset 0 0 0 2px var(--fc-accent-text); }
 .day-col.today > .day-header .name, .day-col.today > .day-header .num, .day-col.today > .day-header .wx-temp { color: var(--fc-accent-text); }
 .fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
-/* House fork (Clover Tablet loop, 2026-10-29): the first hour label on every
-timeline (Day view, Week with the timeline) shows whole. Each label sits 7 px
-above its hour line, so the first one, at the very top of the scrolling box,
-was cut in half. Only that one moves, to just under its line; the other
-labels, the hour lines, the events and the now line stay put. */
-.timeline > .hour-row:first-child > .hour-label { top: 1px; }
 /* House fork (Clover Tablet loop, 2026-10-29): Week view's temperatures keep
 the theme's second accent but mixed toward its text color, at full opacity, so
 they read at 4.5:1 or better: Liquid Glass's light teal measured 2.3:1 on the
@@ -12245,6 +12190,10 @@ wall tablet. Mixing toward a light text color lightens them on dark themes.
 Today's header has its own color (above); a dark holiday photo keeps
 upstream's. */
 .day-col:not(.today):not(.holiday-bg-dark) .wx-temp { color: color-mix(in srgb, var(--fc-accent2) 55%, var(--fc-text)); opacity: 1; }
+/* House fork (owner, 2026-10-29): Agenda's finished events fade less than
+upstream's .event.past (0.45), so they stay easy to read; what's ahead still
+stands out. Week's past events keep upstream's fade. */
+.agenda-item.event.past { opacity: 0.6; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>

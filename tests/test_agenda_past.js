@@ -52,5 +52,7 @@ const agenda = methodBody("_renderAgendaGrid");
 assert.ok(agenda.includes('`<div class="agenda-item event${this._agendaPastClass(it.id, dayEnd)}" data-event-id="${it.id}"'), "Agenda item template adds the class");
 // .event.past dims it (opacity 0.45), as Week's events.
 assert.ok(/\n\.event\.past[^{]*\{ opacity: 0\.45; \}/.test(src), ".event.past dims");
+// The house fades Agenda's finished events less (owner, 2026-10-29).
+assert.ok(/\n\.agenda-item\.event\.past \{ opacity: 0\.6; \}/.test(src), "Agenda fades to 0.6");
 
 console.log("agenda past events: all checks passed");
