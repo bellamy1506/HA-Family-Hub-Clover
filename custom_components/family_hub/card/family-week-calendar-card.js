@@ -12140,6 +12140,27 @@ instead of the usual stacked field layout. */
    real heads-up" regardless of which household theme is active. */
 .ha-starting-banner { padding: 8px 14px; background: #fff3cd; color: #7a5c00; font-size: 13px; font-weight: 600; text-align: center; }
 .ha-starting-banner[hidden] { display: none; }
+/* House fork (Clover Tablet loop, 2026-10-28): timeline and Agenda text follow
+the theme's text sizes, as every other view's events do. They were fixed at
+9 to 13 px, so Day view, the closest to the wall tablet's "a few days in large
+text" default, had the smallest text on the board. On the timeline the title
+comes first and the time under it. An event too short for both (a one-hour
+event is 40 px tall) shows one line of title: its place on the timeline
+already says when it starts. One too short for two title lines and the time
+shows one title line and the time, so neither is cut in half. 2.45em is a
+title line, a time line and the padding, 3.65em adds a second title line; em
+in the query is the event's own text size. */
+.tl-event { font-size: var(--fs-event, 14px); line-height: 1.2; display: flex; flex-direction: column; container-type: size; }
+.tl-event .tl-time { order: 1; font-size: 0.8em; }
+@container (max-height: 3.65em) {
+.tl-event .tl-summary { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+}
+@container (max-height: 2.45em) {
+.tl-event .tl-time { display: none; }
+}
+.agenda-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
+.agenda-item-summary { font-size: var(--fs-event, 14px); }
+.agenda-day-name, .agenda-day-date { font-size: var(--fs-day-name, 13px); }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>

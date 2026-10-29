@@ -22,17 +22,26 @@ What the tablet copy runs now (read-only from Home Assistant): Week view, 7 days
 
 ## Backlog (ranked: value ÷ (risk + upstream-merge cost))
 
-| # | Item | Status |
-|---|---|---|
-| 1 | Timeline (Day, Week timeline) and Agenda text follow the theme's text sizes | todo |
-| 2 | Current-time line on timelines | todo |
-| 3 | First hour label no longer cut off | todo |
-| 4 | Agenda dims past events, as Week does | todo |
-| 5 | Today stands out from across the room | todo |
+Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading needs text about 59 / 89 / 119 px tall at 6 / 9 / 12 ft (legibility note), so no text size makes titles readable across the room. From across the room the board can only offer glance cues: color by person, where "now" is, which day is today, how full a day is. Titles are for 2 to 6 ft. Skylight's equivalents: a rolling few days from today, an orange "now" bar, dimmed past events, person colors (Skylight note).
+
+| # | Item | Value | Status |
+|---|---|---|---|
+| 1 | Timeline (Day, Week timeline) and Agenda text follow the theme's text sizes | high: Day view had the smallest text; lets a tablet theme raise every view's text | merged (01) |
+| 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | todo |
+| 3 | Agenda dims past events, as Week does | medium | todo |
+| 4 | First hour label no longer cut off | low, polish | todo |
+| 5 | Today stands out from across the room | medium | todo |
+| - | Skipped: per-person avatars/initials beyond the first letter (Will and Work both "W") | needs a config field and edits in four upstream templates; logged as a question | skipped |
+| - | Skipped: hiding empty meal slots in code | the household's meal blocks setting already does it (proposal) | skipped |
 
 ## Iterations
 
-(none yet)
+### 01: timeline and Agenda text follow the theme's sizes (23:30 to 00:05)
+
+- Day view and Week-with-timeline event titles were fixed at 11 px and times at 9 px; Agenda at 13 and 11 px. Now they use the theme's event size (14 px in the default theme; any theme can raise it). On the timeline the title comes first and the time under it; short events clamp the title to one line and the shortest hide the time, so nothing shows cut in half.
+- Also: `tests/test_house_lines_clean.js` skips binary files (it read the first committed screenshot as text and failed).
+- Shots: `shots/01-before-3day-timeline.png`, `shots/01-after-3day-timeline.png`, `shots/01-before-agenda.png`, `shots/01-after-agenda.png`, `shots/01-after-day-theme-20px.png`.
+- Upstream-merge cost: none in upstream lines. One house CSS block appended before the card's main `</style>`; it overrides upstream's `.tl-event`, `.tl-time`, `.agenda-item-*` and `.agenda-day-*` rules, so an upstream restyle of those would need a look.
 
 ## Open questions for the owner
 
