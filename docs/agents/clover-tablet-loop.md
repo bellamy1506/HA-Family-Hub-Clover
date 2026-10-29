@@ -33,6 +33,8 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 | 6 | Split view's day list follows the theme's text size, as item 1 did for Agenda (`.msd-item-time` 10 px, `.msd-item-summary` 12 px, `.msd-date` 14 px are fixed) | low to medium | merged (#23) |
 | 5 | Today stands out from across the room | medium | merged (03) |
 | 7 | Weather temperatures readable: non-today `.wx-temp` measured 2.3:1 on the real tablet (Liquid Glass theme), below 4.5:1 | medium: weather is a Q3 feature, glanceable | merged (#26) |
+| 9 | Per-copy Start view: the household opens in Month, so the tablet does too after every reload or screensaver wake, and "Title only" hides the view button | high: the precondition for the Q13 default without changing the phones | merged (#28) |
+| 10 | Timeline fit: review found #20 cut short events' titles at large text and pushed the time out of long events | high: regression fix | merged (#27) |
 | 8 | Now line covers today's hour label at the top of each hour (e.g. 3 PM at 3:00) | low | idea, not started |
 | - | Month view pills follow the theme size | medium for Month, but 20 px pills truncate to a few letters in 140 px cells; needs a layout decision (fewer, taller pills), not CSS | skipped, logged |
 | - | Skipped: per-person avatars/initials beyond the first letter (Will and Work both "W") | needs a config field and edits in four upstream templates; logged as a question | skipped |
@@ -70,6 +72,13 @@ Four worktree agents each built one item; this session reviewed each diff, opene
 - **#26 Weather temperatures are darker** (`f2bd798`). Non-today `.wx-temp` mixed 55% accent2 / 45% text color, full opacity. Liquid Glass 2.26 to 5.24:1, HA Light 2.90 to 6.71:1; dark themes lighten. Harness gains `wx=1` and the built-in light presets. Shots `07-before-week.png`, `07-after-week.png`. Upstream-merge cost: none in upstream lines; overrides `.wx-temp` color and opacity.
 - Note for later worktrees: `tests/test_house_lines_clean.js` skips (suite says "passed, with skips") unless `upstream-1.168.84` is fetched; `git fetch origin upstream-1.168.84` first.
 
+### 08 and 09: start view, and a fix found in review (00:30 to 00:50)
+
+- **Review agent** read everything since `main`: two real regressions in #20 (15 and 30 minute events cut the title at 20 to 22 px; a long title pushed the time below 90 and 120 minute events) and a test that only measured one-hour events. Also a DST nit (below). Everything else checked sound.
+- **#27 Timeline events of any length show whole title lines and their time** (`4f3933b`). Short events shrink the title (`min(1em, 83cqh)`); container-query steps clamp the title to the whole lines that fit above the time (2 to 8); the time keeps to one line. Harness `lengths=1`; "Timeline fit" checks over every event at 14, 20, 22 px in Day and Week. Shots `09-before-day-lengths.png`, `09-after-day-lengths.png`. Upstream-merge cost: none in upstream lines.
+- **#28 Each board copy can choose the view it opens in** (`248f709`). New per-copy field `familyCalendarStartViewLocal` (household / week / month, default household) in `const.py` and the card registry, house method `_startViewFamily`, used at first load and at screensaver wake. No UI: the admin Devices tab and a new per-copy select entity in Home Assistant show it. Shots `08-before-start.png`, `08-after-start.png`. Upstream-merge cost: two upstream lines (`_initFirstLoad`, `_resetToDefaultView`) plus additions.
+- **DST nit (not fixed, upstream's):** upstream places timeline events by elapsed milliseconds since midnight; the now line uses wall-clock minutes. On a fall-back day (next: Sun 2026-11-01) events after 2 am draw an hour low while the now line is right.
+
 ## Part 2 (from 2026-10-29 00:00 EDT, hard stop 04:20)
 
 Took over from the handover below. Burst until 01:00: four worktree agents build items 3, 4, 6, 7; this session reviews, merges, and tests on the tablet.
@@ -87,10 +96,10 @@ Took over from the handover below. Burst until 01:00: four worktree agents build
 
 | Time | Change | Original | Undo |
 |---|---|---|---|
-| 00:02, again 00:25 (`f2bd798`) | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
-| 00:05 | Tablet view button: Week | Month | tap the view button, Month |
+| 00:02, again 00:25 (`f2bd798`), 00:51 (`248f709`) | HACS Family Hub version `house/clover-tablet-loop` | `5237f66` | HACS download `5237f66`, restart, clear cache, load start URL |
+| 00:05 | Tablet view button: Week (00:05, again 00:31) | Month (the household default; a reload restores it) | nothing, a reload opens Month |
 | 00:06 | HA sidebar collapsed on the tablet | expanded | tap the menu icon (54, 54 physical) |
-| 00:07 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:09) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
+| 00:07 | Pushed tablet copy (`dev-mvsuqf9uw1bblm` / `inst-mvsuqeyleka1t8`): Days shown 3, Current day first on, Title only on (timeline on, then off again at 00:09; Title only off again at 00:31) | Days 7, Current day first off, Title only off, timeline off, rows 1, Week button week, Month button month, small screen off, top bar hidden off | push the originals |
 
 ## Handover (for the session that continues)
 
