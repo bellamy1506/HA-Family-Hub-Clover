@@ -10,7 +10,10 @@
      slow=<entity> (that calendar answers 3x later), privacydelay=<ms>,
      cachedelay=<ms> (the copy answers that much later), hdr=0 (no Home
      Assistant top bar, as in a kiosk), eventfont=<px> (the theme's event
-     text size, with theme=liquidglassdark). -->
+     text size, with theme=liquidglassdark), wx=1 (a weather entity with a
+     daily forecast, so Week's day headers show temperatures). Themes:
+     liquidglassdark (the test's own colors), and the built-in presets
+     liquidglass, halight and midnight with their real colors. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
 <body><div id="hdr"></div><div id="stack"></div>
 <script>if (new URLSearchParams(location.search).get("hdr") === "0") document.getElementById("hdr").remove();</script>
@@ -33,6 +36,13 @@ const timed = (o, s, h) => ({ summary: s, start: { dateTime: `${day(o)}T${String
 const allDay = (o, s) => ({ summary: s, start: { date: day(o) }, end: { date: day(o + 1) } });
 const THEME = { id: "liquidglassdark", name: "Liquid Glass Dark", colors: { bg: "#0b1020", card: "#1b2133", border: "#2a3350", text: "#e8ecf5", textSecondary: "#9aa3b8", accent: "#4f8cff", accentText: "#ffffff", accent2: "#7ec9d9", accent3: "#b07ed9", surfaceAlt: "#222a40", surface2: "#1f2638" }, fonts: { dayName: 13, dayNumber: 22, wxTemp: 14, event: 14, chip: 13, headerTitle: 15, countdown: 11, blockLabel: 9, blockMeal: 13 }, cardOpacity: 55, glassBlur: 18 };
 if (q.get("eventfont")) THEME.fonts.event = +q.get("eventfont");
+// Built-in presets, colors as __init__.py's _seed_themes (no background image).
+const preset = (id, name, colors, glass) => ({ id, name, colors, fonts: { ...THEME.fonts }, ...(glass || {}) });
+const PRESETS = [
+  preset("liquidglass", "Liquid Glass", { bg: "#eef3f8", card: "#ffffff", border: "#d7e3f0", text: "#1c2733", textSecondary: "#66758a", accent: "#0a84ff", accentText: "#ffffff", accent2: "#30b0c7", accent3: "#ff3b30", surfaceAlt: "#eef4fb", surface2: "#e4edf7" }, { cardOpacity: 62, glassBlur: 16 }),
+  preset("halight", "HA Light", { bg: "#fafafa", card: "#ffffff", border: "#e0e0e0", text: "#212121", textSecondary: "#727272", accent: "#03a9f4", accentText: "#ffffff", accent2: "#43a047", accent3: "#ff9800", surfaceAlt: "#f2f2f2", surface2: "#f6f6f6" }),
+  preset("midnight", "Midnight", { bg: "#12141c", card: "#1a1d29", border: "#2a2f42", text: "#e4e6f0", textSecondary: "#8b90a8", accent: "#c9a227", accentText: "#1a1400", accent2: "#3ea67a", accent3: "#b5583c", surfaceAlt: "#232739", surface2: "#1f2333" }),
+];
 const people = [["calendar.wills_calendar", "Will", "#7ec9d9"], ["calendar.home", "Home", "#9ed97e"], ["calendar.us", "Us", "#d9bf7e"], ["calendar.work", "Work", "#b07ed9"]];
 const dropped = (list) => (q.get("drop") ? list.filter((e) => !(e.start.dateTime || e.start.date).startsWith(day(3))) : list);
 const events = {
@@ -57,7 +67,12 @@ const hass = {
     sendMessagePromise: async (msg) => {
       await sleep(40);
       if (msg.type === "family_hub/get_settings") return { settings };
-      if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME] }; }
+      if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME, ...PRESETS] }; }
+      if (msg.type === "call_service" && msg.service === "get_forecasts") {
+        const forecast = [];
+        for (let o = -10; o <= 14; o++) forecast.push({ datetime: `${day(o)}T12:00:00`, condition: "partlycloudy", temperature: 60 + (o % 5), templow: 45 + (o % 4) });
+        return { response: { [msg.target.entity_id]: { forecast } } };
+      }
       if (msg.type === "family_hub/privacy_mode/get_state") { await sleep(+(q.get("privacydelay") || 0)); return { enabled: q.get("privacy") === "on" }; }
       if (msg.type === "family_hub/calendar_cache/get") {
         if (!q.get("cache")) return { calendars: {} };
@@ -81,7 +96,7 @@ const hass = {
   },
 };
 const el = document.createElement("family-week-calendar-card");
-el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", people: people.map(([entity, name, color]) => ({ entity, name, color })) });
+el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", ...(q.get("wx") ? { weather_entity: "weather.home" } : {}), people: people.map(([entity, name, color]) => ({ entity, name, color })) });
 document.getElementById("stack").appendChild(el);
 el.hass = hass;
 window.__el = el;

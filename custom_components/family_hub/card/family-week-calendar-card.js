@@ -12177,6 +12177,13 @@ ring in the accent's text color. */
 .day-col.today > .day-header.selected { box-shadow: 0 0 0 4px var(--fc-accent), inset 0 0 0 2px var(--fc-accent-text); }
 .day-col.today > .day-header .name, .day-col.today > .day-header .num, .day-col.today > .day-header .wx-temp { color: var(--fc-accent-text); }
 .fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
+/* House fork (Clover Tablet loop, 2026-10-29): Week view's temperatures keep
+the theme's second accent but mixed toward its text color, at full opacity, so
+they read at 4.5:1 or better: Liquid Glass's light teal measured 2.3:1 on the
+wall tablet. Mixing toward a light text color lightens them on dark themes.
+Today's header has its own color (above); a dark holiday photo keeps
+upstream's. */
+.day-col:not(.today):not(.holiday-bg-dark) .wx-temp { color: color-mix(in srgb, var(--fc-accent2) 55%, var(--fc-text)); opacity: 1; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>

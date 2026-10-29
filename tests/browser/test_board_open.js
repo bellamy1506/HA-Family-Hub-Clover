@@ -503,6 +503,58 @@ const CHECKS = [
       return `today ${t.bg}`;
     },
   })),
+  // Week view: the temperature next to each day's date reads at 4.5:1 or
+  // better against its column, light and dark themes alike (Clover Tablet
+  // loop, 2026-10-29: Liquid Glass's light teal measured 2.3:1 on the wall
+  // tablet). Today's stays in the accent's text color on the accent fill.
+  ...[["default theme", ""], ["Liquid Glass", "liquidglass"], ["HA Light", "halight"], ["Liquid Glass Dark", "liquidglassdark"], ["Midnight", "midnight"]].map(([which, theme]) => ({
+    name: `Weather: Week temperatures read at 4.5:1 (${which})`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week&hdr=0&wx=1${theme ? `&theme=${theme}` : ""}`));
+      await page.waitForTimeout(400);
+      const found = await page.evaluate(() => {
+        const el = window.__el;
+        // Colors as [r, g, b, a] in 0-255, a 0-1; color-mix computes to color(srgb ...).
+        const parse = (c) => {
+          let m = c.match(/^rgba?\(([^)]+)\)/);
+          if (m) { const p = m[1].split(/[ ,/]+/).filter(Boolean).map(Number); return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1]; }
+          m = c.match(/^color\(srgb ([^)]+)\)/);
+          if (m) { const p = m[1].split(/[ /]+/).filter(Boolean).map(Number); return [p[0] * 255, p[1] * 255, p[2] * 255, p.length > 3 ? p[3] : 1]; }
+          throw new Error(`unparsed color ${c}`);
+        };
+        const over = (top, under) => [0, 1, 2].map((i) => top[i] * top[3] + under[i] * (1 - top[3])).concat(1);
+        // The column's background as painted: its own and its ancestors'
+        // backgrounds, down to the first opaque one (ha-card, the theme's bg).
+        const backdrop = (n) => {
+          const layers = [];
+          for (let x = n; x; x = x.parentElement || (x.getRootNode() && x.getRootNode().host)) {
+            const c = parse(getComputedStyle(x).backgroundColor);
+            if (c[3] > 0) layers.push(c);
+            if (c[3] >= 1) break;
+          }
+          return layers.reverse().reduce((under, top) => over(top, under), [255, 255, 255, 1]);
+        };
+        const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
+        const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+        const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+        return [...el.shadowRoot.querySelectorAll(".grid .day-col")].map((col) => {
+          const t = col.querySelector(".wx-temp");
+          if (!t) return { today: col.classList.contains("today"), missing: true };
+          const bg = backdrop(t);
+          const own = parse(getComputedStyle(t).color);
+          const fg = over([own[0], own[1], own[2], own[3] * parseFloat(getComputedStyle(t).opacity)], bg);
+          const accentText = parse(getComputedStyle(col.querySelector(".day-header .num")).color);
+          return { today: col.classList.contains("today"), ratio: Math.round(ratio(fg, bg) * 100) / 100, fg: fg.slice(0, 3).map(Math.round), bg: bg.slice(0, 3).map(Math.round), todayOk: own.slice(0, 3).every((v, i) => Math.abs(v - accentText[i]) < 1) };
+        });
+      });
+      assert.ok(found.length === 7 && found.every((d) => !d.missing), `a temperature in every day's header: ${JSON.stringify(found)}`);
+      const others = found.filter((d) => !d.today);
+      const low = others.filter((d) => d.ratio < 4.5);
+      assert.ok(!low.length, `every other day's temperature at 4.5:1 or better: ${low.length ? `${low[0].ratio}:1, rgb(${low[0].fg}) on rgb(${low[0].bg})` : ""}`);
+      assert.ok(found.filter((d) => d.today).every((d) => d.todayOk), "today's temperature keeps the accent's text color");
+      return `${others[0].ratio}:1, rgb(${others[0].fg}) on rgb(${others[0].bg})`;
+    },
+  })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
   // 2026-10-26: the close button scrolled away under Home Assistant's bar).
   {
