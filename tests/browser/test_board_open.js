@@ -404,11 +404,11 @@ const CHECKS = [
       return "one send";
     },
   },
-  // Wall tablet (1200x800): timeline and Agenda text follow the theme's
-  // event text size, as the other views do, instead of fixed 9-13 px
-  // (Clover Tablet loop, 2026-10-28). A one-hour event still shows its title,
-  // and no half-cut time.
-  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
+  // Wall tablet (1200x800): timeline, Agenda and Split's day list text follow
+  // the theme's event text size, as the other views do, instead of fixed
+  // 9-13 px (Clover Tablet loop, 2026-10-28 and 2026-10-29). A one-hour event
+  // still shows its title, and no half-cut time.
+  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null], ["Split", "view=month&month=split", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
     name: `Tablet text: ${where} follows the theme's event size (${size}px)`, width: 1200, height: 800,
     run: async (page) => {
       await settle(page, await open(page, `${query}&theme=liquidglassdark&eventfont=${size}&hdr=0`, switchTo));
@@ -416,20 +416,21 @@ const CHECKS = [
       const found = await page.evaluate(() => {
         const grid = window.__el.shadowRoot.querySelector(".grid");
         const px = (n) => (n ? parseFloat(getComputedStyle(n).fontSize) : 0);
-        const ev = grid.querySelector(".tl-event, .agenda-item.event");
-        const title = ev.querySelector(".tl-summary, .agenda-item-summary");
-        const time = ev.querySelector(".tl-time, .agenda-item-time");
+        const ev = grid.querySelector(".tl-event, .agenda-item.event, .msd-item.event");
+        const title = ev.querySelector(".tl-summary, .agenda-item-summary, .msd-item-summary");
+        const time = ev.querySelector(".tl-time, .agenda-item-time, .msd-item-time");
         const box = ev.getBoundingClientRect();
         const line = title.getClientRects()[0];
         const t = time.getBoundingClientRect();
         const hidden = getComputedStyle(time).display === "none";
-        return { title: px(title), time: px(time), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
+        return { title: px(title), time: px(time), date: px(grid.querySelector(".msd-date")), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
       });
       assert.strictEqual(found.title, size, `title at the theme's ${size}px (${found.title})`);
       assert.ok(found.time >= Math.min(11, size * 0.8), `time at least 0.8 of it (${found.time})`);
       assert.ok(found.titleShows, `the title's first line shows in a ${found.h}px event`);
       assert.ok(found.timeWhole, `the time shows whole or not at all in a ${found.h}px event`);
-      if (where === "Agenda") assert.ok(found.timeShown, "Agenda shows the time");
+      if (where === "Agenda" || where === "Split") assert.ok(found.timeShown, `${where} shows the time`);
+      if (where === "Split") assert.ok(found.date >= size, `the day's date at least the event size (${found.date})`);
       return `title ${found.title}px, time ${found.time}px${found.timeShown ? "" : " (hidden)"}`;
     },
   }))),
@@ -466,6 +467,56 @@ const CHECKS = [
       await page.waitForTimeout(CAL + 600);
       assert.ok((await read()).every((l) => !l.shown), "hidden after the last hour shown");
       return `${lines} line(s), at 280 then 300 px`;
+    },
+  })),
+  // The first hour label on every timeline shows whole: it sat 7 px above
+  // its line, outside the scrolling box, so in Week it was cut right under
+  // the last meal slot (Clover Tablet loop, 2026-10-29). The other labels,
+  // the hour lines and the events stay where they were.
+  ...[["Day", "day", 4, 0], ["Week timeline, meal slots above", null, 7, 7], ["Week timeline, 3 days, meal slots above", null, 3, 3]].map(([where, switchTo, timelines, withMeals]) => ({
+    name: `First hour label: ${where} shows it whole`, width: 1200, height: 800,
+    run: async (page) => {
+      if (timelines === 3) await page.addInitScript(() => { localStorage.setItem("familyCalendarWeekDayCountLocal", "3"); localStorage.setItem("familyCalendarCurrentDayFirstLocal", "on"); });
+      await settle(page, await open(page, "view=week&week=week&timeline=on&hdr=0", switchTo));
+      await page.waitForTimeout(400);
+      const found = await page.evaluate(() => {
+        const grid = window.__el.shadowRoot.querySelector(".grid");
+        return [...grid.querySelectorAll(".events")].filter((e) => e.querySelector(".timeline")).map((box) => {
+          box.scrollTop = 0;
+          const tl = box.querySelector(".timeline");
+          const t = tl.getBoundingClientRect().top;
+          const rows = [...tl.querySelectorAll(":scope > .hour-row")];
+          const labels = rows.map((r) => r.querySelector(".hour-label").getBoundingClientRect());
+          const ev = tl.querySelector(":scope > .tl-event");
+          const first = rows[0].querySelector(".hour-label");
+          const hit = window.__el.shadowRoot.elementFromPoint(labels[0].left + labels[0].width / 2, labels[0].top + 1);
+          const above = [...box.parentElement.children].filter((n) => n !== box && n.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING);
+          return {
+            uncovered: hit === first,
+            mealsAbove: above.filter((n) => /meal|Tap to add|Tacos/i.test(n.className + " " + n.textContent) && n.getBoundingClientRect().bottom <= labels[0].top).length > 0,
+            visibleTop: Math.round(box.getBoundingClientRect().top + box.clientTop),
+            firstTop: Math.round(labels[0].top),
+            firstInRow: Math.round(labels[0].bottom - rows[0].getBoundingClientRect().top) <= 40,
+            otherOffsets: labels.slice(1).map((l, i) => Math.round(l.top - rows[i + 1].getBoundingClientRect().top)),
+            rowTops: rows.map((r) => Math.round(r.getBoundingClientRect().top - t)),
+            eventOff: ev ? Math.round(ev.getBoundingClientRect().top - t) - parseFloat(ev.style.top) : 0,
+            pads: [getComputedStyle(tl).marginTop, getComputedStyle(tl).paddingTop, getComputedStyle(box).paddingTop].join(" "),
+          };
+        });
+      });
+      assert.strictEqual(found.length, timelines, `${timelines} timeline(s)`);
+      for (const f of found) {
+        assert.ok(f.firstTop >= f.visibleTop, `first label top ${f.firstTop} not above the visible top ${f.visibleTop}`);
+        assert.ok(f.firstInRow, "first label inside its hour");
+        assert.ok(f.uncovered, "nothing (a meal slot, the column edge) covers the first label's top");
+        // top: -7px from inside the row's 1 px top border: 6 px above it.
+        assert.ok(f.otherOffsets.length > 0 && f.otherOffsets.every((o) => o === -6), `other labels still where upstream puts them: ${f.otherOffsets}`);
+        assert.ok(f.rowTops.every((top, i) => top === i * 40), `hour lines 40 px apart from the top: ${f.rowTops}`);
+        assert.ok(Math.abs(f.eventOff) <= 1, `events on their hours (${f.eventOff})`);
+        assert.strictEqual(f.pads, "0px 0px 0px", "timeline not moved down (margin, padding, box padding)");
+      }
+      assert.strictEqual(found.filter((f) => f.mealsAbove).length >= withMeals, true, `meal slots above the timeline in ${withMeals} column(s): ${found.map((f) => f.mealsAbove)}`);
+      return `${found.length} timeline(s), first label at the visible top + ${found[0].firstTop - found[0].visibleTop}px`;
     },
   })),
   {
@@ -553,6 +604,29 @@ const CHECKS = [
       assert.ok(!low.length, `every other day's temperature at 4.5:1 or better: ${low.length ? `${low[0].ratio}:1, rgb(${low[0].fg}) on rgb(${low[0].bg})` : ""}`);
       assert.ok(found.filter((d) => d.today).every((d) => d.todayOk), "today's temperature keeps the accent's text color");
       return `${others[0].ratio}:1, rgb(${others[0].fg}) on rgb(${others[0].bg})`;
+    },
+  })),
+  // Agenda dims events that have ended, as Week does with "Grey out past
+  // events" on (Clover Tablet loop, 2026-10-29). At 3 pm the 9 am dentist is
+  // dimmed, the 7 pm trash night isn't; with the setting off, nothing is.
+  ...[["on", ""], ["off", "&grey=off"]].map(([grey, param]) => ({
+    name: `Agenda: past events dimmed (setting ${grey})`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=agenda&hdr=0${param}`));
+      const rows = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".grid .agenda-item.event")].map((n) => ({
+        title: n.querySelector(".agenda-item-summary").textContent.trim(), past: n.classList.contains("past"), opacity: getComputedStyle(n).opacity,
+      })));
+      const row = (text) => rows.find((r) => r.title.includes(text));
+      const dentist = row("dentist"), trash = row("trash night");
+      assert.ok(dentist && trash, `rows found: ${JSON.stringify(rows)}`);
+      if (grey === "on") {
+        assert.ok(dentist.past && dentist.opacity === "0.45", `9 am dimmed: ${JSON.stringify(dentist)}`);
+        assert.ok(!trash.past && trash.opacity === "1", `7 pm not: ${JSON.stringify(trash)}`);
+        assert.deepStrictEqual(rows.filter((r) => r.past).map((r) => r.title), [dentist.title], "only the 9 am one");
+      } else {
+        assert.ok(rows.every((r) => !r.past && r.opacity === "1"), `none dimmed: ${JSON.stringify(rows.filter((r) => r.past))}`);
+      }
+      return `${rows.filter((r) => r.past).length} of ${rows.length} dimmed`;
     },
   })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
