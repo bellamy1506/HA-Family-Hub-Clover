@@ -20,7 +20,8 @@ _initFirstLoad
   await _fetchSettings                       -> _applySizeVars, _renderGrid   (theme list not loaded yet: _resolveTheme
                                                 uses _rememberedGlobalTheme, house)
   await _fetchEventPeopleOverrides, _fetchMyPermissions
-  this._viewMode = defaultView ? _getMonthViewVariant() : _getWeekViewVariant()
+  this._viewMode = _startViewFamily() === "month" ? _getMonthViewVariant() : _getWeekViewVariant()
+                                             (house: the copy's Start view, else the household's defaultView)
   _updateNavLabel                            (house: title right away)
   _refreshAllData                            -> _fetchEvents, _fetchMealPlan, _fetchWeather, _fetchGlobalThemes,
                                                 _fetchReminders, ... (all fire-and-forget)
@@ -52,7 +53,7 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 | `day` | `_renderDayGrid` → `_buildDayLikeContext`, `_buildPersonLaneHtml` | `.day-col.person-lane` `lane\|date\|entity or family` | `.event`, `.all-day-chip`, `.tl-event` |
 | `agenda` | `_renderAgendaGrid` | `.agenda-day-group` `agenda\|date` | `.agenda-item` |
 
-- **Families:** `_viewFamily` groups `month` and `split` as the Month family, and the rest as Week, except `day`. Week and Month variants are per-copy settings: `_getWeekViewVariant`, `_getMonthViewVariant`.
+- **Families:** `_viewFamily` groups `month` and `split` as the Month family, and the rest as Week, except `day`. Week and Month variants are per-copy settings: `_getWeekViewVariant`, `_getMonthViewVariant`. Which family a copy opens in is the household's `defaultView` unless the copy's Start view overrides it (`_startViewFamily`, house).
 - **Containers that exist only with events:** `.all-day-row`, and Planner's phone `.planner-mobile-person` blocks. So you can't inject events into an empty render; restore a whole unit instead.
 - **Empty states:** `.msd-empty`, `.agenda-empty`, `.planner-mobile-empty` ("Nothing scheduled" or "Nothing planned").
 - **Privacy:** every renderer reads events through `_privacyEventsFor` and `_privacyReminders`, which return nothing while `_privacyModeEffectiveLocked`. `_syncPrivacyModeOverlay` re-renders when that flips.
@@ -69,6 +70,7 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 ## House-only changes in this file
 
 - **Title only top bar:** `_getTopBarTitleOnly`, the `top-bar-title-only` host attribute and its CSS (fork PRs #3 and #4). Test: `tests/test_title_only_top_bar.js`.
+- **Start view (Clover Tablet loop, 2026-10-29):** `familyCalendarStartViewLocal` (instance scope; `household`, `week`, `month`; absent means `household`), in `_deviceSettingsFieldRegistry` and `const.py`'s `DEVICE_SETTINGS_FIELDS`. `_startViewFamily` returns the copy's `week` or `month`, else the household's `defaultView` (always the household's under the static layout). Hooks: one line each in `_initFirstLoad` (first open) and `_resetToDefaultView` (waking from the screensaver). No control in the copy's own Settings popup: set it from Settings > Devices (the admin tab draws every field the server lists) or the copy's "Start view" select entity in Home Assistant. Tests: `tests/test_start_view.js`, the `StartView` and start-view push checks in `tests/test_copy_sync_report.py` and `tests/test_copy_sync.py`, the "Start view" checks in `tests/browser/test_board_open.js` (harness `start=`).
 - **Copy sync (issue #5):** a copy is one browser storage. `_reportDeviceSettings` sends `applied_seq`/`instance_applied_seq`. `_applyPushedDeviceSettingsLive` reports again after applying. The theme picker reports on change. `familyHubDeviceThemeOverrideLocal` is in `_deviceSettingsFieldRegistry`. Server side:
   - `copy_sync.py`: who gets what; no Home Assistant imports.
   - `device_settings_websocket_api.py`: `ws_report` wiring.

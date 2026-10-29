@@ -629,6 +629,19 @@ const CHECKS = [
       return `${rows.filter((r) => r.past).length} of ${rows.length} dimmed`;
     },
   })),
+  // Start view (Clover Tablet loop, 2026-10-29): the household opens in
+  // Month; one copy (the wall tablet) can open in Week instead, in its own
+  // Week variant, without changing the household. "household" keeps Month.
+  ...[["week", "week", ".day-col"], ["household", "month", ".month-cell"], ["month", "month", ".month-cell"]].map(([start, mode, unit]) => ({
+    name: `Start view: household Month, copy ${start}`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=month&week=week&month=month&start=${start}&hdr=0`));
+      const seen = await page.evaluate((u) => ({ mode: window.__el._viewMode, units: window.__el.shadowRoot.querySelectorAll(`.grid ${u}`).length }), unit);
+      assert.strictEqual(seen.mode, mode, `opens in ${mode}`);
+      assert.ok(seen.units > 0, `${unit} drawn`);
+      return `opens in ${seen.mode}`;
+    },
+  })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
   // 2026-10-26: the close button scrolled away under Home Assistant's bar).
   {
