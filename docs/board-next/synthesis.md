@@ -96,7 +96,7 @@ Ranked inside each wave by value for effort. Every Home Assistant change is expl
 
 ## Decisions
 
-**Now:** D1 (above), and D2, the OK for the Home Assistant half of wave 0: empty Family Hub's Settings > Calendars list so "Hide work calendars" works again (B2), and set up Kiosk Mode on the tablet's login (B6, decided 2026-10-26).
+**Decided (owner, 2026-10-29):** D1 **A**, a new house board in stages. D2 **A**: Family Hub's Settings > Calendars list was emptied the same evening after backup `07932a2d`, and the sandbox showed the switch hiding Work again; the wave 0 code fix stops a Settings save from refilling it. Kiosk Mode (B6) was decided 2026-10-26 and is built with wave 0's install. Originally asked: empty Family Hub's Settings > Calendars list so "Hide work calendars" works again (B2), and set up Kiosk Mode on the tablet's login (B6, decided 2026-10-26).
 
 **Queued, each with a default, asked when its wave arrives:**
 - **D3, where shared events live:** A two homes now (0.6, default), B iCloud only once the board can edit it (0.3), C Us only (0.1).
