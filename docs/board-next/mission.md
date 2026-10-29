@@ -18,8 +18,8 @@ So the root measure is not features. It is: **is the board the place both of you
 
 Three facts sharpen that:
 
-1. **Jenn wanted a Skylight; the owner wanted control** (J008, Q1). The board has to beat the Skylight she wanted on her terms (simple, pretty, it just works) while keeping what the owner chose it for (no subscription, no lock-in, local, the owner's to shape). If Jenn wouldn't pick it over a Skylight, it isn't done.
-2. **The owner must not become the household's IT department.** A system only one person can operate moves the mental load onto that person. Jenn adding, changing and clearing things on her own, without asking how, is the test.
+1. **Jenn wanted a Skylight; the owner wanted control** (J008, Q1). The board has to beat that Skylight on Jenn's terms (simple, pretty, it just works) while keeping what the owner chose it for (no subscription, no lock-in, local, the owner's to shape). If Jenn wouldn't pick it over a Skylight, it isn't done.
+2. **The owner must not become the household's IT department.** A system only one person can operate moves the mental load onto that person. Jenn adding, changing and clearing things alone, without asking how, is the test.
 3. **Most obligations appear away from the wall:** in a text, an email, a phone call, a school or vet flyer, a conversation in the car. The wall is where the picture is seen; capture has to work from wherever the obligation shows up, in seconds, and feel like relief ("it's handled") rather than homework.
 
 ## What success looks like

@@ -24,7 +24,7 @@ Sign-ins: **Owner** (admin), **Jenn** and **Wall** (not admin; the wall tablet's
 - `board_browser.js` does both, signs in on Home Assistant's own page when asked, and keeps one browser profile per person and device, so sign-ins and the board's per-copy settings last between scripts (`openBoard({ user: "jenn", device: "phone" })`, or `node tests/sandbox/board_browser.js jenn phone <shot-name>`). `fresh: true` gives a brand-new browser instead.
 - The Playwright MCP tools don't run in this container: they look for Google Chrome at `/opt/google/chrome/chrome` and, pointed at the preinstalled Chromium, it refuses to start as root with its sandbox on. Use scripts.
 
-**Wall tablet:** sign in as `wall` and reload once. Copy sync (fork issue #5) sends any new browser of the Wall user the settings of the tablet copy that `provision.py` registers: the Liquid Glass Tablet theme arrives on the first open; Week, 4 days from today, today first, timeline, full top bar from the next. Owner works the same way with the owner's phone settings (Planner, Split, Title only, Liquid Glass Dark). Jenn has no copy on the house yet, so hers start on household defaults. To give any other browser the tablet's settings, run this in its console after signing in, then reload:
+**Wall tablet:** sign in as `wall` and reload once. Copy sync (fork issue #5) sends any new browser of the Wall user the settings of the tablet copy that `provision.py` registers: the Liquid Glass Tablet theme arrives on the first open; Week, 4 days from today, today first, timeline, full top bar from the next. Owner works the same way with the owner's phone settings (Planner, Split, Title only, Liquid Glass Dark). Jenn has no copy on the house yet, so Jenn's start on household defaults. To give any other browser the tablet's settings, run this in its console after signing in, then reload:
 
 ```js
 for (const [k, v] of Object.entries({ familyCalendarStartViewLocal: "week", familyCalendarWeekViewVariantLocal: "week", familyCalendarWeekDayCountLocal: "4", familyCalendarCurrentDayFirstLocal: "on", familyCalendarShowTimelineLocal: "on", familyCalendarTopBarTitleOnlyLocal: "off", familyCalendarHideTopBarDeviceLocal: "off", familyHubDeviceThemeOverrideLocal: "liquidglasstablet" })) for (const key of [k, ...Object.keys(localStorage).filter((x) => x.startsWith(k + "__inst_"))]) localStorage.setItem(key, v);
@@ -42,7 +42,7 @@ From the live configuration, read-only on 2026-10-29 (`family_hub/get_settings`,
 
 ## What doesn't
 
-- **Jenn's column is new** (planned, not on the house): `calendar.jenns_calendar`, second, rose `#d97e9e`, read only like both paths J008 plans for her Google calendar. Position, color and entity id are guesses.
+- **Jenn's column is new** (planned, not on the house): `calendar.jenns_calendar`, second, rose `#d97e9e`, read only like both paths J008 plans for Jenn's Google calendar. Position, color and entity id are guesses.
 - Calendars answer at once; on the house, Will's iCloud column takes about 3 s live (the server copy hides most of it). The weather is a fixed template forecast, not Met.no.
 - Not read, so left at defaults: Family Hub's integration options (calendars watched for reminders, default notify target), permissions, privacy-mode and kiosk PINs. No phones, so no notifications; no Assist, so no board voice scripts.
 - Users are Owner, Jenn and Wall, not the house's own (which include service users). The sidebar is Home Assistant's default for a small install.

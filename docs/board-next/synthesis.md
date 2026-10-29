@@ -30,7 +30,7 @@ Checked in the sandbox and, read-only, on the house (2026-10-29). These come bef
 | B2 | **"Hide work calendars" doesn't hide Work.** Family Hub's own Settings > Calendars list was refilled (Will, Home, Us, Work) and overrides both dashboard copies; J006 says keep it empty | Guest mode turns the switch on for a sitter, and Work still shows | Empty that list again (a Home Assistant change: needs the owner's OK), then make the board read columns from one place so it can't recur | 1, then 2 |
 | B3 | **The board's Shopping List opens a Grocy tab** ("Grocy isn't connected"); Add does nothing | The real list (`todo.shopping_list`) is six taps away in the sidebar among 12 oddly named lists | The button opens the real shopping list; Grocy wording goes | 2 |
 | B4 | **Dead and misleading controls:** Recipe Box and Suggestions (recipes are off), "Suggest" on the wall's meal slot that actually saves, a Right Now card file that doesn't exist (a failed request on every open), "Delete theme" a tap away | Clutter, and labels that lie | Remove or relabel | 2 |
-| B5 | **No answer after saving,** anywhere | "Did it work? I'll text him." | A short "On the board: Dentist, Tue Nov 3, 3:30 pm, on Us" with Undo | 2 |
+| B5 | **No answer after saving,** anywhere | "Did it work? I'll just text." | A short "On the board: Dentist, Tue Nov 3, 3:30 pm, on Us" with Undo | 2 |
 | B6 | **Home Assistant's sidebar and top bar take a fifth of the wall** | It reads "computer," not "family calendar" | Kiosk Mode for the tablet's login (already decided, J008 step 6) | 1 |
 
 ## Where the lenses disagree, and the call
@@ -78,7 +78,7 @@ Ranked inside each wave by value for effort. Every Home Assistant change is expl
 2. A small dot on what the other person added since you last looked, cleared by a look or a day; no push. *Trust, two equal adults.*
 3. A quiet clash mark when your plans overlap the other's. *Trust.*
 4. A shared event shows once, in both colors, not twice. *Trust.*
-5. Jenn's calendar in her column, each adult choosing titles, labeled blocks ("Work 9 to 5"), or hidden. *Two equal adults.* (Waiting on her account type.)
+5. Jenn's calendar in Jenn's column, each adult choosing titles, labeled blocks ("Work 9 to 5"), or hidden. *Two equal adults.* (Waiting on Jenn's account type.)
 
 **Wave 3: the resting face** (the first piece of the new board)
 1. The tablet's resting face: a large "Now / Next" line, today and the next three days with titles readable from 6 to 9 ft, dinner, weather. Evening hands the emphasis to tomorrow. After 3 minutes untouched it drifts back. *At rest.*
