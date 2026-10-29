@@ -12167,6 +12167,15 @@ under the events, so it doesn't strike through a title, and taps go through
 it. Its height is set in style.fh-now-style. */
 .fh-now-line { position: absolute; left: 0; right: 0; height: 3px; margin-top: -1px; background: #e03131; z-index: 1; pointer-events: none; }
 .timeline > .tl-event { z-index: 2; }
+/* House fork (Clover Tablet loop, 2026-10-28): Week view fills today's header
+with the theme's accent, as Planner already marks today, so today reads from
+across the room; a thin outline and a colored date didn't. The fill reaches
+4 px past the header through box-shadow, which takes no room, so today's
+meals and events stay level with the other days'. A selected today keeps a
+ring in the accent's text color. */
+.day-col.today > .day-header { background: var(--fc-accent); box-shadow: 0 0 0 4px var(--fc-accent); }
+.day-col.today > .day-header.selected { box-shadow: 0 0 0 4px var(--fc-accent), inset 0 0 0 2px var(--fc-accent-text); }
+.day-col.today > .day-header .name, .day-col.today > .day-header .num, .day-col.today > .day-header .wx-temp { color: var(--fc-accent-text); }
 .fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
 </style>
 <ha-card>

@@ -30,7 +30,7 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 | 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | merged (02) |
 | 3 | Agenda dims past events, as Week does | medium | todo |
 | 4 | First hour label no longer cut off | low, polish | todo |
-| 5 | Today stands out from across the room | medium | todo |
+| 5 | Today stands out from across the room | medium | merged (03) |
 | - | Skipped: per-person avatars/initials beyond the first letter (Will and Work both "W") | needs a config field and edits in four upstream templates; logged as a question | skipped |
 | - | Skipped: hiding empty meal slots in code | the household's meal blocks setting already does it (proposal) | skipped |
 
@@ -49,6 +49,12 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 - The line's height lives in a stylesheet outside the grid, so the saved event shapes aren't rewritten every minute (checked in the test).
 - Shots: `shots/01-after-3day-timeline.png` (before), `shots/02-after-3day-timeline.png`, `shots/02-after-day-evening.png`.
 - Upstream-merge cost: one line at the end of `_renderGrid` (after the PR #14 hooks; the two source-text checks of its last lines now allow it); two new house methods; CSS in the house block, plus `.timeline > .tl-event { z-index: 2 }` over upstream's `.tl-event`.
+
+### 03: today's header filled in Week view (23:47 to 00:00)
+
+- Week view (7 days or the 3-day setting) fills today's day name and date block with the theme's accent color, as Planner already does; before, today had only a thin outline and a colored number. No layout moves: the fill's margin is a shadow.
+- Shots: `shots/03-before-week.png`, `shots/03-after-week.png`, `shots/03-after-week-dark.png`.
+- Upstream-merge cost: none in upstream lines; CSS in the house block that overrides upstream's `.today .day-header .num` color.
 
 ## Open questions for the owner
 
