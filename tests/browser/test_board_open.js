@@ -504,6 +504,29 @@ const CHECKS = [
       return `today ${t.bg}`;
     },
   })),
+  // Agenda dims events that have ended, as Week does with "Grey out past
+  // events" on (Clover Tablet loop, 2026-10-29). At 3 pm the 9 am dentist is
+  // dimmed, the 7 pm trash night isn't; with the setting off, nothing is.
+  ...[["on", ""], ["off", "&grey=off"]].map(([grey, param]) => ({
+    name: `Agenda: past events dimmed (setting ${grey})`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=agenda&hdr=0${param}`));
+      const rows = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".grid .agenda-item.event")].map((n) => ({
+        title: n.querySelector(".agenda-item-summary").textContent.trim(), past: n.classList.contains("past"), opacity: getComputedStyle(n).opacity,
+      })));
+      const row = (text) => rows.find((r) => r.title.includes(text));
+      const dentist = row("dentist"), trash = row("trash night");
+      assert.ok(dentist && trash, `rows found: ${JSON.stringify(rows)}`);
+      if (grey === "on") {
+        assert.ok(dentist.past && dentist.opacity === "0.45", `9 am dimmed: ${JSON.stringify(dentist)}`);
+        assert.ok(!trash.past && trash.opacity === "1", `7 pm not: ${JSON.stringify(trash)}`);
+        assert.deepStrictEqual(rows.filter((r) => r.past).map((r) => r.title), [dentist.title], "only the 9 am one");
+      } else {
+        assert.ok(rows.every((r) => !r.past && r.opacity === "1"), `none dimmed: ${JSON.stringify(rows.filter((r) => r.past))}`);
+      }
+      return `${rows.filter((r) => r.past).length} of ${rows.length} dimmed`;
+    },
+  })),
   // Debug Info closes from anywhere in it, and from outside it (owner,
   // 2026-10-26: the close button scrolled away under Home Assistant's bar).
   {
