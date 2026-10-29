@@ -332,6 +332,20 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual(home["settings"][TITLE], "on")
         self.assertEqual(home["pending_seq"], 0)
 
+    def test_admin_push_of_start_view_to_one_copy_goes_nowhere_else(self):
+        # House fork (Clover Tablet loop, 2026-10-29): the tablet copy is
+        # pushed Start view = week. When it applies the push and reports,
+        # nothing has changed, so the same user's phones keep their own.
+        start = "familyCalendarStartViewLocal"
+        tablet = instance({**view(), start: "household"}, applied_seq=0)
+        phone = instance({**view(), start: "household"}, applied_seq=0)
+        devices = {"dev-tablet": device(OWNER, {"inst-tablet": tablet}), "dev-phone": device(OWNER, {"inst-phone": phone})}
+        self.push(tablet, {start: "week"})
+        changes = copy_sync.record_report(tablet, {**view(), start: "week"}, applied_seq=1, first=False, now=T1)
+        self.assertEqual(changes, {})
+        self.assertEqual(copy_sync.plan_pushes(devices, OWNER, "dev-tablet", "inst-tablet", "family-hub", changes), [])
+        self.assertEqual(phone["settings"][start], "household")
+
 
 if __name__ == "__main__":
     unittest.main()

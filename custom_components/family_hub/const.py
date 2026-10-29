@@ -1651,6 +1651,12 @@ DEVICE_SETTINGS_FIELDS = {
         "type": "enum", "choices": ["on", "off"], "default": "off",
         "label": "Calendar top bar style: Title only", "scope": "instance",
     },
+    # House fork: which view this copy opens in. "household" follows the
+    # household's defaultView; "week"/"month" override it for this copy only.
+    "familyCalendarStartViewLocal": {
+        "type": "enum", "choices": ["household", "week", "month"], "default": "household",
+        "label": "Start view", "scope": "instance",
+    },
     # Unlike the free-text `device_name` ws_report
     # already carries (see device_settings_websocket_api.py's own module
     # docstring), that one is purely cosmetic display sugar the DEVICE

@@ -3338,7 +3338,8 @@ const s = this._getSettings();
 // the shared setting only picks the family (week vs
 // month) - which variant within that family renders is this device's
 // own choice, same as _getShowTimeline etc.
-this._viewMode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: this copy's Start view can pick the other family.
+this._viewMode = this._startViewFamily() === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
 // House fork: set the title now, not when events arrive, so a Month
 // view doesn't open titled "This Week".
 this._updateNavLabel();
@@ -4381,6 +4382,8 @@ return {
 familyCalendarHideTopBarDeviceLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: this._t("settings.hide_top_bar_device_label", "Calendar top bar style: Hidden") },
 // House fork: "Title only" top bar style, see _getTopBarTitleOnly.
 familyCalendarTopBarTitleOnlyLocal: { type: "enum", choices: ["on", "off"], default: "off", scope: "instance", label: "Calendar top bar style: Title only" },
+// House fork: which view this copy opens in, see _startViewFamily.
+familyCalendarStartViewLocal: { type: "enum", choices: ["household", "week", "month"], default: "household", scope: "instance", label: "Start view" },
   // See _getDeviceName's own comment for how this overrides the
   // auto-guessed browser/OS name once set, either right here in the
   // admin Devices tab (like any other field - edit, then Push to this
@@ -5998,6 +6001,23 @@ local = this._getScopedSettingItem("familyCalendarTopBarTitleOnlyLocal");
 } catch (e) {
 }
 return local === "on";
+}
+// House fork: the view family ("week" or "month") this copy opens in, and
+// returns to when it wakes from the screensaver. The household's defaultView
+// unless this copy's Start view says "week" or "month" (anything else,
+// including nothing stored, is "household"). Which variant of the family
+// renders stays the copy's own choice. Under the shared static layout, which
+// has no field for it, the household decides.
+_startViewFamily() {
+let local = null;
+if (!this._getStaticLayoutAcrossDevices()) {
+try {
+local = this._getScopedSettingItem("familyCalendarStartViewLocal");
+} catch (e) {
+}
+}
+if (local === "week" || local === "month") return local;
+return this._getSettings().defaultView === "month" ? "month" : "week";
 }
 _getHideTopBarDevice() {
 if (this._getStaticLayoutAcrossDevices()) return !!this._getSettings().hideTopBarDeviceShared;
@@ -18196,7 +18216,8 @@ this._goToReturnDashboard();
 _resetToDefaultView() {
 if (!this._root) return;
 const s = this._getSettings();
-const mode = s.defaultView === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
+// House fork: back to this copy's Start view, see _startViewFamily.
+const mode = this._startViewFamily() === "month" ? this._getMonthViewVariant() : this._getWeekViewVariant();
 if (mode !== "week" && this._mealEditMode) {
 this._mealEditMode = false;
 const editBtn = this._root.querySelector(".edit-meals-btn");

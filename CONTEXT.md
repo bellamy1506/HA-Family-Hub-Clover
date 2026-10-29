@@ -38,6 +38,10 @@ _Avoid_: device (except when quoting the code), browser, session
 Which calendar the board shows: Week (or what the Week button is set to show, Planner or Agenda), Month (or Split), or Day.
 _Avoid_: layout, layout type, mode, variant
 
+**Start view**:
+The view family (Week or Month) a copy opens in and returns to when it wakes from the screensaver. The household's choice unless that copy has its own (the wall tablet opens in Week while the phones follow the household's Month).
+_Avoid_: default view (that's the household setting), home view
+
 **Settled**:
 How the board looks once everything has loaded; "opens settled" means it looks that way from the first moment.
 _Avoid_: loaded, stable

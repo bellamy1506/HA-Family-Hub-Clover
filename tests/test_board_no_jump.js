@@ -84,7 +84,7 @@ assert.ok(src.includes("Object.assign(this._events, newEvents);\nthis._eventsVie
 assert.ok(methodBody("_fetchEvents").includes("if (!Object.keys(newErrors).length) this._recordSettledLayout();"), "remembered only after a fetch with no errors");
 assert.ok(methodBody("_recordSettledLayout").includes("localStorage.setItem(key, JSON.stringify({ h: height, u: kept }));"), "height saved with the layout");
 assert.ok(
-  /this\._viewMode = s\.defaultView === "month" \? this\._getMonthViewVariant\(\) : this\._getWeekViewVariant\(\);\n\/\/[^\n]*\n(\/\/[^\n]*\n)*this\._updateNavLabel\(\);/.test(src),
+  /this\._viewMode = this\._startViewFamily\(\) === "month" \? this\._getMonthViewVariant\(\) : this\._getWeekViewVariant\(\);\n\/\/[^\n]*\n(\/\/[^\n]*\n)*this\._updateNavLabel\(\);/.test(src),
   "title set right after the view is chosen on open",
 );
 

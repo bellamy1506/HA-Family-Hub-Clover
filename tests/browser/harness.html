@@ -13,7 +13,8 @@
      text size, with theme=liquidglassdark), wx=1 (a weather entity with a
      daily forecast, so Week's day headers show temperatures), grey=off
      ("Grey out past events" off; on by default), lengths=1 (today's
-     timeline gets 15, 30, 90 and 120 minute events). Themes:
+     timeline gets 15, 30, 90 and 120 minute events), start=household|week|month
+     (this copy's Start view; unset by default). Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
@@ -25,6 +26,7 @@ localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "s
 localStorage.setItem("familyCalendarWeekViewVariantLocal", q.get("week") || "planner");
 localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "off");
 localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
+if (q.get("start")) localStorage.setItem("familyCalendarStartViewLocal", q.get("start"));
 localStorage.setItem("familyHubDeviceThemeOverrideLocal", q.get("theme") || "");
 </script>
 <script src="card.js"></script>
