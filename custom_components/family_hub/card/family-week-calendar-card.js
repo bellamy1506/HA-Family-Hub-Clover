@@ -12161,6 +12161,13 @@ in the query is the event's own text size. */
 .agenda-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
 .agenda-item-summary { font-size: var(--fs-event, 14px); }
 .agenda-day-name, .agenda-day-date { font-size: var(--fs-day-name, 13px); }
+/* House fork (Clover Tablet loop, 2026-10-29): Split view's day list follows
+the theme's event size too, as Agenda does; it was fixed at 10 px times,
+12 px titles and a 14 px date. The date heading is never smaller than the
+titles under it (14 px in the default theme, as before). */
+.msd-item-time { font-size: max(11px, calc(var(--fs-event, 14px) * 0.8)); }
+.msd-item-summary { font-size: var(--fs-event, 14px); }
+.msd-date { font-size: max(var(--fs-day-name, 13px), var(--fs-event, 14px)); }
 /* House fork: the current-time line on today's timeline, see _drawNowLine.
 Red, whatever the theme, as calendars mark "now"; over the hour lines and
 under the events, so it doesn't strike through a title, and taps go through

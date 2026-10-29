@@ -404,11 +404,11 @@ const CHECKS = [
       return "one send";
     },
   },
-  // Wall tablet (1200x800): timeline and Agenda text follow the theme's
-  // event text size, as the other views do, instead of fixed 9-13 px
-  // (Clover Tablet loop, 2026-10-28). A one-hour event still shows its title,
-  // and no half-cut time.
-  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
+  // Wall tablet (1200x800): timeline, Agenda and Split's day list text follow
+  // the theme's event text size, as the other views do, instead of fixed
+  // 9-13 px (Clover Tablet loop, 2026-10-28 and 2026-10-29). A one-hour event
+  // still shows its title, and no half-cut time.
+  ...[["Day", "view=week&week=week&timeline=on", "day"], ["Week timeline", "view=week&week=week&timeline=on", null], ["Agenda", "view=week&week=agenda", null], ["Split", "view=month&month=split", null]].flatMap(([where, query, switchTo]) => [20, 14].map((size) => ({
     name: `Tablet text: ${where} follows the theme's event size (${size}px)`, width: 1200, height: 800,
     run: async (page) => {
       await settle(page, await open(page, `${query}&theme=liquidglassdark&eventfont=${size}&hdr=0`, switchTo));
@@ -416,20 +416,21 @@ const CHECKS = [
       const found = await page.evaluate(() => {
         const grid = window.__el.shadowRoot.querySelector(".grid");
         const px = (n) => (n ? parseFloat(getComputedStyle(n).fontSize) : 0);
-        const ev = grid.querySelector(".tl-event, .agenda-item.event");
-        const title = ev.querySelector(".tl-summary, .agenda-item-summary");
-        const time = ev.querySelector(".tl-time, .agenda-item-time");
+        const ev = grid.querySelector(".tl-event, .agenda-item.event, .msd-item.event");
+        const title = ev.querySelector(".tl-summary, .agenda-item-summary, .msd-item-summary");
+        const time = ev.querySelector(".tl-time, .agenda-item-time, .msd-item-time");
         const box = ev.getBoundingClientRect();
         const line = title.getClientRects()[0];
         const t = time.getBoundingClientRect();
         const hidden = getComputedStyle(time).display === "none";
-        return { title: px(title), time: px(time), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
+        return { title: px(title), time: px(time), date: px(grid.querySelector(".msd-date")), titleShows: !!line && line.top >= box.top && line.top + px(title) <= box.bottom + 1, timeWhole: hidden || t.bottom <= box.bottom + 1, timeShown: !hidden, h: Math.round(box.height) };
       });
       assert.strictEqual(found.title, size, `title at the theme's ${size}px (${found.title})`);
       assert.ok(found.time >= Math.min(11, size * 0.8), `time at least 0.8 of it (${found.time})`);
       assert.ok(found.titleShows, `the title's first line shows in a ${found.h}px event`);
       assert.ok(found.timeWhole, `the time shows whole or not at all in a ${found.h}px event`);
-      if (where === "Agenda") assert.ok(found.timeShown, "Agenda shows the time");
+      if (where === "Agenda" || where === "Split") assert.ok(found.timeShown, `${where} shows the time`);
+      if (where === "Split") assert.ok(found.date >= size, `the day's date at least the event size (${found.date})`);
       return `title ${found.title}px, time ${found.time}px${found.timeShown ? "" : " (hidden)"}`;
     },
   }))),
