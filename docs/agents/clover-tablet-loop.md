@@ -27,7 +27,7 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 | # | Item | Value | Status |
 |---|---|---|---|
 | 1 | Timeline (Day, Week timeline) and Agenda text follow the theme's text sizes | high: Day view had the smallest text; lets a tablet theme raise every view's text | merged (01) |
-| 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | todo |
+| 2 | Current-time line on timelines (Skylight's "now" bar) | high: glanceable "where are we in the day" | merged (02) |
 | 3 | Agenda dims past events, as Week does | medium | todo |
 | 4 | First hour label no longer cut off | low, polish | todo |
 | 5 | Today stands out from across the room | medium | todo |
@@ -42,6 +42,13 @@ Research shaping the ranking: at 1 CSS px ≈ 0.0099 in, comfortable reading nee
 - Also: `tests/test_house_lines_clean.js` skips binary files (it read the first committed screenshot as text and failed).
 - Shots: `shots/01-before-3day-timeline.png`, `shots/01-after-3day-timeline.png`, `shots/01-before-agenda.png`, `shots/01-after-agenda.png`, `shots/01-after-day-theme-20px.png`.
 - Upstream-merge cost: none in upstream lines. One house CSS block appended before the card's main `</style>`; it overrides upstream's `.tl-event`, `.tl-time`, `.agenda-item-*` and `.agenda-day-*` rules, so an upstream restyle of those would need a look.
+
+### 02: current-time line on today's timeline (23:35 to 23:50)
+
+- A red line with a dot crosses today's timeline at the current time (Week with the timeline: today's column; Day view: every lane), under the events so it doesn't strike through a title. Hidden outside the hours the timeline shows. It moves with the board's 60 s redraw (under a pixel a minute, so no motion to speak of for the cats).
+- The line's height lives in a stylesheet outside the grid, so the saved event shapes aren't rewritten every minute (checked in the test).
+- Shots: `shots/01-after-3day-timeline.png` (before), `shots/02-after-3day-timeline.png`, `shots/02-after-day-evening.png`.
+- Upstream-merge cost: one line at the end of `_renderGrid` (after the PR #14 hooks; the two source-text checks of its last lines now allow it); two new house methods; CSS in the house block, plus `.timeline > .tl-event { z-index: 2 }` over upstream's `.tl-event`.
 
 ## Open questions for the owner
 

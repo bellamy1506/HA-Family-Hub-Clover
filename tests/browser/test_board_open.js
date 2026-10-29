@@ -433,6 +433,49 @@ const CHECKS = [
       return `title ${found.title}px, time ${found.time}px${found.timeShown ? "" : " (hidden)"}`;
     },
   }))),
+  // A line across today's timeline at the current time, as Skylight's "now"
+  // bar (Clover Tablet loop, 2026-10-28). Only today; moves with the clock;
+  // the saved shapes aren't rewritten as it moves.
+  ...[["Week timeline", "view=week&week=week&timeline=on", null, 1], ["Day", "view=week&week=week&timeline=on", "day", 4]].map(([where, query, switchTo, lines]) => ({
+    name: `Now line: ${where} shows the current time on today only`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `${query}&hdr=0`, switchTo));
+      await page.waitForTimeout(400);
+      const read = () => page.evaluate(() => {
+        const grid = window.__el.shadowRoot.querySelector(".grid");
+        return [...grid.querySelectorAll(".fh-now-line")].map((n) => {
+          const unit = n.closest("[data-fh-unit]");
+          const tl = n.closest(".timeline");
+          return { unit: unit && unit.dataset.fhUnit.split("|")[1], top: Math.round(n.getBoundingClientRect().top - tl.getBoundingClientRect().top), shown: n.getClientRects().length > 0 };
+        });
+      });
+      const at3 = await read();
+      assert.strictEqual(at3.length, lines, `${lines} line(s) (${JSON.stringify(at3)})`);
+      assert.ok(at3.every((l) => l.unit === "2026-10-27" && l.shown), `only on today: ${JSON.stringify(at3)}`);
+      assert.ok(at3.every((l) => Math.abs(l.top - 280) <= 1), `3 pm is 7 hours below 8 am at 40 px an hour: ${JSON.stringify(at3)}`);
+      const sig = await page.evaluate(() => window.__el._shapeLayoutSignature);
+      assert.ok(sig, "the shapes were saved");
+      await page.clock.setFixedTime(new Date("2026-10-27T15:30:00"));
+      await page.evaluate(() => window.__el._fetchEvents());
+      await page.waitForTimeout(CAL + 600);
+      const at330 = await read();
+      assert.ok(at330.length === lines && at330.every((l) => Math.abs(l.top - 300) <= 1), `moves to 3:30: ${JSON.stringify(at330)}`);
+      assert.strictEqual(await page.evaluate(() => window.__el._shapeLayoutSignature), sig, "saved shapes not rewritten as it moves");
+      await page.clock.setFixedTime(new Date("2026-10-27T23:00:00"));
+      await page.evaluate(() => window.__el._fetchEvents());
+      await page.waitForTimeout(CAL + 600);
+      assert.ok((await read()).every((l) => !l.shown), "hidden after the last hour shown");
+      return `${lines} line(s), at 280 then 300 px`;
+    },
+  })),
+  {
+    name: "Now line: none without the timeline", width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=week&hdr=0"));
+      assert.strictEqual(await page.evaluate(() => window.__el.shadowRoot.querySelectorAll(".fh-now-line").length), 0);
+      return "none";
+    },
+  },
   // Debug Info closes from anywhere in it, and from outside it (owner,
   // 2026-10-26: the close button scrolled away under Home Assistant's bar).
   {
