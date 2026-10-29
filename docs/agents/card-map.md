@@ -104,6 +104,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Today's header (Clover Tablet loop, 2026-10-28):** CSS only, in the house block before `</style>`: `.day-col.today > .day-header` filled with `--fc-accent` (text `--fc-accent-text`), as Planner's `.planner-day-cell.today` already is; the fill's extra 4 px is a box-shadow, so no layout moves. Applies to Week (any number of days) only. Test: the "Today:" checks in `tests/browser/test_board_open.js`.
 
+- **First hour label whole (Clover Tablet loop, 2026-10-29):** CSS only, in the house block before `</style>`: `.timeline > .hour-row:first-child > .hour-label` sits just under its line (`top: 1px`) instead of upstream's 7 px above it, which the scrolling `.events` cut in half. Other labels, hour lines, events and the now line don't move. Test: the "First hour label" checks in `tests/browser/test_board_open.js`.
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;

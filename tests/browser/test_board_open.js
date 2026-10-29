@@ -468,6 +468,56 @@ const CHECKS = [
       return `${lines} line(s), at 280 then 300 px`;
     },
   })),
+  // The first hour label on every timeline shows whole: it sat 7 px above
+  // its line, outside the scrolling box, so in Week it was cut right under
+  // the last meal slot (Clover Tablet loop, 2026-10-29). The other labels,
+  // the hour lines and the events stay where they were.
+  ...[["Day", "day", 4, 0], ["Week timeline, meal slots above", null, 7, 7], ["Week timeline, 3 days, meal slots above", null, 3, 3]].map(([where, switchTo, timelines, withMeals]) => ({
+    name: `First hour label: ${where} shows it whole`, width: 1200, height: 800,
+    run: async (page) => {
+      if (timelines === 3) await page.addInitScript(() => { localStorage.setItem("familyCalendarWeekDayCountLocal", "3"); localStorage.setItem("familyCalendarCurrentDayFirstLocal", "on"); });
+      await settle(page, await open(page, "view=week&week=week&timeline=on&hdr=0", switchTo));
+      await page.waitForTimeout(400);
+      const found = await page.evaluate(() => {
+        const grid = window.__el.shadowRoot.querySelector(".grid");
+        return [...grid.querySelectorAll(".events")].filter((e) => e.querySelector(".timeline")).map((box) => {
+          box.scrollTop = 0;
+          const tl = box.querySelector(".timeline");
+          const t = tl.getBoundingClientRect().top;
+          const rows = [...tl.querySelectorAll(":scope > .hour-row")];
+          const labels = rows.map((r) => r.querySelector(".hour-label").getBoundingClientRect());
+          const ev = tl.querySelector(":scope > .tl-event");
+          const first = rows[0].querySelector(".hour-label");
+          const hit = window.__el.shadowRoot.elementFromPoint(labels[0].left + labels[0].width / 2, labels[0].top + 1);
+          const above = [...box.parentElement.children].filter((n) => n !== box && n.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING);
+          return {
+            uncovered: hit === first,
+            mealsAbove: above.filter((n) => /meal|Tap to add|Tacos/i.test(n.className + " " + n.textContent) && n.getBoundingClientRect().bottom <= labels[0].top).length > 0,
+            visibleTop: Math.round(box.getBoundingClientRect().top + box.clientTop),
+            firstTop: Math.round(labels[0].top),
+            firstInRow: Math.round(labels[0].bottom - rows[0].getBoundingClientRect().top) <= 40,
+            otherOffsets: labels.slice(1).map((l, i) => Math.round(l.top - rows[i + 1].getBoundingClientRect().top)),
+            rowTops: rows.map((r) => Math.round(r.getBoundingClientRect().top - t)),
+            eventOff: ev ? Math.round(ev.getBoundingClientRect().top - t) - parseFloat(ev.style.top) : 0,
+            pads: [getComputedStyle(tl).marginTop, getComputedStyle(tl).paddingTop, getComputedStyle(box).paddingTop].join(" "),
+          };
+        });
+      });
+      assert.strictEqual(found.length, timelines, `${timelines} timeline(s)`);
+      for (const f of found) {
+        assert.ok(f.firstTop >= f.visibleTop, `first label top ${f.firstTop} not above the visible top ${f.visibleTop}`);
+        assert.ok(f.firstInRow, "first label inside its hour");
+        assert.ok(f.uncovered, "nothing (a meal slot, the column edge) covers the first label's top");
+        // top: -7px from inside the row's 1 px top border: 6 px above it.
+        assert.ok(f.otherOffsets.length > 0 && f.otherOffsets.every((o) => o === -6), `other labels still where upstream puts them: ${f.otherOffsets}`);
+        assert.ok(f.rowTops.every((top, i) => top === i * 40), `hour lines 40 px apart from the top: ${f.rowTops}`);
+        assert.ok(Math.abs(f.eventOff) <= 1, `events on their hours (${f.eventOff})`);
+        assert.strictEqual(f.pads, "0px 0px 0px", "timeline not moved down (margin, padding, box padding)");
+      }
+      assert.strictEqual(found.filter((f) => f.mealsAbove).length >= withMeals, true, `meal slots above the timeline in ${withMeals} column(s): ${found.map((f) => f.mealsAbove)}`);
+      return `${found.length} timeline(s), first label at the visible top + ${found[0].firstTop - found[0].visibleTop}px`;
+    },
+  })),
   {
     name: "Now line: none without the timeline", width: 1200, height: 800,
     run: async (page) => {
