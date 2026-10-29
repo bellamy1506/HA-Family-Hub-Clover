@@ -12184,6 +12184,12 @@ ring in the accent's text color. */
 .day-col.today > .day-header.selected { box-shadow: 0 0 0 4px var(--fc-accent), inset 0 0 0 2px var(--fc-accent-text); }
 .day-col.today > .day-header .name, .day-col.today > .day-header .num, .day-col.today > .day-header .wx-temp { color: var(--fc-accent-text); }
 .fh-now-line::before { content: ""; position: absolute; left: -2px; top: -4px; width: 11px; height: 11px; border-radius: 50%; background: #e03131; }
+/* House fork (Clover Tablet loop, 2026-10-29): the first hour label on every
+timeline (Day view, Week with the timeline) shows whole. Each label sits 7 px
+above its hour line, so the first one, at the very top of the scrolling box,
+was cut in half. Only that one moves, to just under its line; the other
+labels, the hour lines, the events and the now line stay put. */
+.timeline > .hour-row:first-child > .hour-label { top: 1px; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>

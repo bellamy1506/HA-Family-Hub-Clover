@@ -106,6 +106,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Agenda dims past events (Clover Tablet loop, 2026-10-29):** `_agendaPastClass(eventId, dayEnd)` returns `" past"` when `greyOutPastEvents` is on and the item has ended, by the other views' `isPastEvent` rule (a day that's over is dimmed whole; today, an event once its end passes, a reminder once its start does; all-day events end at the next midnight). It reads the item from `this._eventDetails`. Hook: one attribute in `_renderAgendaGrid`'s item template (`class="agenda-item event${...}"`). Upstream's `.event.past` (opacity 0.45) dims it; no new CSS. Tests: `tests/test_agenda_past.js`, the "Agenda: past" checks in `tests/browser/test_board_open.js` (harness `grey=off`).
 
+- **First hour label whole (Clover Tablet loop, 2026-10-29):** CSS only, in the house block before `</style>`: `.timeline > .hour-row:first-child > .hour-label` sits just under its line (`top: 1px`) instead of upstream's 7 px above it, which the scrolling `.events` cut in half. Other labels, hour lines, events and the now line don't move. Test: the "First hour label" checks in `tests/browser/test_board_open.js`.
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;
