@@ -41,31 +41,39 @@ Observable, not aspirational:
 4. **Two equal adults.** No feature that only the owner can use or maintain. Jenn's phone and Jenn's habits are first-class.
 5. **Less, better.** A feature earns its place by removing a step or a worry. Prefer removing, defaulting and hiding over adding settings. Kid features, rewards, gamification and photo-frame modes stay out.
 6. **Push, sparingly.** The system brings what matters to you (the house rule), as rarely as defensible (owner, 2026-10-06).
-7. **Durable floor.** Configuration before code; Home Assistant's own pieces before custom ones; every line of house code is weighed against the upstream-merge cost it adds.
+7. **Durable floor.** Configuration before code; Home Assistant's own pieces before custom ones; every line of house code is weighed against what it costs to keep working.
 
-## How far from upstream this branch may go
+## Own project (owner, 2026-10-29)
 
-The owner opened the door to more divergence on 2026-10-29. Tiers, cheapest first:
+The owner decided this becomes the house's own project: upstream Family Hub is a source of ideas, not of merges. In the owner's words, upstream "wasn't exactly long-development or feature complete," and "we can do better if we put our hearts and souls into it." The numbers agree: upstream's first release was 2026-08-29, it has one maintainer and no tests, and in the four days after the fork point it rewrote about 23,000 lines of the week card (14,061 added, 9,072 removed), so merging it was already impractical.
+
+What that means:
+- **No more upstream merges.** Upstream releases are read for ideas; anything worth having is rebuilt or ported here with tests. The license stays GPL-3.0 (this is a derivative work) and the repo stays public.
+- **Merge cost is no longer the brake; ownership cost is.** Every line this repo keeps is a line future sessions must keep working, so size, tests and readability matter more now, not less. Code the house doesn't use (chores, rewards, goals, routines, recipe box, pantry, timers) can be removed when that makes the rest simpler.
+- **The board may be rebuilt.** A house-owned board replacing the week card is an open path, not a last resort. Upstream's backend and admin panel stay as the base until something better replaces each piece.
+- **How much to rebuild, and in what order,** is the synthesis's main question.
+
+Tiers, as a cost ladder:
 
 1. **Settings and Home Assistant configuration** (no code).
-2. **House CSS and small hooks** in the served card, as the fork does now.
-3. **House-owned modules** loaded beside upstream's card (a capture sheet, a resting-view layer), touching upstream lines only at a few marked seams.
-4. **A house-owned board card** that replaces the week card for the wall and phones, reading the same calendars, lists and Family Hub storage, with upstream kept for its backend and admin panel.
+2. **Changes inside the existing cards**, as the fork has made so far.
+3. **New house-owned cards beside the existing ones** (for example a resting view or a capture sheet).
+4. **A house-owned board** replacing the week card on the wall and the phones, reading the same calendars, lists and Family Hub storage.
 
-A move up a tier needs a reason this file's measures can see (capture time, trust, calm, no-manual, floor), and a merge-cost estimate. Tier 4 is a real option, not a default; it gets its own owner decision with lettered options.
+A move up a tier needs a reason this file's measures can see (capture time, trust, calm, no-manual, floor) and an estimate of what it costs to own.
 
 ## What's already built or decided (don't redesign beside it)
 
 - Installed: Family Hub at fork `32c486e` with the owner's 2026-10-29 picks; the Clover Tablet's own settings (Week, 4 days from today, timeline, Liquid Glass Tablet theme). J008 has the details.
 - Capture that exists: "Hey Siri, tell the board / ask the board" through Assist with the `board_add_event`, `board_add_note`, `board_set_meal` scripts; the email bot in the house repo; iCloud calendars writable from the board (create only).
 - Planned, not built: the Clover Tablet watchdog; Kiosk Mode for the tablet login (J008 build step 6); the house reminders two-way sync (J008 build step 4); Jenn's calendar and her Shortcuts.
-- Open: fork issue [#31](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/31) (meal slots, per-column icons in place of "W", the first-hour label, timeline and Agenda text, Split wrapping, a more premium now line, the sidebar and dashboard switching, a DST report upstream).
+- Open: fork issue [#31](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/31) (meal slots, per-column icons in place of "W", the first-hour label, timeline and Agenda text, Split wrapping, a more premium now line, the sidebar and dashboard switching, a DST bug inherited from upstream).
 
 ## The work on this branch, in order
 
 1. **Research** (2026-10-29): the field of family calendars and wall displays, plus four lenses the owner didn't name. Files in [docs/research/](../research/); index in [research-index.md](research-index.md).
 2. **Fresh-eyes walkthrough** (2026-10-29): a reviewer that has never seen the code uses the board in a local Home Assistant sandbox with made-up data, as the owner and as Jenn. Report in this folder.
-3. **Synthesis:** one ranked list of development avenues, each tied to a measure above, its tier, and its maintenance and merge cost. The owner picks; picks become issues.
+3. **Synthesis:** one ranked list of development avenues, each tied to a measure above, its tier, and what it costs to build and own. The owner picks; picks become issues.
 4. **Build:** small tested PRs into this branch; the owner approves anything that reaches `main`, as always.
 
 ## Rules that still hold

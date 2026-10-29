@@ -13,18 +13,17 @@ This is the household fork of [JVarhol/HA-Family-Hub](https://github.com/JVarhol
 
 Short on time and decision capacity; wants a durable, low-maintenance floor, not maximum features; not a coder. Jenn (household member) isn't technical. Two adults, no children: the kid features (chores, stars, rewards, goals, routines) and the recipe box are switched off (owner, 2026-10-25).
 
-## Upstream policy (owner, 2026-10-25)
+## Upstream: ideas only (owner, 2026-10-29)
 
-- `main` was forked at upstream v1.168.84 (commit `da0ae98`), reviewed 2026-10-25. Branch `upstream-1.168.84` marks that point (tag pushes are blocked in cloud sessions).
-- **Nothing from upstream arrives on its own.** The house repo's Monday digest reports releases this fork hasn't taken, with a running verdict. Take an update only when the owner says so.
-- **Taking an update:** add the remote (`git remote add upstream https://github.com/JVarhol/HA-Family-Hub`), fetch, merge the chosen release into a branch, and review the diff for new outbound network calls, storage format changes, and new dependencies. Open a PR that says in plain words what changes on the board. The owner approves the merge; back up Home Assistant before the HACS update. Then record the new reviewed version here and in J008, push a branch `upstream-<version>` at that release, and put its name in `tests/upstream_base.txt` (the house-lines check compares against it).
-- Upstream ships often (13 releases in 8 weeks) with no tests or CI in its repo, and one release broke HACS installs. Assume an update can break something.
+- **This is the house's own project now.** Upstream is read for ideas, never merged. Direction and reasons: [docs/board-next/mission.md](docs/board-next/mission.md#own-project-owner-2026-10-29).
+- History: `main` was forked at upstream v1.168.84 (commit `da0ae98`), reviewed 2026-10-25; branch `upstream-1.168.84` marks that point and `tests/upstream_base.txt` names it (the house-lines check compares against it). Upstream then rewrote about 23,000 lines of the week card in four days and renumbered its releases (2026.10.4 on 2026-10-28).
+- **Borrowing an idea:** add the remote (`git remote add upstream https://github.com/JVarhol/HA-Family-Hub`), fetch, read the change, and rebuild or port only what's wanted, with tests, in a normal PR. Review anything ported for new outbound network calls, storage format changes, and new dependencies. Upstream has no tests or CI and one of its releases broke HACS installs, so never trust a piece of it untested.
 
 ## Changing the code
 
 - **Edit the files Home Assistant serves.** The cards load from `custom_components/family_hub/card/` (and `panel/`), per the `*_path` lines in `__init__.py`. Same-named files at the top level of `custom_components/family_hub/` are unused copies, newer than the served ones; editing them changes nothing on the board (2026-10-26). Read code behavior from the served copies too.
 - **Before working in the week calendar card** (the board), read [docs/agents/card-map.md](docs/agents/card-map.md): its load order, each view's renderer, the house changes, storage keys, and how to test it, including in a browser. Keep the map current when you change what it names; `tests/test_card_map.js` fails if a method it names is gone.
-- Keep house changes small and few: every change is a merge conflict when taking upstream updates. Prefer configuration in Home Assistant over code changes.
+- Keep the code small and readable: every line here is the house's to keep working. Prefer configuration in Home Assistant over code, and removing unused code over working around it.
 - Add a test for any behavior you change; upstream has none in the repo. Put tests under `tests/`. Before every push run `bash tests/run_all.sh`; CI runs it on each PR. Merge a PR only when its Tests run is green.
 - **Reviews** apply [CODING_STANDARDS.md](CODING_STANDARDS.md).
 - License is GPL-3.0; the repo stays public.
@@ -35,7 +34,7 @@ Short on time and decision capacity; wants a durable, low-maintenance floor, not
 
 ### Issue tracker
 
-GitHub Issues on this fork: code changes, upstream updates, and anything needing owner input about the integration. See `docs/agents/issue-tracker.md`.
+GitHub Issues on this fork: code changes, ideas borrowed from upstream, and anything needing owner input about the integration. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
