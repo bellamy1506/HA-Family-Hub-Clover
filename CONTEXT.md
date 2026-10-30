@@ -82,8 +82,12 @@ _Avoid_: row, track
 The to-do list Family Hub always shows to everyone (`todo.us_notes` here); items with a due date appear on that day.
 _Avoid_: shared list, family list
 
-**Us calendar**, **Us notes**:
-The two shared Home Assistant lists that replaced the whiteboards: `calendar.us` for timed events, `todo.us_notes` for notes that tap off.
+**Us calendar**:
+The one shared calendar for the two of you: whatever the board or Clover adds lands here, and it shows on the wall and both iPhones (owner, 2026-10-30). It becomes a shared iCloud calendar at the switch-over; until then it's `calendar.us`, a Home Assistant calendar the iPhones don't show.
+_Avoid_: Home calendar, the shared calendar (any calendar can be shared)
+
+**Us notes**:
+`todo.us_notes`, the shared notes that replaced the whiteboards; they tap off.
 
 **House reminders**:
 `todo.house_reminders`: maintenance reminders from the house repo's `records/dates.csv`, synced both ways; the repo stays the source.

@@ -40,7 +40,7 @@ Checked in the sandbox and, read-only, on the house (2026-10-29). These come bef
 | How often may the board push to phones? | The market sells a daily evening brief; household research says one week-ahead a week; the house rule says as rarely as defensible | **One "week ahead" on Sunday evening, the same for both.** A daily brief only if the weekly one proves too little. Decision D4, queued |
 | Should the wall take typing? | The market and Skylight say nobody types on the wall; the comfort lens wants a tap-the-day add; capture wants one rough line | **Tap the day, type one rough line,** parsed by the same Claude path as voice, echoed back. No long form. Phones and voice stay the main way in |
 | Reveal detail as someone approaches (Apple HomeView does)? | Market: it's the new idea; calm: this tablet can't sense distance, only motion (cats included) | **No sensing.** The resting view must answer the across-the-room questions itself; touch reveals detail |
-| Where do shared events live? | Apple's free capture tools write to iCloud; "tell the board" writes to Us; the board can't edit iCloud | **Now: two homes on purpose** (board and voice write to Us; phones' default can be a shared iCloud calendar). **Later: the board edits iCloud itself** (wave 4), and the question disappears. Decision D3, queued |
+| Where do shared events live? | Apple's free capture tools write to iCloud; "tell the board" writes to Us; the board can't edit iCloud | **Now: two homes on purpose** (board and voice write to Us; phones' default can be a shared iCloud calendar). **Later: the board edits iCloud itself** (wave 4), and the question disappears. Decision D3, queued. **Decided 2026-10-30: one home, a shared iCloud Us** (D3 below) |
 | How much joy? | Owner asked for "moments of joy"; research says delight decays and cheer erodes trust | **Joy that carries information:** the specific echo, a countdown to something you're looking forward to, a calm "Nothing needed today." No confetti, mascots, streaks or sounds |
 
 ## How to build it (decision D1)
@@ -74,7 +74,7 @@ Built 2026-10-29 on this branch, not yet on `main`: B2 (fork PR #32), B1 (#33), 
 2. Undo everywhere: "tell the board, undo that," and an Undo on the board after every add, delete and clear. Events need a small house service around Family Hub's existing delete. *Trust.*
 3. Rough entries are never refused: event, day note, proposed day, deadline, or a "Later" list; a dreaded "call the dentist" lands on a proposed 10-minute slot. *Capture, comfort.*
 4. "Tell the board" in the iPhone share sheet, for any text. *Capture.*
-5. The phones' default calendar points at a shared board calendar, so Apple's own add-from-a-screenshot, tapped dates and Siri all reach the wall (pending D3). *Capture.*
+5. ~~The phones' default calendar points at a shared board calendar, so Apple's own add-from-a-screenshot, tapped dates and Siri all reach the wall (pending D3).~~ Dropped as a plan (owner, 2026-10-30, D3): each person adds wherever they like and the board merges the calendars; a phone's default is that person's own setting. *Capture.*
 6. Later, only with a receipt: forward an email or flyer to the board. *Capture.*
 
 **Wave 2: the system notices**
@@ -102,8 +102,9 @@ Built 2026-10-29 on this branch, not yet on `main`: B2 (fork PR #32), B1 (#33), 
 
 **Decided (owner, 2026-10-29):** D1 **A**, a new house board in stages. D2 **A**: Family Hub's Settings > Calendars list was emptied the same evening after backup `07932a2d`, and the sandbox showed the switch hiding Work again; the wave 0 code fix stops a Settings save from refilling it. Kiosk Mode (B6) was decided 2026-10-26 and is built with wave 0's install. Originally asked: empty Family Hub's Settings > Calendars list so "Hide work calendars" works again (B2), and set up Kiosk Mode on the tablet's login (B6, decided 2026-10-26).
 
+**Decided (owner, 2026-10-30):** D3, where shared events live ([fork issue #41](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/41)): whatever the board or Clover adds goes to **one shared iCloud calendar, Us** (iCloud's empty Home calendar, renamed and shared with Jenn), switched over together with the iCloud write path so the wall never loses Undo on what it just added. Phones keep whatever default each person likes; the board brings the separate calendars together. Added by the owner: a very unobtrusive Hide for any single event ([fork issue #58](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/58)). Originally queued: A two homes now (0.6, default), B iCloud only once the board can edit it (0.3), C Us only (0.1).
+
 **Queued, each with a default, asked when its wave arrives:**
-- **D3, where shared events live:** A two homes now (0.6, default), B iCloud only once the board can edit it (0.3), C Us only (0.1).
 - **D4, phone pushes about the calendar:** A one Sunday week-ahead for both (0.6, default), B a daily evening brief when tomorrow has something (0.25), C none beyond today's digest (0.15).
 - **D5, screen off when nobody is home:** A off after 10 minutes empty, back on at the first arrival, Guest mode keeps it on (0.65, default), B always on in waking hours (0.25), C off whenever Fully sees no motion (0.10).
 - **Dinner nudge in "needs you"** (wave 3): off by default.
