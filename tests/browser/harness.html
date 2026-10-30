@@ -25,7 +25,10 @@
      add_item, update_item, remove_item); service calls are kept in
      window.__services. grocy=1 (Family Hub has Grocy set up; it isn't on
      the house). Home Assistant's own cards come from a stand-in
-     window.loadCardHelpers whose cards record their config and hass. Every message the card sends is kept in window.__sent.
+     window.loadCardHelpers whose cards record their config and hass.
+     bar=full (the full top bar; title only by default), recipebox=1 (the
+     card's recipe_box option on), admin=0 (signed in as someone who isn't
+     an admin and has no extra permissions, like the wall's user). Every message the card sends is kept in window.__sent.
      Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
@@ -37,7 +40,7 @@ const q = new URLSearchParams(location.search);
 localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "split");
 localStorage.setItem("familyCalendarWeekViewVariantLocal", q.get("week") || "planner");
 localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "off");
-localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
+localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", q.get("bar") === "full" ? "off" : "on");
 if (q.get("start")) localStorage.setItem("familyCalendarStartViewLocal", q.get("start"));
 localStorage.setItem("familyHubDeviceThemeOverrideLocal", q.get("theme") || "");
 </script>
@@ -95,7 +98,7 @@ people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes
 states["todo.shopping_list"] = { entity_id: "todo.shopping_list", state: "3", attributes: { friendly_name: "Shopping list" } };
 if (q.get("lists")) for (const [e, n] of [["todo.meal_plan", "Meal plan"], ["todo.us_notes", "Us notes"]]) states[e] = { entity_id: e, state: "1", attributes: { friendly_name: n } };
 const hass = {
-  user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
+  user: { id: "u1", is_admin: q.get("admin") !== "0", name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
   callApi: async (m, path) => {
     await sleep(q.get("slow") && path.includes(q.get("slow")) ? CAL_DELAY * 3 : CAL_DELAY);
     setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0);
@@ -134,6 +137,7 @@ const hass = {
         for (let o = -10; o <= 14; o++) forecast.push({ datetime: `${day(o)}T12:00:00`, condition: "partlycloudy", temperature: 60 + (o % 5), templow: 45 + (o % 4) });
         return { response: { [msg.target.entity_id]: { forecast } } };
       }
+      if (msg.type === "family_hub/add_menu_suggestion") return { suggestion: { uid: "s1", date_key: msg.date_key, block_index: msg.block_index, name: msg.name } };
       if (msg.type === "family_hub/get_grocy_shopping_lists") return q.get("grocy") ? { configured: true, lists: [{ id: 1, name: "Shopping list" }] } : { configured: false, lists: [] };
       if (msg.type === "family_hub/calendar/delete_event") {
         events[msg.entity_id] = (events[msg.entity_id] || []).filter((e) => e.uid !== msg.uid);
@@ -166,7 +170,7 @@ const hass = {
   },
 };
 const el = document.createElement("family-week-calendar-card");
-el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", ...(q.get("lists") ? { reminders_entity: "todo.us_notes" } : {}), ...(q.get("wx") ? { weather_entity: "weather.home" } : {}), people: people.map(([entity, name, color]) => ({ entity, name, color })) });
+el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", ...(q.get("lists") ? { reminders_entity: "todo.us_notes" } : {}), ...(q.get("recipebox") ? { recipe_box: true } : {}), ...(q.get("wx") ? { weather_entity: "weather.home" } : {}), people: people.map(([entity, name, color]) => ({ entity, name, color })) });
 document.getElementById("stack").appendChild(el);
 el.hass = hass;
 window.__el = el;

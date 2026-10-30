@@ -3218,6 +3218,11 @@ if (this._myPermissions === undefined) this._myPermissions = {};
 if (this._menuSuggestions === undefined) this._menuSuggestions = [];
 if (this._addEventActiveTab === undefined) this._addEventActiveTab = "calendar";
 if (this._eventTypeFilter === undefined) this._eventTypeFilter = [];
+// House fork: wave 0 (B4). The house switched the recipe box off (owner,
+// 2026-10-25), and Family Hub has no switch for it, so its Recipe Box and
+// Suggestions buttons stay hidden unless this card's config says
+// recipe_box: true. CSS in the house block before </style>.
+this.toggleAttribute("recipe-box", config.recipe_box === true);
 if (!this._built) this._build();
 }
 set hass(hass) {
@@ -10025,7 +10030,7 @@ const servingsRaw = root.querySelector(".input-servings").value.trim();
 const btn = root.querySelector(".btn-suggest-meal");
 if (btn) btn.disabled = true;
 try {
-await this._hass.connection.sendMessagePromise({
+const sent = await this._hass.connection.sendMessagePromise({
 type: "family_hub/add_menu_suggestion",
 date_key: this._editingDateKey,
 block_index: this._editingBlockIndex || 0,
@@ -10037,6 +10042,8 @@ servings: this._currentGrocyRecipeId && servingsRaw ? parseInt(servingsRaw, 10) 
 });
 await this._fetchMenuSuggestions();
 this._closeEditor();
+// House fork: wave 0 (B4), see _answerMealSuggested.
+this._answerMealSuggested(sent && sent.suggestion);
 } catch (e) {
 window.alert("Couldn't send that suggestion - please try again.");
 }
@@ -12215,6 +12222,10 @@ keeps it apart from dark themes. */
 /* House fork: wave 0 (B3), Home Assistant's To-do list card inside the
 shopping list popup (see _openHouseShoppingList), in the board's colors and
 without a second card frame. */
+/* House fork: wave 0 (B4), the recipe box is off unless the card's config
+says recipe_box: true (see setConfig): no Recipe Box or Suggestions buttons,
+on the top bar or folded into More on a narrow screen. */
+:host(:not([recipe-box])) .suggestions-btn, :host(:not([recipe-box])) .loved-btn, :host(:not([recipe-box])) .loved-menu-item { display: none !important; }
 .fh-shopping-card { --ha-card-background: transparent; --ha-card-box-shadow: none; --ha-card-border-width: 0; --card-background-color: var(--fc-card); --primary-text-color: var(--fc-text); --secondary-text-color: var(--fc-text-secondary); --divider-color: var(--fc-border); --primary-color: var(--fc-accent); margin: 0 -16px; }
 </style>
 <ha-card>
@@ -12400,7 +12411,8 @@ without a second card frame. */
 <button class="rating-btn btn-heart" title="Love it">&#10084;&#65039;</button>
 <button class="rating-btn btn-thumbsdown" title="Not a fan">&#128078;</button>
 </div>
-<div class="remind-hint menu-suggest-hint" style="display:none;">You can suggest a meal for this day - someone who can edit the menu decides whether it goes on.</div>
+<!-- House fork: wave 0 (B4), what Suggest really does (it saves an idea, see _answerMealSuggested). -->
+<div class="remind-hint menu-suggest-hint" style="display:none;">This saves your idea, not the meal. It goes on the board once someone who can change the menu opens this meal and taps Add to menu.</div>
 <div class="modal-actions">
 <button class="btn-clear">Clear</button>
 <button class="btn-delete-dish btn-clear" style="display:none;">Delete</button>
@@ -21293,6 +21305,21 @@ return `Back on the board: ${detail.summary}`;
 }
 // A meal cleared in the meal editor (Clear, then Save). Undo puts the same
 // meal back, unless something else has been planned there since.
+// House fork: wave 0 (B4). "Suggest" (for someone who can't change the
+// menu, like the wall's user) saves an idea, which shows only inside that
+// meal's editor until someone who can adds it; the meal slot stays empty.
+// The editor used to close without a word. Undo takes the idea back (its
+// author may).
+_answerMealSuggested(suggestion) {
+if (!suggestion || !suggestion.uid) return;
+const day = new Date(`${suggestion.date_key}T00:00:00`);
+const block = (this._getBlocksForDay(day)[suggestion.block_index || 0] || "meal").toLowerCase();
+this._showUndoToast(`Saved as an idea: ${suggestion.name}, ${block} on ${this._houseDay(day)}. Not on the board until someone adds it.`, async () => {
+await this._hass.connection.sendMessagePromise({ type: "family_hub/remove_menu_suggestion", uid: suggestion.uid });
+await this._fetchMenuSuggestions();
+return `Idea taken back: ${suggestion.name}`;
+});
+}
 async _clearMealWithUndo(dateKey, blockIndex) {
 const meal = this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex];
 await this._removeMealPlan(dateKey, blockIndex);

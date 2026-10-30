@@ -944,6 +944,54 @@ const CHECKS = [
       return "todo.shopping_list";
     },
   })),
+  // Wave 0, B4: with the recipe box off (the house; the card's recipe_box
+  // option brings it back), no Recipe Box or Suggestions buttons, on the
+  // top bar or folded into More on a narrow screen.
+  ...[["tablet", 1200, "", false], ["tablet, recipe box on", 1200, "&recipebox=1", true], ["phone", 402, "", false], ["phone, recipe box on", 402, "&recipebox=1", true]].map(([where, width, extra, shown]) => ({
+    name: `Recipe box buttons: ${shown ? "shown" : "hidden"} (${where})`, width,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week&bar=full${extra}`));
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".more-menu-btn").click());
+      const seen = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const vis = (sel) => { const n = root.querySelector(sel); return !!n && getComputedStyle(n).display !== "none" && n.getClientRects().length > 0; };
+        return { suggestions: vis(".suggestions-btn"), recipeBox: vis(".loved-btn"), inMore: vis(".loved-menu-item"), more: vis(".more-menu-btn") };
+      });
+      assert.ok(seen.more, "More is there");
+      const any = seen.suggestions || seen.recipeBox || seen.inMore;
+      assert.strictEqual(any, shown, `Recipe Box or Suggestions ${shown ? "shown" : "hidden"}: ${JSON.stringify(seen)}`);
+      return JSON.stringify(seen);
+    },
+  })),
+  // Wave 0, B4: someone who can't change the menu (the wall's user) gets
+  // "Suggest", which saves an idea, not the meal. The sheet says so before,
+  // and the board says so after, with an Undo that takes the idea back.
+  {
+    name: "Meal idea: says it isn't on the board yet, with an Undo", width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=week&admin=0&nomeal=1"));
+      const sheet = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".menu-banner.empty[data-block-index='2']").click();
+        const vis = (sel) => { const n = root.querySelector(sel); return !!n && getComputedStyle(n).display !== "none"; };
+        return { save: vis(".edit-overlay .btn-save"), suggest: vis(".btn-suggest-meal") && root.querySelector(".btn-suggest-meal").textContent.trim(), hint: vis(".menu-suggest-hint") && root.querySelector(".menu-suggest-hint").textContent.trim() };
+      });
+      assert.deepStrictEqual(sheet, { save: false, suggest: "\u{1F4A1} Suggest", hint: "This saves your idea, not the meal. It goes on the board once someone who can change the menu opens this meal and taps Add to menu." }, "the sheet says what Suggest does");
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".edit-overlay .input-name").value = "Tacos";
+        root.querySelector(".btn-suggest-meal").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const said = await page.evaluate(() => ({ text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent, undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden }));
+      assert.ok(/^Saved as an idea: Tacos, dinner on [A-Z][a-z]{2} [A-Z][a-z]{2} \d+\. Not on the board until someone adds it\.$/.test(said.text) && said.undo, `the answer: ${JSON.stringify(said)}`);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Idea taken back"));
+      const sent = await page.evaluate(() => window.__sent.filter((m) => m.type.endsWith("_menu_suggestion")).map((m) => `${m.type} ${m.name || m.uid}`));
+      assert.deepStrictEqual(sent, ["family_hub/add_menu_suggestion Tacos", "family_hub/remove_menu_suggestion s1"], "suggested, then taken back");
+      return said.text;
+    },
+  },
 ];
 
 (async () => {
