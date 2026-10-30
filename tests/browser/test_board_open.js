@@ -1023,6 +1023,121 @@ const CHECKS = [
       return seen.text;
     },
   })),
+  // Wave 0 review fixes. Undo takes back exactly what this add made, even
+  // when the same title at the same time was already there, outside the
+  // board's window; nothing claims success when the save failed; discreet
+  // mode's toasts name no one and no event; a repeat's question goes away
+  // with the sheet.
+  {
+    name: "Undo: an add's Undo never takes a twin that was already there", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda&twin=1"));
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-title").value = "Dentist";
+        root.querySelector(".add-event-date").value = "2026-11-03";
+        root.querySelector(".add-event-start-time").value = "15:30";
+        root.querySelector(".add-event-end-time").value = "16:30";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show") && !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Taken off"));
+      const left = await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.summary === "Dentist").map((e) => e.uid));
+      assert.deepStrictEqual(left, ["us-twin"], "the one that was there stays; the new one went");
+      return "twin kept";
+    },
+  },
+  {
+    name: "Undo: a reminder's Undo never takes a twin that was already there", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&lists=1&twin=1"));
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-reminder").click();
+        root.querySelector(".add-event-title").value = "Call the vet";
+        root.querySelector(".add-event-reminder-date").value = "2026-10-28";
+        root.querySelector(".add-event-reminder-time").value = "09:15";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show") && !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Reminder removed"));
+      const left = await page.evaluate(() => window.__todos["todo.us_notes"].filter((t) => t.summary === "Call the vet").map((t) => t.uid));
+      assert.deepStrictEqual(left, ["n-twin"], "the one that was there stays; the new one went");
+      return "twin kept";
+    },
+  },
+  ...[
+    ["a note marked done", "view=week&week=week&lists=1&failtodo=1", () => {
+      const el = window.__el;
+      el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].todoUid === "n1"));
+      el.shadowRoot.querySelector(".event-info-reminder-done-btn").click();
+    }, "Couldn't mark that done. Try again."],
+    ["a meal cleared", "view=week&week=week&lists=1&failtodo=1", () => {
+      const root = window.__el.shadowRoot;
+      [...root.querySelectorAll(".menu-banner")].find((b) => b.textContent.includes("Tacos tonight")).click();
+      root.querySelector(".btn-clear:not(.btn-delete-dish)").click();
+      root.querySelector(".btn-save:not(.settings-save)").click();
+    }, "Couldn't clear that meal. Try again."],
+  ].map(([what, query, act, says]) => ({
+    name: `Answers: ${what} that didn't save says so`, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, query));
+      if (what.includes("note")) await page.waitForFunction(() => Object.values(window.__el._eventDetails).some((d) => d.todoUid === "n1"));
+      await page.evaluate(act);
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const seen = await page.evaluate(() => { const t = window.__el.shadowRoot.querySelector(".fh-undo-toast"); return { text: t.querySelector(".fh-undo-text").textContent, error: t.classList.contains("is-error"), undo: !t.querySelector(".fh-undo-btn").hidden }; });
+      assert.deepStrictEqual(seen, { text: says, error: true, undo: false }, "an error, no Undo");
+      return seen.text;
+    },
+  })),
+  {
+    name: "Answers: discreet mode names no one and no event", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda&discreet=on"));
+      const said = [];
+      const toast = async () => { await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show")); const t = await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent); said.push(t); return t; };
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-title").value = "SECRET Dentist";
+        root.querySelector(".add-event-date").value = "2026-11-03";
+        root.querySelector(".add-event-start-time").value = "15:30";
+        root.querySelector(".add-event-end-time").value = "16:30";
+        root.querySelector(".add-event-save").click();
+      });
+      assert.strictEqual(await toast(), "On the board: Tue Nov 3, 3:30 pm, on Person 3", "the add");
+      await page.evaluate(() => { const el = window.__el; el._hideUndoToast(); el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].uid === "us-dinner")); });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      assert.strictEqual(await toast(), "Deleted: Thu Oct 29, 6 pm, from Person 3", "the delete");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Back on the board"));
+      said.push(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent));
+      assert.strictEqual(said[2], "Back on the board", "the undo");
+      assert.ok(said.every((t) => !/SECRET|Dentist|Us\b|Will/.test(t)), `nothing named: ${JSON.stringify(said)}`);
+      return said.join(" / ");
+    },
+  },
+  {
+    name: "Repeating event: closing the sheet ends the question", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      await page.evaluate(() => { const el = window.__el; el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly")); });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      assert.ok(await page.evaluate(() => !!window.__el.shadowRoot.querySelector(".fh-repeat-ask")), "asked");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-overlay .modal-close").click());
+      await page.waitForTimeout(200);
+      const after = await page.evaluate(() => ({ ask: !!window.__el.shadowRoot.querySelector(".fh-repeat-ask"), btn: window.__el.shadowRoot.querySelector(".event-info-delete-btn").style.display }));
+      assert.deepStrictEqual(after, { ask: false, btn: "" }, "the question went, the Delete button is back");
+      assert.ok(await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").length === 2), "nothing deleted");
+      return "settled on close";
+    },
+  },
 ];
 
 (async () => {

@@ -9474,6 +9474,9 @@ entity_id: entityId,
 result = {
 supported: !!res.supported,
 updateSupported: !!res.update_supported,
+// House fork: wave 0 (B5), for _calendarFeatures.
+createSupported: !!res.create_supported,
+unavailable: !!res.unavailable,
 integrationName: res.integration_name || "your calendar's own app",
 };
 } catch (e) {
@@ -9481,7 +9484,10 @@ integrationName: res.integration_name || "your calendar's own app",
 // - never silently offer a Delete/Edit button that might not actually work.
 result = { supported: false, updateSupported: false, integrationName: "your calendar's own app" };
 }
-this._calendarDeleteSupport[entityId] = result;
+// House fork: wave 0 (B5): while Home Assistant is still starting a
+// calendar, the answer says it can do nothing; ask again next time
+// instead of keeping that for the rest of the session.
+if (!result.unavailable) this._calendarDeleteSupport[entityId] = result;
 return result;
 }
 async _fetchWeather() {
@@ -9840,7 +9846,9 @@ return lists;
 // marking it done against the wrong to-do entity would silently no-op
 // (Home Assistant just logs a warning) rather than actually completing it.
 async _markReminderDone(uid, entityId) {
-if (!this._hass || !uid) return;
+if (!this._hass || !uid) return false;
+// House fork: wave 0 (B5), says whether it worked, for _answerReminderDone.
+let done = true;
 try {
 await this._hass.callService(
 "todo",
@@ -9849,8 +9857,10 @@ await this._hass.callService(
 { entity_id: entityId || this._config.reminders_entity }
 );
 } catch (e) {
+done = false;
 }
 this._fetchReminders();
+return done;
 }
 // Best-effort, fire-and-forget: lets the backend poller know which to-do
 // list to check for due reminders, without requiring anyone to type the
@@ -10407,14 +10417,18 @@ this._fetchMealTemplates();
 }
 async _removeMealPlan(dateKey, blockIndex) {
 const existing = this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex];
-if (!existing) return;
+if (!existing) return false;
+// House fork: wave 0 (B5), says whether it worked, for _clearMealWithUndo.
+let removed = true;
 try {
 await this._hass.callService("todo", "remove_item", {
 item: existing.uid,
 }, { entity_id: this._mealPlanEntity() });
 } catch (e) {
+removed = false;
 }
 this._fetchMealPlan();
+return removed;
 }
 async _moveMealPlan(fromDateKey, fromBlockIndex, toDateKey, toBlockIndex) {
 if (fromDateKey === toDateKey && fromBlockIndex === toBlockIndex) return;
@@ -19575,9 +19589,9 @@ if (doneBtn) {
 doneBtn.addEventListener("click", async () => {
 doneBtn.disabled = true;
 doneBtn.textContent = "Marking done…";
-await this._markReminderDone(detail.todoUid, detail.calendarEntity);
+const markedDone = await this._markReminderDone(detail.todoUid, detail.calendarEntity);
 // House fork: wave 0 (B5), see _answerReminderDone.
-this._answerReminderDone(detail);
+this._answerReminderDone(detail, markedDone);
 root.querySelector(".event-info-overlay").classList.remove("open");
 this._eventInfoOpenId = null;
 });
@@ -20166,7 +20180,7 @@ this._fetchEventPeopleOverrides();
 // _wireEventInfoDeleteButton and _wireEventInfoEditButton use.
 async _explainUnchangeableEvent(id, detail) {
 const support = await this._getCalendarDeleteSupport(detail.calendarEntity);
-if (this._eventInfoOpenId !== id) return;
+if (this._eventInfoOpenId !== id || support.unavailable) return;
 if (detail.uid && (support.supported || support.updateSupported)) return;
 const content = this._root.querySelector(".event-info-content");
 if (!content || content.querySelector(".fh-outside-board")) return;
@@ -21228,9 +21242,21 @@ return end && this._dateKey(end) !== this._dateKey(start) ? `${at} to ${this._ho
 }
 // The column's name for a calendar ("Us"), else Home Assistant's.
 _columnName(entity) {
-const column = this._getPeople().find((p) => p.entity === entity);
+const people = this._getPeople();
+const column = people.find((p) => p.entity === entity);
+if (this._isDiscreetMode()) return this._discreetPersonName(column || { entity }, people);
 const state = this._hass && this._hass.states && this._hass.states[entity];
 return (column && column.name) || (state && state.attributes && state.attributes.friendly_name) || entity;
+}
+// Titles in the answers, as the event sheet shows them: nothing in
+// discreet mode or while privacy mode hides events.
+_quiet(text) {
+return this._isDiscreetMode() || this._privacyModeEffectiveLocked() ? "" : text;
+}
+// "On the board: Dentist, Tue Nov 3", leaving out empty parts.
+_sayJoined(head, parts) {
+const rest = parts.filter(Boolean).join(", ");
+return rest ? `${head}: ${rest}` : head;
 }
 // Whether a calendar event (as Home Assistant's calendar API returns it)
 // starts at this moment, or on this day for an all-day one.
@@ -21243,26 +21269,55 @@ return !!ev.start.dateTime && new Date(ev.start.dateTime).getTime() === start.ge
 // which returns no id). Undo finds what was created, by title and start,
 // skipping any twin that was already on the board, and deletes it; offered
 // only where the calendar can delete and this person may.
-_answerEventAdded(entity, data) {
+// The add form's event: when it starts and ends.
+_addedTimes(data) {
 const allDay = !!data.start_date;
 const start = allDay ? new Date(`${data.start_date}T00:00:00`) : new Date(data.start_date_time.replace(" ", "T"));
 const end = allDay ? new Date(`${data.end_date}T00:00:00`) : new Date(data.end_date_time.replace(" ", "T"));
-const message = `On the board: ${data.summary}, ${this._houseWhen(start, end, allDay)}, on ${this._columnName(entity)}`;
-if (!this._canDeleteEvent() || !(this._calendarFeatures(entity) & 2)) {
+return { start, end, allDay };
+}
+// The calendar's events now with the add form's title and start.
+async _eventsLike(entity, data) {
+const { start, end, allDay } = this._addedTimes(data);
+const until = new Date(Math.max(end.getTime(), start.getTime() + 86400000));
+const events = await this._hass.callApi("GET", `calendars/${entity}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(until.toISOString())}`);
+return (events || []).filter((ev) => ev.uid && ev.summary === data.summary && this._sameStart(ev, start, allDay));
+}
+// Before the add form creates an event (calendar.create_event returns no
+// id): the uids already there with its title and start, so the new one
+// can be told apart. null when there will be no Undo: this person may not
+// delete, the calendar can't, or it didn't answer.
+async _eventsBeforeAdd(entity, data) {
+if (!this._canDeleteEvent() || !(this._calendarFeatures(entity) & 2)) return null;
+try {
+return new Set((await this._eventsLike(entity, data)).map((ev) => ev.uid));
+} catch (e) {
+return null;
+}
+}
+// After the add form saved an event. Undo deletes exactly the event this
+// add made: the one with its title and start that wasn't there before. If
+// that isn't exactly one event, there's no Undo.
+async _answerEventAdded(entity, data, before) {
+const { start, end, allDay } = this._addedTimes(data);
+const message = this._sayJoined("On the board", [this._quiet(data.summary), this._houseWhen(start, end, allDay), `on ${this._columnName(entity)}`]);
+let made = null;
+if (before) {
+try {
+const fresh = (await this._eventsLike(entity, data)).filter((ev) => !before.has(ev.uid));
+if (fresh.length === 1) made = fresh[0];
+} catch (e) {
+made = null;
+}
+}
+if (!made) {
 this._showUndoToast(message);
 return;
 }
-const same = (ev) => ev.summary === data.summary && this._sameStart(ev, start, allDay);
-const before = new Set(((this._events && this._events[entity]) || []).filter(same).map((ev) => ev.uid));
 this._showUndoToast(message, async () => {
-const until = new Date(Math.max(end.getTime(), start.getTime() + 86400000));
-const events = await this._hass.callApi("GET", `calendars/${entity}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(until.toISOString())}`);
-const matches = (events || []).filter((ev) => ev.uid && same(ev));
-const made = matches.find((ev) => !before.has(ev.uid)) || matches[matches.length - 1];
-if (!made) return null;
 await this._hass.connection.sendMessagePromise({ type: "family_hub/calendar/delete_event", entity_id: entity, uid: made.uid });
 this._fetchEvents();
-return `Taken off the board: ${data.summary}`;
+return this._sayJoined("Taken off the board", [this._quiet(data.summary)]);
 });
 }
 // Before a delete: how to put the event back, or null when it can't be (a
@@ -21287,12 +21342,12 @@ data.end_date_time = raw.end.dateTime;
 return async () => {
 await this._hass.callService("calendar", "create_event", data, { entity_id: entity });
 this._fetchEvents();
-return `Back on the board: ${raw.summary}`;
+return this._sayJoined("Back on the board", [this._quiet(raw.summary)]);
 };
 }
 _answerEventDeleted(detail, undo, which) {
 const when = which === "all" ? "every one" : this._houseWhen(detail.start, detail.end, detail.allDay);
-this._showUndoToast(`Deleted: ${detail.summary}, ${when}, from ${this._columnName(detail.calendarEntity)}`, undo);
+this._showUndoToast(this._sayJoined("Deleted", [this._quiet(detail.summary), when, `from ${this._columnName(detail.calendarEntity)}`]), undo);
 }
 // The fetched occurrence of a repeating event (Home Assistant's calendar
 // API gives each one the series' uid, its rrule and its own
@@ -21305,7 +21360,8 @@ if (!same.some((ev) => ev.rrule || ev.recurrence_id)) return null;
 return same.find((ev) => this._sameStart(ev, detail.start, detail.allDay)) || { uid: detail.uid };
 }
 // Asks in the sheet's Delete row, with two labelled buttons (and Cancel)
-// instead of an OK/Cancel box: "one", "all", or null for Cancel. Without
+// instead of an OK/Cancel box: "one", "all", or null for Cancel (also when
+// the sheet closes or shows another event). Without
 // the occurrence's recurrence_id only "Every one" can be offered.
 _askWhichRepeat(btn, canOne) {
 return new Promise((resolve) => {
@@ -21316,34 +21372,84 @@ btn.style.display = "none";
 btn.parentNode.appendChild(ask);
 // The Delete row is the sheet's last: bring the buttons into view.
 if (ask.scrollIntoView) ask.scrollIntoView({ block: "nearest" });
-ask.addEventListener("click", (e) => {
-const choice = e.target.closest(".fh-repeat-btn");
-if (!choice) return;
+// Closing the sheet, or opening another event in it, counts as Cancel.
+const overlay = this._root.querySelector(".event-info-overlay");
+const content = this._root.querySelector(".event-info-content");
+let answered = false;
+const finish = (which) => {
+if (answered) return;
+answered = true;
+watch.disconnect();
 ask.remove();
 btn.style.display = "";
-resolve(choice.dataset.which || null);
+resolve(which);
+};
+const watch = new MutationObserver(() => {
+if (!ask.isConnected || (overlay && !overlay.classList.contains("open"))) finish(null);
+});
+if (overlay) watch.observe(overlay, { attributes: true, attributeFilter: ["class"] });
+if (content) watch.observe(content, { childList: true });
+ask.addEventListener("click", (e) => {
+const choice = e.target.closest(".fh-repeat-btn");
+if (choice) finish(choice.dataset.which || null);
 });
 });
 }
 // After the add form saved a reminder (a to-do with a due time). Undo
 // removes it again.
-_answerReminderAdded(entityId, title, due) {
+// The list's items now with this title, due at this minute.
+async _remindersLike(entityId, title, due) {
+const result = await this._hass.connection.sendMessagePromise({ type: "call_service", domain: "todo", service: "get_items", service_data: {}, target: { entity_id: entityId }, return_response: true });
+const items = (result && result.response && result.response[entityId] && result.response[entityId].items) || [];
+return items.filter((it) => it.uid && it.summary === title && it.due && it.due.startsWith(due.slice(0, 16)));
+}
+// Before the add form saves a reminder (todo.add_item returns no id): the
+// uids already there with its title and time, or null if the list didn't
+// answer (then there's no Undo).
+async _remindersBefore(entityId, title, due) {
+try {
+return new Set((await this._remindersLike(entityId, title, due)).map((it) => it.uid));
+} catch (e) {
+return null;
+}
+}
+// After the add form saved a reminder. Undo removes exactly the one this
+// add made, as _answerEventAdded does for events.
+async _answerReminderAdded(entityId, title, due, before) {
 const when = new Date(due);
-this._showUndoToast(`Reminder set: ${title}, ${this._houseDay(when)}, ${this._houseTime(when)}`, async () => {
-const uid = await this._findJustAddedReminderUid(entityId, title, due);
-if (!uid) return null;
-await this._hass.callService("todo", "remove_item", { item: uid }, { entity_id: entityId });
+const message = this._sayJoined("Reminder set", [this._quiet(title), this._houseDay(when), this._houseTime(when)]);
+let made = null;
+if (before) {
+try {
+const fresh = (await this._remindersLike(entityId, title, due)).filter((it) => !before.has(it.uid));
+if (fresh.length === 1) made = fresh[0];
+} catch (e) {
+made = null;
+}
+}
+if (!made) {
+this._showUndoToast(message);
+return;
+}
+this._showUndoToast(message, async () => {
+await this._hass.callService("todo", "remove_item", { item: made.uid }, { entity_id: entityId });
 this._fetchReminders();
-return `Reminder removed: ${title}`;
+return this._sayJoined("Reminder removed", [this._quiet(title)]);
 });
 }
 // After "Mark done" on a reminder or note. Undo makes it not done again.
-_answerReminderDone(detail) {
+// After "Mark done" on a reminder or note. Undo makes it not done again;
+// if marking it done failed, it says so.
+_answerReminderDone(detail, done) {
 if (!detail.todoUid) return;
-this._showUndoToast(`Done: ${detail.summary}`, async () => {
+if (!done) {
+this._showUndoToast("Couldn't mark that done. Try again.", null, true);
+return;
+}
+this._showUndoToast(this._sayJoined("Done", [this._quiet(detail.summary)]), async () => {
 await this._hass.callService("todo", "update_item", { item: detail.todoUid, status: "needs_action" }, { entity_id: detail.calendarEntity });
 this._fetchReminders();
-return `Back on the board: ${detail.summary}`;
+return this._sayJoined("Back on the board", [this._quiet(detail.summary)]);
 });
 }
 // A meal cleared in the meal editor (Clear, then Save). Undo puts the same
@@ -21357,23 +21463,28 @@ _answerMealSuggested(suggestion) {
 if (!suggestion || !suggestion.uid) return;
 const day = new Date(`${suggestion.date_key}T00:00:00`);
 const block = (this._getBlocksForDay(day)[suggestion.block_index || 0] || "meal").toLowerCase();
-this._showUndoToast(`Saved as an idea: ${suggestion.name}, ${block} on ${this._houseDay(day)}. Not on the board until someone adds it.`, async () => {
+this._showUndoToast(`${this._sayJoined("Saved as an idea", [this._quiet(suggestion.name), `${block} on ${this._houseDay(day)}`])}. Not on the board until someone adds it.`, async () => {
 await this._hass.connection.sendMessagePromise({ type: "family_hub/remove_menu_suggestion", uid: suggestion.uid });
 await this._fetchMenuSuggestions();
-return `Idea taken back: ${suggestion.name}`;
+return this._sayJoined("Idea taken back", [this._quiet(suggestion.name)]);
 });
 }
 async _clearMealWithUndo(dateKey, blockIndex) {
 const meal = this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex];
-await this._removeMealPlan(dateKey, blockIndex);
+const removed = await this._removeMealPlan(dateKey, blockIndex);
 if (!meal) return;
+if (!removed) {
+this._showUndoToast("Couldn't clear that meal. Try again.", null, true);
+return;
+}
 const day = new Date(`${dateKey}T00:00:00`);
 const block = this._getBlocksForDay(day)[blockIndex] || "Meal";
-this._showUndoToast(`Cleared: ${block}, ${this._houseDay(day)} (${meal.name})`, async () => {
+const name = this._quiet(meal.name);
+this._showUndoToast(`Cleared: ${block}, ${this._houseDay(day)}${name ? ` (${name})` : ""}`, async () => {
 await this._fetchMealPlan();
 if (this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex]) return null;
 const ok = await this._upsertMealPlan(dateKey, blockIndex, meal.name, meal.description, meal.link, meal.color, meal.recur, meal.grocyRecipeId, meal.servings, meal.spanDays, meal.additionalRecipes, meal.leftoverDates, meal.cook);
-return ok ? `Back on the board: ${meal.name}` : null;
+return ok ? this._sayJoined("Back on the board", [this._quiet(meal.name)]) : null;
 });
 }
 _openDishEditor(recipe) {
@@ -24234,9 +24345,14 @@ _newEventCalendar(people) {
 const pick = people.find((p) => (this._calendarFeatures(p.entity) & 6) === 6) || people[0];
 return pick ? pick.entity : "";
 }
-// House fork: a calendar's supported_features from Home Assistant's state
-// (create 1, delete 2, update 4), 0 while it isn't known.
+// House fork: what a calendar can do, as Home Assistant's calendar
+// supported_features (create 1, delete 2, update 4): the card's cached
+// family_hub/calendar/delete_support answer when it has one, which is what
+// the sheet's Edit and Delete rows go by, else the calendar's state (the
+// same attribute that answer reads); 0 while neither is known.
 _calendarFeatures(entity) {
+const known = this._calendarDeleteSupport && this._calendarDeleteSupport[entity];
+if (known) return (known.createSupported ? 1 : 0) | (known.supported ? 2 : 0) | (known.updateSupported ? 4 : 0);
 const state = this._hass && this._hass.states && this._hass.states[entity];
 return state && state.attributes ? Number(state.attributes.supported_features) || 0 : 0;
 }
@@ -24673,6 +24789,8 @@ endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMi
 data.start_date_time = `${dateVal} ${startTime}:00`;
 data.end_date_time = `${endDateVal} ${endTime}:00`;
 }
+// House fork: wave 0 (B5), see _eventsBeforeAdd.
+const undoBase = await this._eventsBeforeAdd(entity, data);
 try {
 await this._hass.callService("calendar", "create_event", data, { entity_id: entity });
 } catch (e) {
@@ -24715,7 +24833,7 @@ if (savedPeople.length) this._eventPeopleOverrides[key] = savedPeople;
 }
 await this._saveAddEventChecklistIfAny({ calendar_entity: entity, start: startTs, summary: title });
 // House fork: wave 0 (B5), see _answerEventAdded.
-this._answerEventAdded(entity, data);
+this._answerEventAdded(entity, data, undoBase);
 this._closeAddEvent();
 this._fetchEvents();
 }
@@ -24758,6 +24876,8 @@ item: title,
 due_datetime: `${dateVal}T${notifyTime}:00`,
 };
 if (fullDescription) data.description = fullDescription;
+// House fork: wave 0 (B5), see _remindersBefore.
+const remindersBefore = await this._remindersBefore(entityId, title, data.due_datetime);
 try {
 await this._hass.callService("todo", "add_item", data, { entity_id: entityId });
 } catch (e) {
@@ -24781,7 +24901,7 @@ if (newItemUid) {
 }
 }
 // House fork: wave 0 (B5), see _answerReminderAdded.
-this._answerReminderAdded(entityId, title, data.due_datetime);
+this._answerReminderAdded(entityId, title, data.due_datetime, remindersBefore);
 this._closeAddEvent();
 this._fetchReminders();
 }

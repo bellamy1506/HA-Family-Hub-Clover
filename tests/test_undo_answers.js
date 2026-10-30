@@ -18,6 +18,8 @@ const card = {
   _houseWhen: fn("_houseWhen", "start, end, allDay"),
   _calendarFeatures: fn("_calendarFeatures", "entity"),
   _undoForDelete: fn("_undoForDelete", "detail"),
+  _quiet: (text) => text,
+  _sayJoined: fn("_sayJoined", "head, parts"),
 };
 const at = (day, h, m = 0, month = 10) => new Date(2026, month, day, h, m);
 
@@ -60,13 +62,16 @@ assert.strictEqual(typeof undo, "function", "an editable calendar's event can co
   assert.strictEqual(withCalendar(7, [raw])._undoForDelete({ calendarEntity: "calendar.us", uid: null }), null, "no uid");
 
   // Undo of an add: only where this person may delete, on a calendar that can.
-  const added = methodBody("_answerEventAdded", "entity, data");
-  assert.ok(added.includes("if (!this._canDeleteEvent() || !(this._calendarFeatures(entity) & 2)) {"), "Undo of an add needs delete");
-  assert.ok(added.includes("!before.has(ev.uid)"), "never the twin that was already there");
+  assert.ok(methodBody("async _eventsBeforeAdd", "entity, data").includes("if (!this._canDeleteEvent() || !(this._calendarFeatures(entity) & 2)) return null;"), "Undo of an add needs delete");
+  assert.ok(methodBody("async _answerEventAdded", "entity, data, before").includes("if (fresh.length === 1) made = fresh[0];"), "exactly the one this add made");
 
   // Wiring: one line each in upstream's code.
-  assert.ok(methodBody("async _saveAddEvent").includes("this._answerEventAdded(entity, data);\nthis._closeAddEvent();"), "add form, event");
-  assert.ok(methodBody("async _saveAddReminder").includes("this._answerReminderAdded(entityId, title, data.due_datetime);\nthis._closeAddEvent();"), "add form, reminder");
+  const addEvent = methodBody("async _saveAddEvent");
+  assert.ok(addEvent.indexOf("const undoBase = await this._eventsBeforeAdd(entity, data);") < addEvent.indexOf('await this._hass.callService("calendar", "create_event"'), "what's there is noted before the create");
+  assert.ok(addEvent.includes("this._answerEventAdded(entity, data, undoBase);\nthis._closeAddEvent();"), "add form, event");
+  const addReminder = methodBody("async _saveAddReminder");
+  assert.ok(addReminder.indexOf("const remindersBefore = await this._remindersBefore(entityId, title, data.due_datetime);") < addReminder.indexOf('await this._hass.callService("todo", "add_item"'), "what's there is noted before the add");
+  assert.ok(addReminder.includes("this._answerReminderAdded(entityId, title, data.due_datetime, remindersBefore);\nthis._closeAddEvent();"), "add form, reminder");
   const del = methodBody("async _wireEventInfoDeleteButton", "id, detail");
   assert.ok(del.includes("const undo = this._undoForDelete(detail);\nconst repeat = this._repeatInstance(detail);\nconst which = repeat ? await this._askWhichRepeat(btn, !!repeat.recurrence_id) : null;\nif (repeat && !which) return;\nif (\n!undo && !repeat && !window.confirm("), "a delete that can be undone doesn't ask; a repeat asks which");
   assert.ok(del.includes("...(which === \"one\" ? { recurrence_id: repeat.recurrence_id } : {}),"), "this one: its recurrence_id");
@@ -80,7 +85,47 @@ assert.strictEqual(typeof undo, "function", "an editable calendar's event can co
   assert.strictEqual(instance.call(holder([weekly(3), weekly(10)]), at6(10)).recurrence_id, "20261110T180000", "the occurrence tapped");
   assert.deepStrictEqual(instance.call(holder([weekly(3)]), at6(17)), { uid: "w1" }, "a repeat not fetched at that time: series only");
   assert.strictEqual(instance.call(holder([{ ...raw, uid: "w1" }]), at6(3)), null, "a one-off isn't a repeat");
-  assert.ok(methodBody("_renderEventInfoRemindSection", "id").includes("await this._markReminderDone(detail.todoUid, detail.calendarEntity);\n// House fork: wave 0 (B5), see _answerReminderDone.\nthis._answerReminderDone(detail);"), "reminder done");
+  assert.ok(methodBody("_renderEventInfoRemindSection", "id").includes("const markedDone = await this._markReminderDone(detail.todoUid, detail.calendarEntity);\n// House fork: wave 0 (B5), see _answerReminderDone.\nthis._answerReminderDone(detail, markedDone);"), "reminder done, only when it worked");
+
+  // Undo of an add: exactly the one this add made, else no Undo.
+  const answerAdded = new (Object.getPrototypeOf(async () => {}).constructor)("entity, data, before", methodBody("async _answerEventAdded", "entity, data, before"));
+  const addData = { summary: "Dentist", start_date_time: "2026-11-03 15:30:00", end_date_time: "2026-11-03 16:30:00" };
+  const twinsNow = (uids) => async () => uids.map((uid) => ({ uid }));
+  for (const [what, now, offered] of [["one new", ["old", "new"], true], ["none new", ["old"], false], ["two new: can't tell", ["old", "n1", "n2"], false]]) {
+    const toasts = [];
+    const c = Object.assign(Object.create(card), {
+      _addedTimes: fn("_addedTimes", "data"), _columnName: () => "Us", _eventsLike: twinsNow(now),
+      _showUndoToast: (text, undo) => toasts.push({ text, undo }),
+    });
+    await answerAdded.call(c, "calendar.us", addData, new Set(["old"]));
+    assert.strictEqual(toasts[0].text, "On the board: Dentist, Tue Nov 3, 3:30 pm, on Us");
+    assert.strictEqual(typeof toasts[0].undo === "function", offered, `Undo offered: ${what}`);
+  }
+  const noBase = [];
+  await answerAdded.call(Object.assign(Object.create(card), { _addedTimes: fn("_addedTimes", "data"), _columnName: () => "Us", _showUndoToast: (t, u) => noBase.push(u) }), "calendar.us", addData, null);
+  assert.strictEqual(noBase[0], undefined, "nothing noted before the create: no Undo");
+
+  // One answer for what a calendar can do: the sheet's cached answer first.
+  const features = fn("_calendarFeatures", "entity");
+  const states = { "calendar.us": { attributes: { supported_features: 7 } } };
+  assert.strictEqual(features.call({ _hass: { states } }, "calendar.us"), 7, "no answer yet: the state");
+  assert.strictEqual(features.call({ _hass: { states }, _calendarDeleteSupport: { "calendar.us": { supported: false, updateSupported: false, createSupported: true } } }, "calendar.us"), 1, "the sheet's answer wins");
+  const AsyncFn = Object.getPrototypeOf(async () => {}).constructor;
+  const ask = new AsyncFn("entityId", methodBody("async _getCalendarDeleteSupport", "entityId"));
+  for (const [unavailable, cached] of [[true, false], [false, true]]) {
+    const c = { _hass: { connection: { sendMessagePromise: async () => ({ supported: true, update_supported: true, create_supported: true, unavailable }) } } };
+    const r = await ask.call(c, "calendar.us");
+    assert.strictEqual(!!(c._calendarDeleteSupport && c._calendarDeleteSupport["calendar.us"]), cached, `${unavailable ? "a calendar still starting isn't" : "a known answer is"} kept`);
+    assert.strictEqual(r.createSupported, true, "create is part of the answer");
+  }
+
+  // Discreet and privacy mode: titles go, and so do empty parts.
+  const quiet = fn("_quiet", "text");
+  assert.strictEqual(quiet.call({ _isDiscreetMode: () => true, _privacyModeEffectiveLocked: () => false }, "Dentist"), "");
+  assert.strictEqual(quiet.call({ _isDiscreetMode: () => false, _privacyModeEffectiveLocked: () => true }, "Dentist"), "");
+  assert.strictEqual(quiet.call({ _isDiscreetMode: () => false, _privacyModeEffectiveLocked: () => false }, "Dentist"), "Dentist");
+  assert.strictEqual(card._sayJoined("Deleted", ["", "Thu Oct 29, 6 pm", "from Person 3"]), "Deleted: Thu Oct 29, 6 pm, from Person 3");
+  assert.strictEqual(card._sayJoined("Back on the board", [""]), "Back on the board");
   assert.ok(methodBody("async _saveEditor").includes("this._clearMealWithUndo(dateKey, blockIndex);"), "meal cleared");
   assert.ok(!methodBody("async _saveEditor").includes("\nthis._removeMealPlan(dateKey, blockIndex);"), "only through the house method");
   console.log("undo answers: all checks passed");
