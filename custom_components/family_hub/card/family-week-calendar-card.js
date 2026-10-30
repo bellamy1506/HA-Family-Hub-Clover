@@ -12199,8 +12199,11 @@ see _explainUnchangeableEvent: plain text in the sheet's own color. */
 .event-info-row.fh-outside-board { line-height: 1.4; }
 /* House fork: wave 0 (B5), the answer after saving, see _showUndoToast.
 Dark with white text on every theme, large enough to read on the wall, and
-an Undo at least 44 px tall. Above popups, where upstream's toast sits. */
-.fh-undo-toast { position: fixed; left: 50%; bottom: calc(24px + var(--fh-fab-offset, 0px)); transform: translate(-50%, 12px); z-index: 1301; display: flex; align-items: center; gap: 14px; width: max-content; max-width: min(92vw, 600px); box-sizing: border-box; padding: 8px 8px 8px 18px; border-radius: 16px; background: #1f2933; color: #fff; font-size: 15px; font-weight: 600; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+an Undo at least 44 px tall. Above popups, where upstream's toast sits; on a
+phone, above the + button, which it would otherwise cover. A faint edge
+keeps it apart from dark themes. */
+.fh-undo-toast { position: fixed; left: 50%; bottom: calc(24px + var(--fh-fab-offset, 0px)); transform: translate(-50%, 12px); z-index: 1301; display: flex; align-items: center; gap: 14px; width: max-content; max-width: min(92vw, 600px); box-sizing: border-box; padding: 8px 8px 8px 18px; border-radius: 16px; background: #1f2933; color: #fff; font-size: 15px; font-weight: 600; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.18); opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+@media (max-width: 760px) { .fh-undo-toast { bottom: calc(86px + var(--fh-fab-offset, 0px)); } }
 .fh-undo-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .fh-undo-toast[hidden] { display: none; }
 .fh-undo-toast.is-error { background: #c0392b; }

@@ -863,13 +863,18 @@ const CHECKS = [
       await settle(page, await open(page, c.query));
       await c.act(page);
       await page.waitForFunction(() => { const t = window.__el.shadowRoot.querySelector(".fh-undo-toast.show"); return t && !t.hidden; });
+      await page.waitForTimeout(300); // its slide in
       const toast = await page.evaluate(() => {
         const root = window.__el.shadowRoot;
         const btn = root.querySelector(".fh-undo-btn");
         const r = btn.getBoundingClientRect();
         const hit = root.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return { text: root.querySelector(".fh-undo-text").textContent, undo: !btn.hidden, x: r.left + r.width / 2, y: r.top + r.height / 2, onTop: hit === btn, h: r.height };
+        const t = root.querySelector(".fh-undo-toast").getBoundingClientRect();
+        const fab = root.querySelector(".add-event-fab").getBoundingClientRect();
+        const clear = t.bottom <= fab.top || t.top >= fab.bottom || t.right <= fab.left || t.left >= fab.right;
+        return { text: root.querySelector(".fh-undo-text").textContent, undo: !btn.hidden, x: r.left + r.width / 2, y: r.top + r.height / 2, onTop: hit === btn, h: r.height, clear };
       });
+      assert.ok(toast.clear, "it doesn't cover the + button");
       assert.strictEqual(toast.text, c.says, "says what happened");
       assert.ok(toast.undo && toast.onTop && toast.h >= 44, `an Undo button on top, at least 44 px: ${JSON.stringify(toast)}`);
       assert.ok(await page.evaluate(`(${c.before.toString()})(window)`), "it happened");
