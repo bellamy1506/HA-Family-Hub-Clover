@@ -12219,6 +12219,12 @@ keeps it apart from dark themes. */
 .fh-undo-btn { flex: none; min-height: 44px; min-width: 76px; padding: 0 16px; border: 2px solid currentColor; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
 .fh-undo-btn[hidden] { display: none; }
 .fh-undo-btn:disabled { opacity: 0.6; }
+/* House fork: wave 0 (B5), "This one" or "Every one" for a repeating event,
+in the sheet's Delete row (see _askWhichRepeat). */
+.fh-repeat-q { margin: 2px 0 8px; line-height: 1.4; }
+.fh-repeat-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.fh-repeat-btn { min-height: 44px; padding: 6px 16px; border-radius: 10px; border: 2px solid #c0392b; background: #fdecea; color: #a5281b; font-size: 14px; font-weight: 700; cursor: pointer; }
+.fh-repeat-btn.cancel { border-color: var(--fc-border); background: var(--fc-card); color: var(--fc-text); }
 /* House fork: wave 0 (B3), Home Assistant's To-do list card inside the
 shopping list popup (see _openHouseShoppingList), in the board's colors and
 without a second card frame. */
@@ -20199,10 +20205,13 @@ btn.disabled = false;
 btn.textContent = `\u{1F5D1} ${this._t("event_info.delete_event_btn", "Delete event")}`;
 btn.addEventListener("click", async () => {
 // House fork: wave 0 (B5): a delete that can be undone doesn't ask first,
-// see _undoForDelete.
+// see _undoForDelete; a repeating event asks which, see _askWhichRepeat.
 const undo = this._undoForDelete(detail);
+const repeat = this._repeatInstance(detail);
+const which = repeat ? await this._askWhichRepeat(btn, !!repeat.recurrence_id) : null;
+if (repeat && !which) return;
 if (
-!undo && !window.confirm(
+!undo && !repeat && !window.confirm(
 this._t(
 "event_info.delete_confirm",
 `Delete "${detail.summary}"? This can't be undone here - it removes the event from ${detail.personName}'s calendar.`,
@@ -20218,6 +20227,8 @@ await this._hass.connection.sendMessagePromise({
 type: "family_hub/calendar/delete_event",
 entity_id: detail.calendarEntity,
 uid: detail.uid,
+// House fork: wave 0 (B5), just this occurrence; without it, the series.
+...(which === "one" ? { recurrence_id: repeat.recurrence_id } : {}),
 });
 } catch (e) {
 window.alert(
@@ -20234,7 +20245,7 @@ return;
 this._root.querySelector(".event-info-overlay").classList.remove("open");
 this._eventInfoOpenId = null;
 // House fork: wave 0 (B5), see _answerEventDeleted.
-this._answerEventDeleted(detail, undo);
+this._answerEventDeleted(detail, undo, which);
 await this._fetchEvents();
 });
 }
@@ -21279,8 +21290,38 @@ this._fetchEvents();
 return `Back on the board: ${raw.summary}`;
 };
 }
-_answerEventDeleted(detail, undo) {
-this._showUndoToast(`Deleted: ${detail.summary}, ${this._houseWhen(detail.start, detail.end, detail.allDay)}, from ${this._columnName(detail.calendarEntity)}`, undo);
+_answerEventDeleted(detail, undo, which) {
+const when = which === "all" ? "every one" : this._houseWhen(detail.start, detail.end, detail.allDay);
+this._showUndoToast(`Deleted: ${detail.summary}, ${when}, from ${this._columnName(detail.calendarEntity)}`, undo);
+}
+// The fetched occurrence of a repeating event (Home Assistant's calendar
+// API gives each one the series' uid, its rrule and its own
+// recurrence_id), or null for a one-off. Upstream's Delete sent no
+// recurrence_id, so on Us (Local Calendar) deleting one occurrence
+// removed the whole series (research note icloud-editing, section 1).
+_repeatInstance(detail) {
+const same = ((this._events && this._events[detail.calendarEntity]) || []).filter((ev) => ev.uid && ev.uid === detail.uid);
+if (!same.some((ev) => ev.rrule || ev.recurrence_id)) return null;
+return same.find((ev) => this._sameStart(ev, detail.start, detail.allDay)) || { uid: detail.uid };
+}
+// Asks in the sheet's Delete row, with two labelled buttons (and Cancel)
+// instead of an OK/Cancel box: "one", "all", or null for Cancel. Without
+// the occurrence's recurrence_id only "Every one" can be offered.
+_askWhichRepeat(btn, canOne) {
+return new Promise((resolve) => {
+const ask = document.createElement("div");
+ask.className = "fh-repeat-ask";
+ask.innerHTML = `<div class="fh-repeat-q">${canOne ? "This event repeats. Delete just this one, or every one?" : "This event repeats, and the board can only delete every one."}</div><div class="fh-repeat-btns">${canOne ? '<button type="button" class="fh-repeat-btn" data-which="one">This one</button>' : ""}<button type="button" class="fh-repeat-btn" data-which="all">Every one</button><button type="button" class="fh-repeat-btn cancel" data-which="">Cancel</button></div>`;
+btn.style.display = "none";
+btn.parentNode.appendChild(ask);
+ask.addEventListener("click", (e) => {
+const choice = e.target.closest(".fh-repeat-btn");
+if (!choice) return;
+ask.remove();
+btn.style.display = "";
+resolve(choice.dataset.which || null);
+});
+});
 }
 // After the add form saved a reminder (a to-do with a due time). Undo
 // removes it again.
