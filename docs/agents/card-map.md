@@ -125,6 +125,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
   Tests: `tests/test_undo_answers.js`, the "Undo" checks in `tests/browser/test_board_open.js` (the harness's calendars and to-do lists keep changes, in `window.__events` and `window.__todos`; `lists=1` makes the to-do lists exist and gives the card the reminders list `todo.us_notes`).
 
+- **The shopping list (wave 0, B3, 2026-10-29):** More > Shopping List calls `_openShoppingList` (one line, the button's handler), which asks `_grocyConnected` once per open board (`family_hub/get_grocy_shopping_lists`, `configured`). With Grocy: upstream's `_openGrocyShoppingList`. Without (the house): `_openHouseShoppingList` opens the house popup `.fh-shopping-overlay` (in the template after Grocy's) holding Home Assistant's own To-do list card for `todo.shopping_list`, made once through `window.loadCardHelpers().createCardElement({ type: "todo-list", entity })` and kept in `this._shoppingCard`; `set hass` passes every update on (one line). Its colors come from the board's theme through CSS variables in the house block before `</style>`. The title-only top bar hides More, so that layout has no way in (as before). Tests: `tests/test_shopping_list.js`, the "Shopping list" checks in `tests/browser/test_board_open.js` (harness `grocy=1`; a stand-in `loadCardHelpers` whose cards record config and hass).
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;

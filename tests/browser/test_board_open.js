@@ -918,6 +918,32 @@ const CHECKS = [
       return "no Undo on Will's; a repeating delete asks";
     },
   },
+  // Wave 0, B3: without Grocy (the house), More > Shopping List opens the
+  // household's real list, todo.shopping_list, in Home Assistant's own
+  // To-do list card; with Grocy, Grocy's list as before.
+  ...[["", "fh-shopping-overlay"], ["&grocy=1", "grocy-shopping-list-overlay"]].map(([extra, overlay]) => ({
+    name: `Shopping list: ${extra ? "Grocy's, when Grocy is set up" : "the household's to-do list, without Grocy"}`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week${extra}`));
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".grocy-shopping-list-btn").click());
+      await page.waitForFunction((o) => window.__el.shadowRoot.querySelector(`.${o}.open`), overlay);
+      await page.waitForTimeout(200);
+      const seen = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const card = root.querySelector(".fh-shopping-overlay.open fake-ha-card");
+        return { open: [...root.querySelectorAll(".modal-overlay.open")].map((o) => o.classList[1]), config: card && card.config, hass: !!(card && card.hass === window.__el._hass) };
+      });
+      assert.deepStrictEqual(seen.open, [overlay], "the right list opens, alone");
+      if (extra) return "Grocy's list";
+      assert.deepStrictEqual(seen.config, { type: "todo-list", entity: "todo.shopping_list" }, "Home Assistant's To-do list card, for the shopping list");
+      assert.ok(seen.hass, "the card has Home Assistant");
+      const kept = await page.evaluate(() => { const el = window.__el; const before = el.shadowRoot.querySelector("fake-ha-card").hassSets; el.hass = { ...el._hass }; return el.shadowRoot.querySelector("fake-ha-card").hassSets > before; });
+      assert.ok(kept, "it keeps getting Home Assistant's updates");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-shopping-overlay .modal-close").click());
+      assert.ok(!(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-shopping-overlay").classList.contains("open"))), "its close button closes it");
+      return "todo.shopping_list";
+    },
+  })),
 ];
 
 (async () => {
