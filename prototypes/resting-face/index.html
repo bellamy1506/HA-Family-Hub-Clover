@@ -1,0 +1,482 @@
+<title>Resting Face Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "What does the resting face show, and how does it read
+  from across the room?" (HA-Family-Hub-Clover #38). Four resting-face layouts for the
+  1200x800 wall tablet, switched by the bar at the bottom or the address's #hash
+  (#a-morning-fit ... #d-evening-9ft). Made-up data only: no real events or names.
+  The face is drawn at the tablet's real 1200x800 CSS px and scaled to fit; "6 ft" and
+  "9 ft" scale it to the angle it would fill from that far, with a phone held about 14 in away.
+-->
+<style>
+/* Layout: the page is a plain viewer; the 1200x800 face is the subject and keeps one fixed light look. */
+:root {
+  --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2; --chip: #2C3236;
+  --ui: Roboto, Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; --chip: #C9CED1; color-scheme: dark } }
+:root[data-theme="dark"] { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; --chip: #C9CED1; color-scheme: dark }
+html, body { background: var(--page); color: var(--ink); font-family: var(--ui) }
+body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 190px }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700 }
+.intro { margin: 0 0 14px; color: var(--soft); max-width: 70ch; line-height: 1.45 }
+.stage { display: flex; justify-content: center; align-items: flex-start; min-height: 120px }
+.frame { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(0,0,0,.12) }
+.frame > .face { position: absolute; top: 0; left: 0; transform-origin: 0 0 }
+.about { max-width: 70ch; margin: 14px auto 0; color: var(--soft); line-height: 1.45; text-align: center }
+.about b { color: var(--ink) }
+
+/* The switcher: not part of the design being judged. */
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: min(760px, calc(100vw - 24px));
+  background: var(--bar); color: var(--bar-ink); padding: 10px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35) }
+.switcher .grp { display: flex; align-items: center; gap: 4px; background: rgba(127,127,127,.18); border-radius: 12px; padding: 3px }
+.switcher button { font: 600 14px var(--ui); color: inherit; background: transparent; border: 0; border-radius: 9px; padding: 8px 10px; cursor: pointer; min-height: 36px }
+.switcher button[aria-pressed="true"] { background: var(--bar-ink); color: var(--bar) }
+.switcher button:focus-visible { outline: 2px solid #E69F00; outline-offset: 1px }
+.switcher .name { min-width: 150px; text-align: center; font: 700 14px var(--ui) }
+
+/* ---------- The face: fixed tablet look, light, by research (7:1 text, weight 600+, no thin type) ---------- */
+.face { width: 1200px; height: 800px; box-sizing: border-box; overflow: hidden; background: #F4F5F2; color: #16191B;
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased }
+.face * { box-sizing: border-box }
+.face .m { color: #464C50 }
+.face .clamp1, .face .clamp2, .face .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden }
+.face .clamp1 { -webkit-line-clamp: 1 } .face .clamp2 { -webkit-line-clamp: 2 } .face .clamp3 { -webkit-line-clamp: 3 }
+.face small.ap { font-size: .5em; font-weight: 600; margin-left: .08em; letter-spacing: .02em }
+.face .who { font-size: .62em; font-weight: 500; color: #464C50; margin-left: .35em; white-space: nowrap }
+.face .pip { display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--c); vertical-align: .08em; margin-right: .3em }
+.face .needs { display: flex; align-items: center; gap: 18px; background: #FFF0C7; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px; padding: 0 24px; font-weight: 600 }
+.face .needs.calm { background: transparent; border-left-color: transparent; color: #464C50; font-weight: 500; padding-left: 0 }
+.face .needs.calm .tick { color: #2E7D5B }
+.face .allday { display: inline-block; background: color-mix(in srgb, var(--c) 18%, #F4F5F2); border-left: 8px solid var(--c); border-radius: 4px 10px 10px 4px; padding: .12em .5em; font-weight: 600 }
+.face .wx { display: flex; align-items: center; gap: 12px; font-weight: 700 }
+.face .wx svg { flex: none }
+.face .lo { color: #464C50; font-weight: 600 }
+
+/* A: one big next thing, side rail */
+.A { display: grid; grid-template-columns: 1fr 372px; grid-template-rows: minmax(0, 1fr); gap: 36px; padding: 34px 36px 34px 44px }
+.A .main { display: flex; flex-direction: column; gap: 20px; min-width: 0; min-height: 0; overflow: hidden }
+.A .later { flex: 1 1 auto; min-height: 0; overflow: hidden }
+.A .later .more { font-size: 30px; font-weight: 600; color: #464C50; padding-left: 168px }
+.A .days { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px }
+.A .days .more { font-size: 24px; color: #464C50 }
+.A .date { font-size: 50px; font-weight: 700; line-height: 1.05 }
+.A .bring { font-size: 34px; font-weight: 600; display: flex; align-items: center; gap: 12px; margin-top: -6px }
+.A .hero { display: grid; grid-template-columns: 16px 1fr; column-gap: 22px }
+.A .hero .barc { background: var(--c); border-radius: 8px; grid-row: 1 / span 2 }
+.A .hero .lab { font-size: 34px; font-weight: 700; color: #464C50 }
+.A .hero .line { font-size: 92px; font-weight: 700; line-height: 1.04; letter-spacing: -.01em }
+.A .hero .line .tm { margin-right: .28em }
+.A .now { font-size: 34px; font-weight: 500; color: #464C50; line-height: 1.3 }
+.A .now b { color: #16191B; font-weight: 600 }
+.A .needs { min-height: 84px; font-size: 52px; line-height: 1.12; padding-block: 8px }
+.A .alld { font-size: 34px }
+.A .later h3, .A .rail h3 { font-size: 28px; font-weight: 700; color: #464C50; margin: 0 0 8px }
+.A .later .ev { font-size: 44px; font-weight: 600; line-height: 1.32; display: flex; gap: 18px; align-items: baseline; min-width: 0 }
+.A .later .ev .tm { min-width: 150px; text-align: right; color: #464C50; font-weight: 600 }
+.A .later .ev .tt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.A .rail { background: #E6E9E4; border-radius: 22px; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow: hidden }
+.A .clock { font-size: 72px; font-weight: 700; line-height: 1 }
+.A .rail .wx { font-size: 52px }
+.A .dinner { font-size: 40px; font-weight: 600; line-height: 1.15 }
+.A .day { border-top: 2px solid #CDD2CC; padding-top: 12px }
+.A .day .dn { font-size: 30px; font-weight: 700 }
+.A .day .it { font-size: 26px; font-weight: 500; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+
+/* B: four days, today wide (closest to today's board) */
+.B { display: grid; grid-template-columns: 468px 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); padding: 28px 0 }
+.B .col { display: flex; flex-direction: column; gap: 14px; padding: 0 22px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3 }
+.B .subrow { display: flex; justify-content: space-between; align-items: center; margin-top: -8px }
+.B .bring { font-size: 26px; font-weight: 600; display: flex; gap: 8px; align-items: center; white-space: nowrap; margin-top: -6px }
+.B .col:first-child { border-left: 0; padding-left: 36px; padding-right: 30px }
+.B .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 10px }
+.B .hd .dn { font-size: 38px; font-weight: 700 }
+.B .col:first-child .hd .dn { font-size: 54px }
+.B .hd .clock { font-size: 40px; font-weight: 700; color: #464C50 }
+.B .sub { font-size: 26px; font-weight: 600; color: #464C50; margin-top: -10px }
+.B .wx { font-size: 30px } .B .col:first-child .wx { font-size: 34px }
+.B .needs { font-size: 30px; min-height: 60px; padding: 8px 16px; line-height: 1.2 }
+.B .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden }
+.B .ev { display: grid; grid-template-columns: 10px 1fr; column-gap: 14px }
+.B .ev .barc { background: var(--c); border-radius: 5px }
+.B .ev .tm { font-size: 24px; font-weight: 600; color: #464C50 }
+.B .ev .tt { font-size: 29px; font-weight: 600; line-height: 1.15 }
+.B .col:first-child .ev .tm { font-size: 30px }
+.B .col:first-child .ev .tt { font-size: 38px }
+.B .col:first-child .ev.next .tt { font-size: 54px; line-height: 1.05 }
+.B .col:first-child .ev.next .tm { font-size: 36px; color: #16191B }
+.B .tag { display: inline-block; font-size: 22px; font-weight: 700; background: #16191B; color: #F4F5F2; border-radius: 8px; padding: 2px 10px; margin-right: 10px; vertical-align: .15em }
+.B .tag.now { background: #DDE1DB; color: #16191B }
+.B .allday { font-size: 24px } .B .col:first-child .allday { font-size: 30px }
+.B .more { font-size: 24px; font-weight: 600; color: #464C50 }
+.B .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 12px }
+.B .dinner .lab { font-size: 22px; font-weight: 700; color: #464C50 }
+.B .dinner .dish { font-size: 28px; font-weight: 600; line-height: 1.15 }
+.B .col:first-child .dinner .lab { font-size: 28px }
+.B .col:first-child .dinner .dish { font-size: 40px }
+
+/* C: today and tomorrow, side by side */
+.C { display: flex; flex-direction: column; gap: 18px; padding: 28px 40px 26px }
+.C .top { display: flex; align-items: center; justify-content: space-between; gap: 24px }
+.C .clockdate { display: flex; align-items: baseline; gap: 26px }
+.C .clock { font-size: 96px; font-weight: 700; line-height: .95; letter-spacing: -.01em }
+.C .date { font-size: 40px; font-weight: 600; color: #464C50; white-space: nowrap }
+.C .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.C .wx { font-size: 56px }
+.C .bring { font-size: 30px; font-weight: 600; display: flex; gap: 10px; align-items: center; white-space: nowrap }
+.C .needs { min-height: 80px; font-size: 52px; line-height: 1.12; padding-block: 8px }
+.C .ev .tm.nexttm span.t { background: #16191B; color: #F4F5F2; border-radius: 9px; padding: 0 8px }
+.C .ev .tm .to { display: block; font-size: 24px; font-weight: 600; color: #464C50; line-height: 1.1 }
+.C .nexttag { display: block; font-size: 22px; font-weight: 700; background: #16191B; color: #F4F5F2; border-radius: 7px; padding: 0 8px; width: max-content; margin-left: auto; line-height: 1.4 }
+.C .halves { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 26px; min-height: 0 }
+.C .half { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0 }
+.C .half .hd { font-size: 44px; font-weight: 700; padding: 6px 18px; border-radius: 14px; border: 3px solid #CDD2CC; display: flex; justify-content: space-between; align-items: baseline }
+.C .half .hd .sm { font-size: 28px; font-weight: 600; color: #464C50 }
+.C .half.focus .hd { background: #16191B; color: #F4F5F2; border-color: #16191B }
+.C .half.focus .hd .sm { color: #C9CED1 }
+.C .rows { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; overflow: hidden; min-height: 0 }
+.C .more { font-size: 28px; font-weight: 600; color: #464C50; padding-left: 158px }
+.C .ev .tm.nowtm { color: #16191B; font-weight: 700 }
+.C .until { font-size: 26px; font-weight: 600; color: #464C50; margin-left: 12px; white-space: nowrap }
+.C .ev { display: grid; grid-template-columns: 12px 150px 1fr; column-gap: 14px; font-size: 40px; font-weight: 600; line-height: 1.22; align-items: start }
+.C .ev .barc { background: var(--c); border-radius: 6px; align-self: stretch; margin: 6px 0 }
+.C .ev .tm { color: #464C50; text-align: right }
+.C .ev .tt { min-width: 0 }
+.C .ev .nowtag { font-size: 24px; font-weight: 700; color: #16191B; background: #DDE1DB; border-radius: 8px; padding: 1px 9px; margin-left: 10px; vertical-align: .2em; white-space: nowrap }
+.C .allday { font-size: 30px; align-self: flex-start }
+.C .empty { font-size: 36px; font-weight: 500; color: #464C50 }
+.C .dinner { margin-top: auto; font-size: 34px; font-weight: 600; border-top: 2px solid #CDD2CC; padding-top: 10px; line-height: 1.2 }
+.C .dinner .lab { color: #464C50; font-weight: 700; margin-right: 12px }
+.C .dinner.past { color: #464C50 }
+.C .strip { display: flex; gap: 36px; font-size: 28px; font-weight: 500; color: #464C50; border-top: 2px solid #CDD2CC; padding-top: 12px; white-space: nowrap; overflow: hidden }
+.C .strip b { color: #16191B; font-weight: 700; margin-right: 10px }
+.C .strip span { overflow: hidden; text-overflow: ellipsis; min-width: 0 }
+
+.D { display: flex; flex-direction: column; gap: 14px; padding: 26px 34px 24px }
+.D .band { display: grid; grid-template-columns: 16px 1fr auto; column-gap: 22px; align-items: start }
+.D .band .barc { background: var(--c); border-radius: 8px; align-self: stretch }
+.D .band .lab { font-size: 30px; font-weight: 700; color: #464C50 }
+.D .band .line { font-size: 84px; font-weight: 700; line-height: 1.04; letter-spacing: -.01em }
+.D .band .line .tm { margin-right: .26em }
+.D .band .side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px }
+.D .clock { font-size: 60px; font-weight: 700; line-height: 1 }
+.D .wx { font-size: 40px }
+.D .side .date { font-size: 30px; font-weight: 600; color: #464C50 }
+.D .bring { font-size: 26px; font-weight: 600; display: flex; gap: 8px; align-items: center; white-space: nowrap }
+.D .needs { min-height: 70px; font-size: 44px; line-height: 1.12; padding-block: 6px }
+.D .cols { flex: 1; display: grid; grid-template-columns: 1.45fr 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); min-height: 0 }
+.D .col { display: flex; flex-direction: column; gap: 10px; padding: 0 18px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3 }
+.D .col:first-child { border-left: 0; padding-left: 0 }
+.D .col .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.D .col .dn { font-size: 34px; font-weight: 700 }
+.D .col .hl { font-size: 24px; font-weight: 600; color: #464C50; white-space: nowrap }
+.D .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: hidden }
+.D .ev { display: grid; grid-template-columns: 9px 1fr; column-gap: 12px }
+.D .ev .barc { background: var(--c); border-radius: 5px }
+.D .ev .tm { font-size: 22px; font-weight: 600; color: #464C50 }
+.D .ev .tt { font-size: 28px; font-weight: 600; line-height: 1.15 }
+.D .col:first-child .ev .tm { font-size: 26px } .D .col:first-child .ev .tt { font-size: 34px }
+.D .tag { display: inline-block; font-size: 20px; font-weight: 700; background: #DDE1DB; color: #16191B; border-radius: 7px; padding: 1px 8px; margin-right: 8px; vertical-align: .12em }
+.D .allday { font-size: 22px }
+.D .more { font-size: 22px; font-weight: 600; color: #464C50 }
+.D .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 8px; font-size: 26px; font-weight: 600; line-height: 1.15 }
+.D .dinner .lab { display: block; font-size: 20px; font-weight: 700; color: #464C50 }
+.D .col:first-child .dinner { font-size: 32px }
+
+body.shot { padding: 0; background: #F4F5F2 }
+body.shot h1, body.shot .intro, body.shot .about, body.shot .switcher { display: none }
+body.shot .frame { border-radius: 0; box-shadow: none }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<h1>Resting face, four layouts</h1>
+<p class="intro">What the wall tablet shows when nobody is touching it. Made-up events. Use the bar to switch the layout, the time of day, and how far away you're standing.</p>
+<div class="stage"><div class="frame" id="frame"><div id="face" class="face"></div></div></div>
+<p class="about" id="about"></p>
+
+<nav class="switcher" aria-label="Prototype controls">
+  <div class="grp"><button id="prev" aria-label="Previous layout">&#8249;</button><span class="name" id="vname"></span><button id="next" aria-label="Next layout">&#8250;</button></div>
+  <div class="grp" id="times"></div>
+  <div class="grp" id="dists"></div>
+</nav>
+
+<script>
+// ---------- made-up household data (Friday, Oct 30) ----------
+const P = {
+  will: { name: 'Will', c: '#0072B2' }, jenn: { name: 'Jenn', c: '#D55E00' }, us: { name: 'Us', c: '#009E73' },
+  home: { name: 'Home', c: '#B5528C' }, work: { name: 'Will', c: '#7A746D' },
+};
+const ev = (p, s, e, t) => ({ p, s, e, t });
+const hm = (h, m = 0) => h * 60 + m;
+const DAYS = [
+  { name: 'Friday', short: 'Fri', date: 'October 30', mdate: 'Oct 30', num: 30, wx: { k: 'rain', hi: 61, lo: 44 },
+    allDay: [],
+    events: [ev('jenn', hm(7), hm(15, 30), 'Work shift'), ev('work', hm(8, 30), hm(16, 30), 'At work'),
+      ev('will', hm(17, 15), hm(17, 45), 'Pick up dry cleaning and drop off the library books'),
+      ev('jenn', hm(18), hm(19), 'Yoga'), ev('us', hm(19, 30), hm(20, 15), 'Plan holiday travel')],
+    meals: { dinner: 'Salmon, rice and green beans' } },
+  { name: 'Saturday', short: 'Sat', date: 'October 31', mdate: 'Oct 31', num: 31, wx: { k: 'rain', hi: 55, lo: 40 },
+    allDay: [{ p: 'home', t: 'Halloween: candy bowl by the door' }],
+    events: [ev('will', hm(9), hm(10), 'Oil change'), ev('jenn', hm(17, 30), hm(18, 30), 'Haircut'),
+      ev('us', hm(19), hm(21, 30), 'Date night: dinner and a movie'), ev('jenn', hm(19), hm(21), 'Dinner with friends')],
+    meals: { dinner: 'Out for date night' } },
+  { name: 'Sunday', short: 'Sun', date: 'November 1', mdate: 'Nov 1', num: 1, wx: { k: 'sun', hi: 58, lo: 39 },
+    allDay: [{ p: 'home', t: 'Clocks fall back an hour' }],
+    events: [ev('home', hm(19, 30), hm(19, 45), 'Trash night: bins to the curb')],
+    meals: { dinner: 'Pizza night' } },
+  { name: 'Monday', short: 'Mon', date: 'November 2', mdate: 'Nov 2', num: 2, wx: { k: 'cloud', hi: 63, lo: 45 },
+    allDay: [],
+    events: [ev('will', hm(6, 15), hm(7, 15), 'Gym'), ev('jenn', hm(7), hm(15, 30), 'Work shift'), ev('work', hm(8, 30), hm(16, 30), 'At work'),
+      ev('home', hm(10), hm(10, 30), 'Package pickup at the post office')],
+    meals: { breakfast: 'Pancakes', dinner: 'Lasagna' } },
+  { name: 'Tuesday', short: 'Tue', date: 'November 3', mdate: 'Nov 3', num: 3, wx: { k: 'sun', hi: 60, lo: 42 },
+    allDay: [],
+    events: [ev('work', hm(8, 30), hm(16, 30), 'At work'), ev('jenn', hm(10), hm(10, 45), 'Team call'), ev('will', hm(15), hm(16), 'Dentist'),
+      ev('home', hm(16), hm(17), 'Vet: both cats, checkup and shots')],
+    meals: { dinner: 'Tacos' } },
+];
+const TIMES = {
+  morning: { label: 'Morning 7:40', now: hm(7, 40), needs: 'Furnace filter: check it today', bring: 'Umbrella: rain from 2 pm' },
+  afternoon: { label: 'Afternoon 3:10', now: hm(15, 10), needs: null, bring: 'Umbrella: rain until 9 pm' },
+  evening: { label: 'Evening 8:50', now: hm(20, 50), needs: 'Tomorrow at 7: Date night and Dinner with friends clash', bring: null },
+};
+// Distances: the face's width as seen from that far, with a phone (about 153 CSS px per inch) held about 14 in away.
+const DISTS = { fit: { label: 'Fit' }, '6ft': { label: '6 ft', w: Math.round(11.9 * 14 / 72 * 153) }, '9ft': { label: '9 ft', w: Math.round(11.9 * 14 / 108 * 153) } };
+const VARIANTS = {
+  a: { name: 'A · Next, big', about: '<b>A. Next, big.</b> One huge line for what\'s next; the rest of today below it; clock, weather, dinner and the coming days in a side rail.' },
+  b: { name: 'B · Four days', about: '<b>B. Four days, today wide.</b> Closest to today\'s board: four day columns, today twice as wide with the next thing enlarged; the other days small.' },
+  d: { name: 'D · Next over four days', about: '<b>D. Next over four days.</b> A\'s big next line across the top, then B\'s four days underneath, today a little wider. Added after the first review, which liked A from across the room and B for seeing the week.' },
+  c: { name: 'C · Today + tomorrow', about: '<b>C. Today and tomorrow.</b> A big clock, then two equal pages: today and tomorrow. The day that matters now is the dark one. The next two days are a single line at the bottom.' },
+};
+
+// ---------- helpers ----------
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const tm = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}<small class="ap">${h < 12 ? 'am' : 'pm'}</small>`; };
+const tmShort = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}`; };
+const c = p => `--c:${P[p].c}`;
+const ICON = {
+  sun: '<circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g>',
+  cloud: '<circle cx="16" cy="12" r="7" fill="#E69F00"/><path d="M14 38h22a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-1 18z" fill="#8A949A"/>',
+  rain: '<path d="M13 30h23a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-2 18z" fill="#6E7A82"/><g stroke="#0072B2" stroke-width="3.5" stroke-linecap="round"><path d="M16 35l-3 7M26 35l-3 7M36 35l-3 7"/></g>',
+  umbrella: '<path d="M24 6C13 6 5 14 4 24h40C43 14 35 6 24 6z" fill="#0072B2"/><path d="M24 24v14a5 5 0 0 1-10 0" stroke="#16191B" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
+};
+const icon = (k, px) => `<svg width="${px}" height="${px}" viewBox="0 0 48 48" aria-hidden="true">${ICON[k]}</svg>`;
+const wx = (d, px) => `<div class="wx">${icon(d.wx.k, px)}<span>${d.wx.hi}°</span><span class="lo">${d.wx.lo}°</span></div>`;
+const who = p => `<span class="who"><span class="pip" style="${c(p)}"></span>${P[p].name}</span>`;
+const clamp = (n, s) => `<span class="clamp${n}">${s}</span>`;
+
+// What the face knows at a given moment. After today's last event has ended (and it's past 6 pm),
+// the face turns its attention to tomorrow; today's list is done.
+function moment(timeKey) {
+  const T = TIMES[timeKey], now = T.now, today = DAYS[0];
+  const nowEv = today.events.filter(e => e.s <= now && now < e.e);
+  const ahead = today.events.filter(e => e.s > now);
+  const tomorrowFocus = ahead.length === 0 && nowEv.length === 0 && now >= hm(18);
+  const focus = tomorrowFocus ? 1 : 0;
+  const fday = DAYS[focus];
+  const fahead = tomorrowFocus ? fday.events.slice() : ahead;
+  return { T, now, today, nowEv: tomorrowFocus ? [] : nowEv, ahead, focus, fday, next: fahead[0], later: fahead.slice(1), tomorrowFocus };
+}
+const needsHTML = (M, lines = 3) => M.T.needs
+  ? `<div class="needs">${clamp(lines, esc(M.T.needs))}</div>`
+  : `<div class="needs calm"><span class="tick">✓</span>Nothing needed today</div>`;
+const meals = (d, onlyDinner) => {
+  const out = [];
+  if (!onlyDinner && d.meals.breakfast) out.push(['Breakfast', d.meals.breakfast]);
+  if (!onlyDinner && d.meals.lunch) out.push(['Lunch', d.meals.lunch]);
+  out.push(['Dinner', d.meals.dinner || 'Not planned']);
+  return out;
+};
+
+// ---------- A: next, big ----------
+function renderA(M) {
+  const n = M.next;
+  const lab = M.tomorrowFocus ? `Tomorrow, ${M.fday.name}` : `Next`;
+  const hero = n
+    ? `<div class="hero" style="${c(n.p)}"><span class="barc"></span><div class="lab">${lab}${who(n.p)}</div>
+        <div class="line" data-shrink="64">${clamp(3, `<span class="tm">${tm(n.s)}</span>${esc(n.t)}`)}</div></div>`
+    : `<div class="hero"><span></span><div class="line">Nothing else today</div></div>`;
+  const nowLine = M.nowEv.length
+    ? `<div class="now"><b>Now</b> &nbsp;${M.nowEv.map(e => `${P[e.p].name}: ${esc(e.t)} until ${tmShort(e.e)}`).join(' · ')}</div>`
+    : '';
+  const allDay = M.fday.allDay.map(a => `<div class="alld"><span class="allday" style="${c(a.p)}">${esc(a.t)}</span></div>`).join('');
+  const laterRows = M.later.map(e => `<div class="ev" style="${c(e.p)}"><span class="tm">${tm(e.s)}</span><span class="tt"><span class="pip" style="${c(e.p)}"></span>${esc(e.t)}${who(e.p)}</span></div>`).join('');
+  const later = M.later.length ? `<div class="later" data-fit><h3>${M.tomorrowFocus ? 'Also tomorrow' : 'Later today'}</h3>${laterRows}</div>` : '';
+  const dinnerDay = M.fday;
+  const mealsHTML = meals(dinnerDay).map(([k, v]) => `<div><h3>${k}${M.tomorrowFocus ? ' tomorrow' : ''}</h3><div class="dinner">${clamp(2, esc(v))}</div></div>`).join('');
+  const rest = DAYS.slice(M.focus + 1, M.focus + 4).map(d => {
+    const items = [...d.allDay.map(a => esc(a.t)), ...d.events.map(e => `${tmShort(e.s)} ${esc(e.t)}`)];
+    const show = items.slice(0, 2).map(i => `<div class="it">${i}</div>`).join('');
+    const more = items.length > 2 ? `<div class="it m">+${items.length - 2} more</div>` : '';
+    return `<div class="day ev"><div class="dn">${d.short} ${d.num}</div>${show || '<div class="it m">Nothing yet</div>'}${more}</div>`;
+  }).join('');
+  return `<div class="face A">
+    <div class="main">
+      <div class="date">${M.today.name}, ${M.today.date}</div>
+      ${M.T.bring ? `<div class="bring">${icon('umbrella', 40)}${esc(M.T.bring)}</div>` : ''}
+      ${hero}${nowLine}${allDay}${needsHTML(M)}${later}
+    </div>
+    <aside class="rail">
+      <div class="clock">${tm(M.now)}</div>${wx(M.today, 54)}
+      ${mealsHTML}
+      <div class="days" data-fit="quiet">${rest}</div>
+    </aside></div>`;
+}
+
+// ---------- B: four days, today wide ----------
+function dayCol(d, M, wide) {
+  const isFocus = wide;
+  let events = d.events.slice();
+  let rows = '';
+  if (isFocus) {
+    const nowRows = M.nowEv.map(e => `<div class="ev" style="${c(e.p)}"><span class="barc"></span><div><div class="tm"><span class="tag now">Now</span>until ${tmShort(e.e)}</div><div class="tt clamp2">${esc(e.t)}${who(e.p)}</div></div></div>`);
+    const nextRow = M.next ? [`<div class="ev next" data-keep style="${c(M.next.p)}"><span class="barc"></span><div><div class="tm"><span class="tag">Next</span>${tm(M.next.s)}</div><div class="tt clamp2">${esc(M.next.t)}${who(M.next.p)}</div></div></div>`] : [];
+    const laterRows = M.later.map(e => `<div class="ev" style="${c(e.p)}"><span class="barc"></span><div><div class="tm">${tm(e.s)}</div><div class="tt clamp2">${esc(e.t)}${who(e.p)}</div></div></div>`);
+    const all = [...nowRows, ...nextRow, ...laterRows];
+    rows = all.join('');
+  } else {
+    const all = events.map(e => `<div class="ev" style="${c(e.p)}"><span class="barc"></span><div><div class="tm">${tm(e.s)}${who(e.p)}</div><div class="tt clamp2">${esc(e.t)}</div></div></div>`);
+    rows = all.join('');
+  }
+  const allDay = d.allDay.map(a => `<div class="allday clamp2" style="${c(a.p)}">${esc(a.t)}</div>`).join('');
+  const ms = meals(d).map(([k, v]) => `<div class="lab">${k}</div><div class="dish clamp2">${esc(v)}</div>`).join('');
+  const head = wide
+    ? `<div class="hd"><span class="dn">${M.tomorrowFocus ? 'Tomorrow' : 'Today'}</span><span class="clock">${tm(M.now)}</span></div>
+       <div class="subrow"><span class="sub" style="margin:0">${d.short}, ${d.mdate}</span>${wx(d, 40)}</div>
+       ${M.T.bring ? `<div class="bring">${icon('umbrella', 32)}${esc(M.T.bring)}</div>` : ''}
+       ${needsHTML(M, 3)}`
+    : `<div class="hd"><span class="dn">${d.short} ${d.num}</span></div>${wx(d, 34)}`;
+  return `<div class="col">${head}${allDay}<div class="list" data-fit>${rows}</div><div class="dinner">${ms}</div></div>`;
+}
+function renderB(M) {
+  const days = DAYS.slice(M.focus, M.focus + 4);
+  return `<div class="face B">${days.map((d, i) => dayCol(d, M, i === 0)).join('')}</div>`;
+}
+
+// ---------- C: today and tomorrow ----------
+function half(d, M, isToday) {
+  const focus = (isToday && !M.tomorrowFocus) || (!isToday && M.tomorrowFocus);
+  let list;
+  if (isToday) {
+    const items = [...M.nowEv.map(e => ({ e, now: true })), ...M.ahead.map((e, i) => ({ e, next: i === 0 }))];
+    list = items.length
+      ? items.map(({ e, now, next }) => `<div class="ev"${next ? ' data-keep' : ''} style="${c(e.p)}"><span class="barc"></span><span class="tm${now ? ' nowtm' : next ? ' nexttm' : ''}">${now ? `Now<span class="to">until ${tmShort(e.e)}</span>` : `<span class="t">${tm(e.s)}</span>`}</span><span class="tt clamp2">${esc(e.t)}${who(e.p)}</span></div>`).join('')
+      : `<div class="empty">Nothing left today</div>`;
+  } else {
+    list = d.events.map((e, i) => `<div class="ev"${M.tomorrowFocus && i === 0 ? ' data-keep' : ''} style="${c(e.p)}"><span class="barc"></span><span class="tm${M.tomorrowFocus && i === 0 ? ' nexttm' : ''}"><span class="t">${tm(e.s)}</span></span><span class="tt clamp2">${esc(e.t)}${who(e.p)}</span></div>`).join('');
+  }
+  const allDay = d.allDay.map(a => `<div class="allday clamp1" style="${c(a.p)}">${esc(a.t)}</div>`).join('');
+  const ms = isToday && M.tomorrowFocus ? '' : meals(d).map(([k, v]) => `<div class="dinner"><span class="lab">${k}</span>${esc(v)}</div>`).join('');
+  return `<section class="half${focus ? ' focus' : ''}"><div class="hd"><span>${isToday ? 'Today' : 'Tomorrow'}</span><span class="sm">${d.short} ${d.num} · ${d.wx.hi}° ${d.wx.lo}°</span></div>${allDay}<div class="rows" data-fit>${list}</div>${ms}</section>`;
+}
+function renderC(M) {
+  const strip = DAYS.slice(2, 4).map(d => {
+    const items = [...d.allDay.map(a => esc(a.t)), ...d.events.slice(0, 3).map(e => `${tmShort(e.s)} ${esc(e.t)}`)];
+    return `<span><b>${d.short} ${d.num}</b>${items.join(' · ')}</span>`;
+  }).join('');
+  return `<div class="face C">
+    <div class="top">
+      <div class="clockdate"><span class="clock">${tm(M.now)}</span><span class="date">${M.today.name}, ${M.today.date}</span></div>
+      <div class="right">${wx(M.today, 60)}${M.T.bring ? `<div class="bring">${icon('umbrella', 34)}${esc(M.T.bring)}</div>` : ''}</div>
+    </div>
+    ${needsHTML(M)}
+    <div class="halves">${half(DAYS[0], M, true)}${half(DAYS[1], M, false)}</div>
+    <div class="strip">${strip}</div></div>`;
+}
+
+// Lists never cut a row in half: rows that don't fit are dropped from the end and counted.
+function fit(root) {
+  for (const el of root.querySelectorAll('[data-shrink]')) {
+    // A short title shrinks a little to stay on one line; a long one keeps its size on two lines,
+    // and shrinks to the floor (then three lines) only when two aren't enough.
+    const inner = el.firstElementChild, start = parseFloat(getComputedStyle(el).fontSize);
+    let size = start; const lines = () => inner.clientHeight / (size * 1.04), set = v => { size = v; el.style.fontSize = `${v}px`; };
+    while (lines() > 1.5 && size > 76) set(size - 4);
+    if (lines() > 1.5) { set(start); while (lines() > 2.5 && size > +el.dataset.shrink) set(size - 4); }
+  }
+  for (const box of root.querySelectorAll('[data-fit]')) {
+    const rows = [...box.children].filter(el => el.classList.contains('ev') && !el.hasAttribute('data-keep'));
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1 && rows.length) {
+      rows.pop().remove(); hidden++;
+      if (!more.isConnected && box.dataset.fit !== 'quiet') box.appendChild(more);
+      more.textContent = `+${hidden} more`;
+    }
+  }
+}
+
+// ---------- D: next over four days ----------
+function renderD(M) {
+  const n = M.next;
+  const band = `<div class="band" style="${n ? c(n.p) : ''}"><span class="barc"></span>
+    <div>${n ? `<div class="lab">${M.tomorrowFocus ? `Tomorrow, ${M.fday.name}` : 'Next'}${who(n.p)}</div>
+      <div class="line" data-shrink="64">${clamp(3, `<span class="tm">${tm(n.s)}</span>${esc(n.t)}`)}</div>` : `<div class="line">Nothing else today</div>`}</div>
+    <div class="side"><div class="clock">${tm(M.now)}</div><div class="date">${M.today.short}, ${M.today.mdate}</div>${wx(M.today, 44)}${M.T.bring ? `<div class="bring">${icon('umbrella', 28)}${esc(M.T.bring)}</div>` : ''}</div></div>`;
+  const cols = DAYS.slice(M.focus, M.focus + 4).map((d, i) => {
+    const first = i === 0;
+    const evs = first
+      ? [...M.nowEv.map(e => ({ e, now: true })), ...M.later.map(e => ({ e }))]
+      : d.events.map(e => ({ e }));
+    const rows = evs.map(({ e, now }) => `<div class="ev" style="${c(e.p)}"><span class="barc"></span><div><div class="tm">${now ? `<span class="tag">Now</span>until ${tmShort(e.e)}` : tm(e.s)}${who(e.p)}</div><div class="tt clamp2">${esc(e.t)}</div></div></div>`).join('');
+    const allDay = d.allDay.filter(() => !(first && M.tomorrowFocus && false)).map(a => `<div class="allday clamp2" style="${c(a.p)}">${esc(a.t)}</div>`).join('');
+    const ms = meals(d).map(([k, v]) => `<div class="dinner"><span class="lab">${k}</span><span class="clamp2">${esc(v)}</span></div>`).join('');
+    const name = first ? (M.tomorrowFocus ? 'Tomorrow' : 'Today') : `${d.short} ${d.num}`;
+    return `<div class="col"><div class="hd"><span class="dn">${name}</span><span class="hl">${d.wx.hi}° ${d.wx.lo}°</span></div>${allDay}<div class="list" data-fit>${rows}</div>${ms}</div>`;
+  }).join('');
+  return `<div class="face D">${band}${needsHTML(M, 2)}<div class="cols">${cols}</div></div>`;
+}
+
+// ---------- viewer ----------
+const RENDER = { a: renderA, b: renderB, c: renderC, d: renderD };
+const state = { v: 'a', t: 'morning', d: 'fit', shot: false };
+function readHash() {
+  const parts = (location.hash || '').replace('#', '').split('-');
+  if (RENDER[parts[0]]) state.v = parts[0];
+  if (TIMES[parts[1]]) state.t = parts[1];
+  if (DISTS[parts[2]]) state.d = parts[2];
+  state.shot = parts[2] === 'shot';
+}
+function writeHash() { const h = `#${state.v}-${state.t}-${state.d}`; if (location.hash !== h) history.replaceState(null, '', h); }
+function layout() {
+  const frame = document.getElementById('frame'), face = frame.firstElementChild;
+  let w;
+  if (state.shot) w = 1200;
+  else if (state.d === 'fit') w = Math.min(1200, document.body.clientWidth - 32 > 0 ? document.body.clientWidth - 32 : 1200, document.documentElement.clientWidth - 32);
+  else w = DISTS[state.d].w;
+  const s = w / 1200;
+  frame.style.width = `${Math.round(1200 * s)}px`; frame.style.height = `${Math.round(800 * s)}px`;
+  face.style.transform = `scale(${s})`;
+}
+function render() {
+  const M = moment(state.t);
+  document.getElementById('frame').innerHTML = RENDER[state.v](M);
+  document.getElementById('vname').textContent = VARIANTS[state.v].name;
+  document.getElementById('about').innerHTML = VARIANTS[state.v].about;
+  for (const b of document.querySelectorAll('#times button')) b.setAttribute('aria-pressed', b.dataset.k === state.t);
+  for (const b of document.querySelectorAll('#dists button')) b.setAttribute('aria-pressed', b.dataset.k === state.d);
+  document.body.classList.toggle('shot', state.shot);
+  if (!state.shot) writeHash();
+  layout();
+  fit(document.getElementById('frame'));
+}
+function buttons(id, obj, key) {
+  const box = document.getElementById(id);
+  box.innerHTML = Object.entries(obj).map(([k, o]) => `<button data-k="${k}" aria-pressed="false">${o.label}</button>`).join('');
+  box.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state[key] = b.dataset.k; render(); } });
+}
+const keys = Object.keys(RENDER);
+const step = n => { state.v = keys[(keys.indexOf(state.v) + n + keys.length) % keys.length]; render(); };
+buttons('times', TIMES, 't'); buttons('dists', DISTS, 'd');
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
+});
+window.addEventListener('resize', layout);
+window.addEventListener('hashchange', () => { readHash(); render(); });
+readHash(); render();
+</script>
