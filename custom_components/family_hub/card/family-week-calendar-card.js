@@ -21314,6 +21314,8 @@ ask.className = "fh-repeat-ask";
 ask.innerHTML = `<div class="fh-repeat-q">${canOne ? "This event repeats. Delete just this one, or every one?" : "This event repeats, and the board can only delete every one."}</div><div class="fh-repeat-btns">${canOne ? '<button type="button" class="fh-repeat-btn" data-which="one">This one</button>' : ""}<button type="button" class="fh-repeat-btn" data-which="all">Every one</button><button type="button" class="fh-repeat-btn cancel" data-which="">Cancel</button></div>`;
 btn.style.display = "none";
 btn.parentNode.appendChild(ask);
+// The Delete row is the sheet's last: bring the buttons into view.
+if (ask.scrollIntoView) ask.scrollIntoView({ block: "nearest" });
 ask.addEventListener("click", (e) => {
 const choice = e.target.closest(".fh-repeat-btn");
 if (!choice) return;
