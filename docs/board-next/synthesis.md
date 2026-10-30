@@ -65,6 +65,10 @@ Ranked inside each wave by value for effort. Every Home Assistant change is expl
 
 **Wave 0: fix what's broken** (B1 to B6 above). Small; days, not weeks.
 
+Built 2026-10-29 on this branch, not yet on `main`: B2 (fork PR #32), B1 (#33), B1's "say why" line (#34), B5 (#35), B3 (#36), B4 (#52). B6 is a Home Assistant change, made with the install. Two findings while building:
+- **B4 was half wrong:** the wall's "Suggest" doesn't save the meal. It queues an idea that shows only inside that meal's editor until someone who can change the menu taps Add to menu; the "Tacos" the walkthrough saw were the practice data's own. Wave 0 makes the sheet and the board say so. Giving the Wall user (and Jenn) Family Hub's "Edit the menu" permission would turn Suggest into Save (a settings choice for the owner).
+- **Permissions decide edit, delete and Undo:** in the sandbox, Wall and Jenn have Family Hub's default permissions, so even on Us they get no Edit, no Delete and no Undo of an added event. The house's permissions weren't read. "Delete calendar events" and "Edit/move calendar events" for both (Family Hub Settings > Users) would let either adult fix what they add from the board.
+
 **Wave 1: capture that answers back** (mostly Home Assistant scripts and phone settings)
 1. Voice says back weekday, date, time, where, and what it guessed ("No time given, so it's a note on Thursday"); on failure the Shortcut says so and keeps the words. *Capture, trust.*
 2. Undo everywhere: "tell the board, undo that," and an Undo on the board after every add, delete and clear. Events need a small house service around Family Hub's existing delete. *Trust.*
