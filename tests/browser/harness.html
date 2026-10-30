@@ -74,7 +74,7 @@ const dropped = (list) => (q.get("drop") ? list.filter((e) => !(e.start.dateTime
 const events = {
   "calendar.wills_calendar": [timed(0, "SECRET dentist appointment with a long title that wraps", 9), timed(1, "SECRET flight", 13), allDay(2, "SECRET trip"), timed(-3, "SECRET lunch", 12), timed(3, "SECRET call", 15), timed(3, "SECRET call two", 16), timed(3, "SECRET call three", 17), timed(3, "SECRET call four", 18)],
   "calendar.home": [timed(0, "SECRET trash night", 19), allDay(1, "SECRET holiday")],
-  "calendar.us": [{ ...timed(2, "SECRET dinner", 18), uid: "us-dinner", description: "SECRET bring wine\n\n<!--reminder:30-->" }, { ...timed(1, "SECRET weekly", 11), uid: "us-weekly", rrule: "FREQ=WEEKLY" }],
+  "calendar.us": [{ ...timed(2, "SECRET dinner", 18), uid: "us-dinner", description: "SECRET bring wine\n\n<!--reminder:30-->" }, ...[1, 8].map((o) => ({ ...timed(o, "SECRET weekly", 11), uid: "us-weekly", rrule: "FREQ=WEEKLY", recurrence_id: `${day(o).replace(/-/g, "")}T110000` }))],
   "calendar.work": [timed(1, "SECRET meeting", 10)],
 };
 // lengths=1: today's events of other lengths on the Us calendar (15 and 30
@@ -140,7 +140,8 @@ const hass = {
       if (msg.type === "family_hub/add_menu_suggestion") return { suggestion: { uid: "s1", date_key: msg.date_key, block_index: msg.block_index, name: msg.name } };
       if (msg.type === "family_hub/get_grocy_shopping_lists") return q.get("grocy") ? { configured: true, lists: [{ id: 1, name: "Shopping list" }] } : { configured: false, lists: [] };
       if (msg.type === "family_hub/calendar/delete_event") {
-        events[msg.entity_id] = (events[msg.entity_id] || []).filter((e) => e.uid !== msg.uid);
+        // As Local Calendar does: with a recurrence_id, that occurrence only.
+        events[msg.entity_id] = (events[msg.entity_id] || []).filter((e) => !(e.uid === msg.uid && (!msg.recurrence_id || e.recurrence_id === msg.recurrence_id)));
         return { deleted: true };
       }
       if (msg.type === "family_hub/calendar/delete_support") {

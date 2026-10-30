@@ -887,7 +887,7 @@ const CHECKS = [
     },
   })),
   {
-    name: "Undo: none where it can't be, and the delete still asks", width: 402,
+    name: "Undo: none where it can't be, and a repeating delete asks which", width: 402,
     run: async (page) => {
       const dialogs = [];
       page.on("dialog", (d) => { dialogs.push(d.message()); d.dismiss(); });
@@ -905,17 +905,21 @@ const CHECKS = [
       await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
       const added = await page.evaluate(() => ({ text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent, undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden }));
       assert.deepStrictEqual(added, { text: "On the board: Haircut, Sat Oct 31, all day, on Will", undo: false }, "an answer without Undo");
-      // A repeating event: no Undo, so upstream's confirm still asks.
+      // A repeating event: no Undo; the sheet asks which, and Cancel keeps it.
       await page.evaluate(() => {
         const el = window.__el;
         el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly"));
       });
       await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
       await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      const ask = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".event-info-delete-row .fh-repeat-btn")].map((b) => b.textContent));
+      assert.deepStrictEqual(ask, ["This one", "Every one", "Cancel"], "asks which, with two labelled buttons");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-repeat-btn.cancel").click());
       await page.waitForTimeout(200);
-      assert.strictEqual(dialogs.length, 1, `asked first: ${dialogs}`);
-      assert.ok(await page.evaluate(() => window.__events["calendar.us"].some((e) => e.uid === "us-weekly")), "cancelled, still there");
-      return "no Undo on Will's; a repeating delete asks";
+      assert.deepStrictEqual(dialogs, [], "no browser dialog");
+      assert.strictEqual(await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").length), 2, "Cancel keeps both");
+      assert.ok(await page.evaluate(() => !!window.__el.shadowRoot.querySelector(".event-info-delete-btn:not([style*='none'])")), "Delete is back");
+      return "no Undo on Will's; a repeating delete asks which";
     },
   },
   // Wave 0, B3: without Grocy (the house), More > Shopping List opens the
@@ -992,6 +996,33 @@ const CHECKS = [
       return said.text;
     },
   },
+  // Wave 0, B5: deleting a repeating event asks "This one" or "Every one";
+  // This one sends its recurrence_id (it used to remove the whole series).
+  ...[["This one", 1, "Deleted: SECRET weekly, Wed Oct 28, 11 am, from Us"], ["Every one", 0, "Deleted: SECRET weekly, every one, from Us"]].map(([choice, left, says]) => ({
+    name: `Repeating event: "${choice}" deletes ${left ? "only that one" : "the series"}`, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      await page.evaluate(() => {
+        const el = window.__el;
+        el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly"));
+      });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      await page.evaluate((c) => [...window.__el.shadowRoot.querySelectorAll(".fh-repeat-btn")].find((b) => b.textContent === c).click(), choice);
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const seen = await page.evaluate(() => ({
+        sent: window.__sent.filter((m) => m.type === "family_hub/calendar/delete_event").map((m) => m.recurrence_id || null),
+        left: window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").map((e) => e.start.dateTime),
+        text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent,
+        undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden,
+      }));
+      assert.deepStrictEqual(seen.sent, [left ? "20261028T110000" : null], "recurrence_id only for this one");
+      assert.deepStrictEqual(seen.left, left ? ["2026-11-04T11:00:00"] : [], "what's left of the series");
+      assert.strictEqual(seen.text, says, "says what went");
+      assert.ok(!seen.undo, "no Undo for a repeating event");
+      return seen.text;
+    },
+  })),
 ];
 
 (async () => {

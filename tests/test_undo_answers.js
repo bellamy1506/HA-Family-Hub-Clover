@@ -2,7 +2,7 @@
 // says what happened, with an Undo where undo is possible (wave 0, B5).
 // Run: node tests/test_undo_answers.js   (no dependencies)
 //
-// Runs the real wording helpers and _undoForDelete against stubs, and
+// Runs the real wording helpers, _undoForDelete and _repeatInstance against stubs, and
 // checks the one-line hooks in upstream code. The browser side (every
 // answer appears, its Undo is tappable and puts things back, nothing asks
 // first) is the "Undo" checks in tests/browser/test_board_open.js.
@@ -68,8 +68,18 @@ assert.strictEqual(typeof undo, "function", "an editable calendar's event can co
   assert.ok(methodBody("async _saveAddEvent").includes("this._answerEventAdded(entity, data);\nthis._closeAddEvent();"), "add form, event");
   assert.ok(methodBody("async _saveAddReminder").includes("this._answerReminderAdded(entityId, title, data.due_datetime);\nthis._closeAddEvent();"), "add form, reminder");
   const del = methodBody("async _wireEventInfoDeleteButton", "id, detail");
-  assert.ok(del.includes("const undo = this._undoForDelete(detail);\nif (\n!undo && !window.confirm("), "a delete that can be undone doesn't ask");
-  assert.ok(del.includes("this._answerEventDeleted(detail, undo);\nawait this._fetchEvents();"), "event deleted");
+  assert.ok(del.includes("const undo = this._undoForDelete(detail);\nconst repeat = this._repeatInstance(detail);\nconst which = repeat ? await this._askWhichRepeat(btn, !!repeat.recurrence_id) : null;\nif (repeat && !which) return;\nif (\n!undo && !repeat && !window.confirm("), "a delete that can be undone doesn't ask; a repeat asks which");
+  assert.ok(del.includes("...(which === \"one\" ? { recurrence_id: repeat.recurrence_id } : {}),"), "this one: its recurrence_id");
+  assert.ok(del.includes("this._answerEventDeleted(detail, undo, which);\nawait this._fetchEvents();"), "event deleted");
+  // Which occurrence of a repeat: by uid and start.
+  const instance = fn("_repeatInstance", "detail");
+  const sameStart = fn("_sameStart", "ev, start, allDay");
+  const weekly = (day) => ({ uid: "w1", summary: "Yoga", rrule: "FREQ=WEEKLY", recurrence_id: `202611${String(day).padStart(2, "0")}T180000`, start: { dateTime: `2026-11-${String(day).padStart(2, "0")}T18:00:00` } });
+  const holder = (events) => ({ _events: { "calendar.us": events }, _sameStart: sameStart, _dateKey: card._dateKey });
+  const at6 = (day) => ({ calendarEntity: "calendar.us", uid: "w1", start: new Date(2026, 10, day, 18), allDay: false });
+  assert.strictEqual(instance.call(holder([weekly(3), weekly(10)]), at6(10)).recurrence_id, "20261110T180000", "the occurrence tapped");
+  assert.deepStrictEqual(instance.call(holder([weekly(3)]), at6(17)), { uid: "w1" }, "a repeat not fetched at that time: series only");
+  assert.strictEqual(instance.call(holder([{ ...raw, uid: "w1" }]), at6(3)), null, "a one-off isn't a repeat");
   assert.ok(methodBody("_renderEventInfoRemindSection", "id").includes("await this._markReminderDone(detail.todoUid, detail.calendarEntity);\n// House fork: wave 0 (B5), see _answerReminderDone.\nthis._answerReminderDone(detail);"), "reminder done");
   assert.ok(methodBody("async _saveEditor").includes("this._clearMealWithUndo(dateKey, blockIndex);"), "meal cleared");
   assert.ok(!methodBody("async _saveEditor").includes("\nthis._removeMealPlan(dateKey, blockIndex);"), "only through the house method");
