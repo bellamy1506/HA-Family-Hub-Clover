@@ -7,6 +7,7 @@
   from across the room?" (HA-Family-Hub-Clover #38). Four resting-face layouts for the
   1200x800 wall tablet, switched by the bar at the bottom or the address's #hash
   (#a-morning-fit ... #d-evening-9ft). Made-up data only: no real events or names.
+  Owner's pick (2026-10-30): D, "grossly nice", tuning to come; the page opens on it.
   The face is drawn at the tablet's real 1200x800 CSS px and scaled to fit; "6 ft" and
   "9 ft" scale it to the angle it would fill from that far, with a phone held about 14 in away.
 -->
@@ -239,8 +240,8 @@ const DAYS = [
     meals: { dinner: 'Tacos' } },
 ];
 const TIMES = {
-  morning: { label: 'Morning 7:40', now: hm(7, 40), needs: 'Furnace filter: check it today', bring: 'Umbrella: rain from 2 pm' },
-  afternoon: { label: 'Afternoon 3:10', now: hm(15, 10), needs: null, bring: 'Umbrella: rain until 9 pm' },
+  morning: { label: 'Morning 7:40', now: hm(7, 40), needs: 'Furnace filter: check it today', bring: 'Rain from 2 pm' },
+  afternoon: { label: 'Afternoon 3:10', now: hm(15, 10), needs: null, bring: 'Rain until 9 pm' },
   evening: { label: 'Evening 8:50', now: hm(20, 50), needs: 'Tomorrow at 7: Date night and Dinner with friends clash', bring: null },
 };
 // Distances: the face's width as seen from that far, with a phone (about 153 CSS px per inch) held about 14 in away.
@@ -261,7 +262,6 @@ const ICON = {
   sun: '<circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g>',
   cloud: '<circle cx="16" cy="12" r="7" fill="#E69F00"/><path d="M14 38h22a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-1 18z" fill="#8A949A"/>',
   rain: '<path d="M13 30h23a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-2 18z" fill="#6E7A82"/><g stroke="#0072B2" stroke-width="3.5" stroke-linecap="round"><path d="M16 35l-3 7M26 35l-3 7M36 35l-3 7"/></g>',
-  umbrella: '<path d="M24 6C13 6 5 14 4 24h40C43 14 35 6 24 6z" fill="#0072B2"/><path d="M24 24v14a5 5 0 0 1-10 0" stroke="#16191B" stroke-width="3.5" fill="none" stroke-linecap="round"/>',
 };
 const icon = (k, px) => `<svg width="${px}" height="${px}" viewBox="0 0 48 48" aria-hidden="true">${ICON[k]}</svg>`;
 const wx = (d, px) => `<div class="wx">${icon(d.wx.k, px)}<span>${d.wx.hi}°</span><span class="lo">${d.wx.lo}°</span></div>`;
@@ -316,7 +316,7 @@ function renderA(M) {
   return `<div class="face A">
     <div class="main">
       <div class="date">${M.today.name}, ${M.today.date}</div>
-      ${M.T.bring ? `<div class="bring">${icon('umbrella', 40)}${esc(M.T.bring)}</div>` : ''}
+      ${M.T.bring ? `<div class="bring">${icon('rain', 40)}${esc(M.T.bring)}</div>` : ''}
       ${hero}${nowLine}${allDay}${needsHTML(M)}${later}
     </div>
     <aside class="rail">
@@ -346,7 +346,7 @@ function dayCol(d, M, wide) {
   const head = wide
     ? `<div class="hd"><span class="dn">${M.tomorrowFocus ? 'Tomorrow' : 'Today'}</span><span class="clock">${tm(M.now)}</span></div>
        <div class="subrow"><span class="sub" style="margin:0">${d.short}, ${d.mdate}</span>${wx(d, 40)}</div>
-       ${M.T.bring ? `<div class="bring">${icon('umbrella', 32)}${esc(M.T.bring)}</div>` : ''}
+       ${M.T.bring ? `<div class="bring">${icon('rain', 32)}${esc(M.T.bring)}</div>` : ''}
        ${needsHTML(M, 3)}`
     : `<div class="hd"><span class="dn">${d.short} ${d.num}</span></div>${wx(d, 34)}`;
   return `<div class="col">${head}${allDay}<div class="list" data-fit>${rows}</div><div class="dinner">${ms}</div></div>`;
@@ -380,7 +380,7 @@ function renderC(M) {
   return `<div class="face C">
     <div class="top">
       <div class="clockdate"><span class="clock">${tm(M.now)}</span><span class="date">${M.today.name}, ${M.today.date}</span></div>
-      <div class="right">${wx(M.today, 60)}${M.T.bring ? `<div class="bring">${icon('umbrella', 34)}${esc(M.T.bring)}</div>` : ''}</div>
+      <div class="right">${wx(M.today, 60)}${M.T.bring ? `<div class="bring">${icon('rain', 34)}${esc(M.T.bring)}</div>` : ''}</div>
     </div>
     ${needsHTML(M)}
     <div class="halves">${half(DAYS[0], M, true)}${half(DAYS[1], M, false)}</div>
@@ -414,7 +414,7 @@ function renderD(M) {
   const band = `<div class="band" style="${n ? c(n.p) : ''}"><span class="barc"></span>
     <div>${n ? `<div class="lab">${M.tomorrowFocus ? `Tomorrow, ${M.fday.name}` : 'Next'}${who(n.p)}</div>
       <div class="line" data-shrink="64">${clamp(3, `<span class="tm">${tm(n.s)}</span>${esc(n.t)}`)}</div>` : `<div class="line">Nothing else today</div>`}</div>
-    <div class="side"><div class="clock">${tm(M.now)}</div><div class="date">${M.today.short}, ${M.today.mdate}</div>${wx(M.today, 44)}${M.T.bring ? `<div class="bring">${icon('umbrella', 28)}${esc(M.T.bring)}</div>` : ''}</div></div>`;
+    <div class="side"><div class="clock">${tm(M.now)}</div><div class="date">${M.today.short}, ${M.today.mdate}</div>${wx(M.today, 44)}${M.T.bring ? `<div class="bring">${icon('rain', 28)}${esc(M.T.bring)}</div>` : ''}</div></div>`;
   const cols = DAYS.slice(M.focus, M.focus + 4).map((d, i) => {
     const first = i === 0;
     const evs = first
@@ -431,7 +431,7 @@ function renderD(M) {
 
 // ---------- viewer ----------
 const RENDER = { a: renderA, b: renderB, c: renderC, d: renderD };
-const state = { v: 'a', t: 'morning', d: 'fit', shot: false };
+const state = { v: 'd', t: 'morning', d: 'fit', shot: false };
 function readHash() {
   const parts = (location.hash || '').replace('#', '').split('-');
   if (RENDER[parts[0]]) state.v = parts[0];
