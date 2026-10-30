@@ -110,6 +110,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Weather temperatures (Clover Tablet loop, 2026-10-29):** CSS only, in the house block before `</style>`: Week view's `.wx-temp` (the only place it renders, from `_buildDayColumnHtml`) on days other than today is `color-mix` of `--fc-accent2` (55%) and `--fc-text`, at full opacity, instead of upstream's `--fc-accent2` at 0.9. Liquid Glass's light teal was 2.3:1 on the tablet; now 5.2:1. Today keeps `--fc-accent-text`; a `.holiday-bg-dark` column keeps upstream's color. Test: the "Weather:" checks in `tests/browser/test_board_open.js` (harness `wx=1`, which adds a forecast; `theme=liquidglass`, `halight`, `midnight` are the built-in presets' colors).
 
+- **Settings keeps the column list empty (wave 0, B2, 2026-10-29):** while the household's Settings > Calendars list (`settings.people`) is empty, Settings shows this copy's own columns (from its card config, through `_getPeople`). `_rememberColumnsAtOpen` notes the rows as Settings opens (one line in `_openSettings`, after `_renderPeopleSettings`), and `_saveSettings` writes `people: []` while `_columnsUnedited` says they weren't changed (one line). A column added, removed or edited in Settings is saved as always, and then overrides every copy's columns. Tests: `tests/test_settings_columns.js`, the "Settings save" checks in `tests/browser/test_board_open.js` (harness `people=1`; every message the card sends is in `window.__sent`).
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;

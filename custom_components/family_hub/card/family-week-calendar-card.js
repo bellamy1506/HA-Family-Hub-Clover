@@ -16504,6 +16504,29 @@ remindersEntity,
 };
 });
 }
+// House fork: wave 0 (B2). Settings lists the board's current columns,
+// and while the household's own Settings > Calendars list
+// (settings.people) is empty those come from this dashboard copy's card
+// config. Saving them back filled that list, which then overrides every
+// copy's columns: the "Hide work calendars" copy showed Work again (it
+// happened on the house; the list was emptied by hand on 2026-10-29). So
+// when the list is empty, note what the rows read as Settings opens, and
+// _saveSettings keeps it empty unless they were changed (_columnsUnedited).
+// Reads the rows through _syncPeopleDraftFromDom, the same way Save does,
+// then puts the draft back as it was.
+_rememberColumnsAtOpen(settings) {
+this._columnsAtOpen = null;
+if (Array.isArray(settings.people) && settings.people.length) return;
+const draft = this._settingsPeopleDraft;
+this._syncPeopleDraftFromDom();
+this._columnsAtOpen = JSON.stringify(this._settingsPeopleDraft);
+this._settingsPeopleDraft = draft;
+}
+// True when the household's list was empty as Settings opened and the
+// rows are the same now (call after _syncPeopleDraftFromDom).
+_columnsUnedited() {
+return typeof this._columnsAtOpen === "string" && JSON.stringify(this._settingsPeopleDraft) === this._columnsAtOpen;
+}
 _openSettings() {
 const root = this._root;
 this._populateThisDeviceField();
@@ -16718,6 +16741,8 @@ this._notifyProfileEditingUserId = null;
 this._notifyDevicesEditIdx = null;
 this._setSettingsTab("general");
 this._renderPeopleSettings(this._settingsPeopleDraft);
+// House fork: wave 0 (B2), see _rememberColumnsAtOpen.
+this._rememberColumnsAtOpen(settings);
 this._renderHolidayBackgroundsSettings(this._settingsHolidayBackgroundsDraft);
 this._updateSettingsBlockVisibility(count);
 const screenSaver = settings.screenSaver || this._defaultSettings().screenSaver;
@@ -18531,7 +18556,8 @@ async _saveSettings() {
 const root = this._root;
 this._syncPeopleDraftFromDom();
 this._syncHolidayBackgroundsDraftFromDom();
-const people = this._settingsPeopleDraft
+// House fork: wave 0 (B2), see _rememberColumnsAtOpen.
+const people = this._columnsUnedited() ? [] : this._settingsPeopleDraft
 .filter((p) => p.entity)
 .map((p) => ({
 entity: p.entity,
