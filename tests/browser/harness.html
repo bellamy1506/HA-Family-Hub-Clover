@@ -28,7 +28,11 @@
      window.loadCardHelpers whose cards record their config and hass.
      bar=full (the full top bar; title only by default), recipebox=1 (the
      card's recipe_box option on), admin=0 (signed in as someone who isn't
-     an admin and has no extra permissions, like the wall's user). Every message the card sends is kept in window.__sent.
+     an admin and has no extra permissions, like the wall's user), twin=1
+     (Us already holds a "Dentist" on Nov 3 at 3:30 pm and the notes a
+     "Call the vet" on Oct 28 at 9:15 am, the same as the checks add),
+     failtodo=1 (to-do list writes fail), discreet=on (discreet mode).
+     Calendars answer only what overlaps the range asked for. Every message the card sends is kept in window.__sent.
      Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
@@ -77,15 +81,17 @@ const events = {
   "calendar.us": [{ ...timed(2, "SECRET dinner", 18), uid: "us-dinner", description: "SECRET bring wine\n\n<!--reminder:30-->" }, ...[1, 8].map((o) => ({ ...timed(o, "SECRET weekly", 11), uid: "us-weekly", rrule: "FREQ=WEEKLY", recurrence_id: `${day(o).replace(/-/g, "")}T110000` }))],
   "calendar.work": [timed(1, "SECRET meeting", 10)],
 };
+if (q.get("twin")) events["calendar.us"].push({ summary: "Dentist", uid: "us-twin", start: { dateTime: "2026-11-03T15:30:00" }, end: { dateTime: "2026-11-03T16:30:00" } });
 // lengths=1: today's events of other lengths on the Us calendar (15 and 30
 // minutes, a long title in 90 minutes, and 2 hours sharing its hour).
 if (q.get("lengths")) events["calendar.us"].push(span(0, "SECRET quick call", 11, 0, 30), span(0, "SECRET pills", 11, 30, 15), span(0, "SECRET parent teacher conference at the elementary school", 13, 0, 90), span(0, "SECRET long meeting about the kitchen renovation plans", 14, 0, 120));
-const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: q.get("people") ? [{ entity: "calendar.wills_calendar", name: "Will", color: "#7ec9d9" }, { entity: "calendar.us", name: "Us", color: "#d9bf7e" }] : [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
+const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: q.get("people") ? [{ entity: "calendar.wills_calendar", name: "Will", color: "#7ec9d9" }, { entity: "calendar.us", name: "Us", color: "#d9bf7e" }] : [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", discreetModeEnabled: q.get("discreet") === "on", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
 // To-do lists, as Home Assistant keeps them.
 const todos = {
   "todo.meal_plan": q.get("nomeal") ? [] : [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }],
   "todo.us_notes": [{ uid: "n1", summary: "SECRET package on the porch", due: `${day(0)}T20:00:00`, description: "", status: "needs_action" }],
 };
+if (q.get("twin")) todos["todo.us_notes"].push({ uid: "n-twin", summary: "Call the vet", due: "2026-10-28T09:15:00", description: "", status: "needs_action" });
 let uidSeq = 0;
 const states = {};
 // Calendar abilities as on the house (Home Assistant's supported_features:
@@ -103,7 +109,11 @@ const hass = {
     await sleep(q.get("slow") && path.includes(q.get("slow")) ? CAL_DELAY * 3 : CAL_DELAY);
     setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0);
     if (q.get("fail")) throw new Error("calendar unreachable");
-    return dropped(events[path.split("?")[0].replace("calendars/", "")] || []);
+    // Only what overlaps the asked range, as Home Assistant answers.
+    const asked = new URLSearchParams(path.split("?")[1] || "");
+    const from = new Date(asked.get("start") || 0), to = new Date(asked.get("end") || 8.64e15);
+    const at = (t) => new Date(t.dateTime || `${t.date}T00:00:00`);
+    return dropped(events[path.split("?")[0].replace("calendars/", "")] || []).filter((e) => at(e.end) > from && at(e.start) < to);
   },
   callWS: async () => ({}),
   callService: async (domain, service, data, target) => {
@@ -118,6 +128,7 @@ const hass = {
       });
     }
     const list = todos[entity];
+    if (domain === "todo" && q.get("failtodo") && service !== "get_items") throw new Error("to-do list unreachable");
     if (domain === "todo" && list) {
       if (service === "add_item") list.push({ uid: `t-${++uidSeq}`, summary: data.item, due: data.due_datetime || data.due_date, description: data.description || "", status: "needs_action" });
       if (service === "remove_item") todos[entity] = list.filter((it) => it.uid !== data.item);

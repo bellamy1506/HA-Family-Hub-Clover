@@ -30,6 +30,8 @@ const card = {
   _showUndoToast: (text, undo) => shown.push({ text, undo }),
   _hass: { connection: { sendMessagePromise: async (msg) => sent.push(msg) } },
   _fetchMenuSuggestions: async () => sent.push("fetch"),
+  _quiet: (text) => text,
+  _sayJoined: new Function("head, parts", methodBody("_sayJoined", "head, parts")),
 };
 answer.call(card, { uid: "s1", date_key: "2026-10-31", block_index: 2, name: "Tacos" });
 answer.call(card, null);
