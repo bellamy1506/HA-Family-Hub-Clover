@@ -1,0 +1,77 @@
+# Family Hub sandbox: a throwaway local Home Assistant for trying the board
+# with made-up data. Not the house's configuration. sandbox.sh reset copies it
+# into the sandbox's config folder; see README.md.
+#
+# Kept minimal so it starts reliably: no default_config, no discovery, no
+# cloud. Only what the board and its dashboard need, plus the recorder the
+# house has (the frontend asks for it; without it, pages log an error).
+
+homeassistant:
+  name: Sandbox House
+  # Charleston, WV at city precision (two decimals), not the house.
+  latitude: 38.35
+  longitude: -81.63
+  elevation: 183
+  unit_system: us_customary
+  time_zone: America/New_York
+  currency: USD
+  country: US
+  language: en
+  internal_url: http://127.0.0.1:8123
+
+http:
+  server_host: 127.0.0.1
+  server_port: 8123
+
+frontend:
+api:
+config:
+person:
+lovelace:
+recorder:
+  purge_keep_days: 3
+history:
+logbook:
+input_boolean:
+  # The real board's "Hide work calendars" tile switches between two copies
+  # of the card with this helper (J006, Board private).
+  board_private:
+    name: Board private
+    icon: mdi:lock
+
+# Stands in for the house's weather.forecast_home (Met.no): a fixed forecast
+# so the board's weather row never depends on the network.
+template:
+  - weather:
+      - name: Forecast Home
+        unique_id: sandbox_forecast_home
+        condition: "partlycloudy"
+        temperature: "{{ 58 }}"
+        temperature_unit: "°F"
+        humidity: "{{ 62 }}"
+        forecast_daily: >
+          {%- set conds = ['sunny', 'partlycloudy', 'cloudy', 'rainy', 'partlycloudy', 'sunny', 'cloudy', 'rainy', 'sunny', 'partlycloudy'] -%}
+          {%- set highs = [61, 64, 57, 52, 55, 63, 66, 59, 54, 60] -%}
+          {%- set lows = [44, 47, 43, 40, 38, 45, 49, 46, 39, 42] -%}
+          {%- set ns = namespace(days=[]) -%}
+          {%- for i in range(10) -%}
+            {%- set d = (today_at('12:00') + timedelta(days=i)).isoformat() -%}
+            {%- set ns.days = ns.days + [{'datetime': d, 'condition': conds[i], 'temperature': highs[i], 'templow': lows[i], 'precipitation_probability': 70 if conds[i] == 'rainy' else 10}] -%}
+          {%- endfor -%}
+          {{ ns.days }}
+
+# Sandbox only (custom_components/sandbox_house): the stand-in calendars act
+# like the house's. Will, Home, Work are iCloud there (CalDAV: add only);
+# Jenn's planned Google calendar is read only on both paths J008 plans. Us is
+# a Local Calendar on the house too, so it keeps add, edit and delete.
+sandbox_house:
+  calendar_features:
+    calendar.wills_calendar: 1
+    calendar.home: 1
+    calendar.work: 1
+    calendar.jenns_calendar: 0
+
+logger:
+  default: warning
+  logs:
+    custom_components.family_hub: info

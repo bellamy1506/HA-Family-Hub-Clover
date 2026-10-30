@@ -12261,6 +12261,36 @@ def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str) -> Non
         _LOGGER.debug("Family Hub: dashboard resource auto-registration skipped: %s", err)
 
 
+
+def _retire_dashboard_resource(hass: HomeAssistant, base_path: str) -> None:
+    """House fork (wave 0, B4): best-effort, remove every dashboard resource
+    whose URL (before "?") is base_path - one this integration registered
+    for a card file that isn't in the build any more. The opposite of
+    _register_dashboard_resource, and as defensive: if Home Assistant's
+    internals change, or the resources are YAML, it does nothing."""
+    try:
+        lovelace_data = hass.data.get("lovelace")
+        resource_collection = getattr(lovelace_data, "resources", None) if lovelace_data is not None else None
+        if resource_collection is None or not hasattr(resource_collection, "async_delete_item"):
+            return
+
+        async def _retire() -> None:
+            try:
+                if not getattr(resource_collection, "loaded", True):
+                    await resource_collection.async_load()
+                    resource_collection.loaded = True
+                for item in list(resource_collection.async_items()):
+                    if (item.get("url") or "").split("?", 1)[0] == base_path:
+                        await resource_collection.async_delete_item(item["id"])
+                        _LOGGER.info("Family Hub: removed dashboard resource %s (its file is gone)", item.get("url"))
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("Family Hub: could not remove dashboard resource %s: %s", base_path, err)
+
+        hass.async_create_task(_retire())
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug("Family Hub: dashboard resource removal skipped: %s", err)
+
+
 # ---------------------------------------------------------------------------
 # v1.168.66: retire the My Chores card
 # ---------------------------------------------------------------------------
@@ -12567,8 +12597,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         StaticPathConfig(TODO_CARD_JS_URL, todo_card_path, False),
         StaticPathConfig(ACTIVE_TIMERS_CARD_JS_URL, active_timers_card_path, False),
         StaticPathConfig(RECIPE_BOX_CARD_JS_URL, recipe_box_card_path, False),
-        StaticPathConfig(RIGHT_NOW_CARD_JS_URL, right_now_card_path, False),
     ]
+    # House fork: wave 0 (B4). The Right Now card's file isn't in this build,
+    # yet it was served and registered anyway, as ...?v=0 (the hash of a
+    # missing file), so every board open made a failed request for it. Serve
+    # and register it only when the file is there; otherwise take away the
+    # dashboard resource an earlier start left (_retire_dashboard_resource).
+    right_now_card_exists = await hass.async_add_executor_job(os.path.isfile, right_now_card_path)
+    if right_now_card_exists:
+        static_paths.append(StaticPathConfig(RIGHT_NOW_CARD_JS_URL, right_now_card_path, False))
     icon_exists = await hass.async_add_executor_job(os.path.isfile, icon_path)
     if icon_exists:
         static_paths.append(StaticPathConfig(ICON_URL, icon_path, False))
@@ -12639,7 +12676,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _register_dashboard_resource(hass, todo_card_url_versioned)
     _register_dashboard_resource(hass, active_timers_card_url_versioned)
     _register_dashboard_resource(hass, recipe_box_card_url_versioned)
-    _register_dashboard_resource(hass, right_now_card_url_versioned)
+    if right_now_card_exists:
+        _register_dashboard_resource(hass, right_now_card_url_versioned)
+    else:
+        _retire_dashboard_resource(hass, RIGHT_NOW_CARD_JS_URL)
     _schedule_my_chores_migration(hass)
 
     themes = await _load_themes(hass)

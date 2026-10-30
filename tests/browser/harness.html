@@ -14,7 +14,26 @@
      daily forecast, so Week's day headers show temperatures), grey=off
      ("Grey out past events" off; on by default), lengths=1 (today's
      timeline gets 15, 30, 90 and 120 minute events), start=household|week|month
-     (this copy's Start view; unset by default). Themes:
+     (this copy's Start view; unset by default), people=1 (the household's
+     own Settings > Calendars list holds Will and Us; empty by default, as
+     on the house), editable=none (every calendar add only; by default Us
+     can also be changed and deleted, as on the house), lists=1 (the to-do
+     lists todo.meal_plan and todo.us_notes exist in Home Assistant, and the
+     card's reminders list is todo.us_notes, holding one note). The fake
+     calendars and to-do lists keep what the card adds, deletes and ticks
+     (calendar.create_event, family_hub/calendar/delete_event, todo
+     add_item, update_item, remove_item); service calls are kept in
+     window.__services. grocy=1 (Family Hub has Grocy set up; it isn't on
+     the house). Home Assistant's own cards come from a stand-in
+     window.loadCardHelpers whose cards record their config and hass.
+     bar=full (the full top bar; title only by default), recipebox=1 (the
+     card's recipe_box option on), admin=0 (signed in as someone who isn't
+     an admin and has no extra permissions, like the wall's user), twin=1
+     (Us already holds a "Dentist" on Nov 3 at 3:30 pm and the notes a
+     "Call the vet" on Oct 28 at 9:15 am, the same as the checks add),
+     failtodo=1 (to-do list writes fail), discreet=on (discreet mode).
+     Calendars answer only what overlaps the range asked for. Every message the card sends is kept in window.__sent.
+     Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
@@ -25,9 +44,15 @@ const q = new URLSearchParams(location.search);
 localStorage.setItem("familyCalendarMonthViewVariantLocal", q.get("month") || "split");
 localStorage.setItem("familyCalendarWeekViewVariantLocal", q.get("week") || "planner");
 localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "off");
-localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
+localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", q.get("bar") === "full" ? "off" : "on");
 if (q.get("start")) localStorage.setItem("familyCalendarStartViewLocal", q.get("start"));
 localStorage.setItem("familyHubDeviceThemeOverrideLocal", q.get("theme") || "");
+</script>
+<script>
+// Home Assistant's card helpers, as a dashboard offers them to custom cards.
+class FakeHaCard extends HTMLElement { setConfig(c) { this.config = c; } set hass(h) { this._hass = h; this.hassSets = (this.hassSets || 0) + 1; } get hass() { return this._hass; } }
+customElements.define("fake-ha-card", FakeHaCard);
+window.loadCardHelpers = async () => ({ createCardElement: (config) => { const c = document.createElement("fake-ha-card"); c.setConfig(config); return c; } });
 </script>
 <script src="card.js"></script>
 <script>
@@ -53,26 +78,68 @@ const dropped = (list) => (q.get("drop") ? list.filter((e) => !(e.start.dateTime
 const events = {
   "calendar.wills_calendar": [timed(0, "SECRET dentist appointment with a long title that wraps", 9), timed(1, "SECRET flight", 13), allDay(2, "SECRET trip"), timed(-3, "SECRET lunch", 12), timed(3, "SECRET call", 15), timed(3, "SECRET call two", 16), timed(3, "SECRET call three", 17), timed(3, "SECRET call four", 18)],
   "calendar.home": [timed(0, "SECRET trash night", 19), allDay(1, "SECRET holiday")],
-  "calendar.us": [timed(2, "SECRET dinner", 18)],
+  "calendar.us": [{ ...timed(2, "SECRET dinner", 18), uid: "us-dinner", description: "SECRET bring wine\n\n<!--reminder:30-->" }, ...[1, 8].map((o) => ({ ...timed(o, "SECRET weekly", 11), uid: "us-weekly", rrule: "FREQ=WEEKLY", recurrence_id: `${day(o).replace(/-/g, "")}T110000` }))],
   "calendar.work": [timed(1, "SECRET meeting", 10)],
 };
+if (q.get("twin")) events["calendar.us"].push({ summary: "Dentist", uid: "us-twin", start: { dateTime: "2026-11-03T15:30:00" }, end: { dateTime: "2026-11-03T16:30:00" } });
 // lengths=1: today's events of other lengths on the Us calendar (15 and 30
 // minutes, a long title in 90 minutes, and 2 hours sharing its hour).
 if (q.get("lengths")) events["calendar.us"].push(span(0, "SECRET quick call", 11, 0, 30), span(0, "SECRET pills", 11, 30, 15), span(0, "SECRET parent teacher conference at the elementary school", 13, 0, 90), span(0, "SECRET long meeting about the kitchen renovation plans", 14, 0, 120));
-const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
+const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: q.get("people") ? [{ entity: "calendar.wills_calendar", name: "Will", color: "#7ec9d9" }, { entity: "calendar.us", name: "Us", color: "#d9bf7e" }] : [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", discreetModeEnabled: q.get("discreet") === "on", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
+// To-do lists, as Home Assistant keeps them.
+const todos = {
+  "todo.meal_plan": q.get("nomeal") ? [] : [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }],
+  "todo.us_notes": [{ uid: "n1", summary: "SECRET package on the porch", due: `${day(0)}T20:00:00`, description: "", status: "needs_action" }],
+};
+if (q.get("twin")) todos["todo.us_notes"].push({ uid: "n-twin", summary: "Call the vet", due: "2026-10-28T09:15:00", description: "", status: "needs_action" });
+let uidSeq = 0;
 const states = {};
-people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
+// Calendar abilities as on the house (Home Assistant's supported_features:
+// create 1, delete 2, update 4): Us is fully editable, the iCloud calendars
+// add only. editable=none makes every calendar add only.
+const FEATURES = { "calendar.us": q.get("editable") === "none" ? 1 : 7 };
+// Friendly names as on the house: "Will's Calendar", "Home", "Us", "Work".
+const FRIENDLY = { "calendar.wills_calendar": "Will\u2019s Calendar" };
+people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: FRIENDLY[e] || n, supported_features: FEATURES[e] || 1 } }));
+states["todo.shopping_list"] = { entity_id: "todo.shopping_list", state: "3", attributes: { friendly_name: "Shopping list" } };
+if (q.get("lists")) for (const [e, n] of [["todo.meal_plan", "Meal plan"], ["todo.us_notes", "Us notes"]]) states[e] = { entity_id: e, state: "1", attributes: { friendly_name: n } };
 const hass = {
-  user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
+  user: { id: "u1", is_admin: q.get("admin") !== "0", name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
   callApi: async (m, path) => {
     await sleep(q.get("slow") && path.includes(q.get("slow")) ? CAL_DELAY * 3 : CAL_DELAY);
     setTimeout(() => (window.__calAnswered = (window.__calAnswered || 0) + 1), 0);
     if (q.get("fail")) throw new Error("calendar unreachable");
-    return dropped(events[path.split("?")[0].replace("calendars/", "")] || []);
+    // Only what overlaps the asked range, as Home Assistant answers.
+    const asked = new URLSearchParams(path.split("?")[1] || "");
+    const from = new Date(asked.get("start") || 0), to = new Date(asked.get("end") || 8.64e15);
+    const at = (t) => new Date(t.dateTime || `${t.date}T00:00:00`);
+    return dropped(events[path.split("?")[0].replace("calendars/", "")] || []).filter((e) => at(e.end) > from && at(e.start) < to);
   },
-  callWS: async () => ({}), callService: async () => ({}),
+  callWS: async () => ({}),
+  callService: async (domain, service, data, target) => {
+    (window.__services = window.__services || []).push({ domain, service, data, target });
+    const entity = target && target.entity_id;
+    const dt = (text) => text.replace(" ", "T");
+    if (domain === "calendar" && service === "create_event") {
+      (events[entity] = events[entity] || []).push({
+        uid: `new-${++uidSeq}`, summary: data.summary, description: data.description, location: data.location,
+        start: data.start_date ? { date: data.start_date } : { dateTime: dt(data.start_date_time) },
+        end: data.end_date ? { date: data.end_date } : { dateTime: dt(data.end_date_time) },
+      });
+    }
+    const list = todos[entity];
+    if (domain === "todo" && q.get("failtodo") && service !== "get_items") throw new Error("to-do list unreachable");
+    if (domain === "todo" && list) {
+      if (service === "add_item") list.push({ uid: `t-${++uidSeq}`, summary: data.item, due: data.due_datetime || data.due_date, description: data.description || "", status: "needs_action" });
+      if (service === "remove_item") todos[entity] = list.filter((it) => it.uid !== data.item);
+      const item = list.find((it) => it.uid === data.item);
+      if (service === "update_item" && item) Object.assign(item, data.status ? { status: data.status } : {}, data.rename ? { summary: data.rename } : {}, data.description !== undefined ? { description: data.description } : {});
+    }
+    return {};
+  },
   connection: {
     sendMessagePromise: async (msg) => {
+      (window.__sent = window.__sent || []).push(JSON.parse(JSON.stringify(msg)));
       await sleep(40);
       if (msg.type === "family_hub/get_settings") return { settings };
       if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME, ...PRESETS] }; }
@@ -80,6 +147,17 @@ const hass = {
         const forecast = [];
         for (let o = -10; o <= 14; o++) forecast.push({ datetime: `${day(o)}T12:00:00`, condition: "partlycloudy", temperature: 60 + (o % 5), templow: 45 + (o % 4) });
         return { response: { [msg.target.entity_id]: { forecast } } };
+      }
+      if (msg.type === "family_hub/add_menu_suggestion") return { suggestion: { uid: "s1", date_key: msg.date_key, block_index: msg.block_index, name: msg.name } };
+      if (msg.type === "family_hub/get_grocy_shopping_lists") return q.get("grocy") ? { configured: true, lists: [{ id: 1, name: "Shopping list" }] } : { configured: false, lists: [] };
+      if (msg.type === "family_hub/calendar/delete_event") {
+        // As Local Calendar does: with a recurrence_id, that occurrence only.
+        events[msg.entity_id] = (events[msg.entity_id] || []).filter((e) => !(e.uid === msg.uid && (!msg.recurrence_id || e.recurrence_id === msg.recurrence_id)));
+        return { deleted: true };
+      }
+      if (msg.type === "family_hub/calendar/delete_support") {
+        const f = (states[msg.entity_id] && states[msg.entity_id].attributes.supported_features) || 0;
+        return { supported: !!(f & 2), update_supported: !!(f & 4), create_supported: !!(f & 1), integration_name: "CalDAV" };
       }
       if (msg.type === "family_hub/privacy_mode/get_state") { await sleep(+(q.get("privacydelay") || 0)); return { enabled: q.get("privacy") === "on" }; }
       if (msg.type === "family_hub/calendar_cache/get") {
@@ -91,7 +169,7 @@ const hass = {
       }
       if (msg.type === "family_hub/calendar_cache/put") { (window.__cachePuts = window.__cachePuts || []).push(msg); return {}; }
       if (msg.type === "call_service" && msg.service === "get_items") {
-        const items = msg.target.entity_id === "todo.meal_plan" && !q.get("nomeal") ? [{ uid: "m1", summary: "Tacos tonight", due: day(0), description: '{"block": 2}', status: "needs_action" }] : [];
+        const items = (todos[msg.target.entity_id] || []).map((it) => ({ ...it }));
         return { response: { [msg.target.entity_id]: { items } } };
       }
       if (msg.type === "family_hub/device_settings/get_pending") return { seq: 0, settings: null, instance: null };
@@ -104,9 +182,11 @@ const hass = {
   },
 };
 const el = document.createElement("family-week-calendar-card");
-el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", ...(q.get("wx") ? { weather_entity: "weather.home" } : {}), people: people.map(([entity, name, color]) => ({ entity, name, color })) });
+el.setConfig({ type: "custom:family-week-calendar-card", meal_plan_entity: "todo.meal_plan", ...(q.get("lists") ? { reminders_entity: "todo.us_notes" } : {}), ...(q.get("recipebox") ? { recipe_box: true } : {}), ...(q.get("wx") ? { weather_entity: "weather.home" } : {}), people: people.map(([entity, name, color]) => ({ entity, name, color })) });
 document.getElementById("stack").appendChild(el);
 el.hass = hass;
 window.__el = el;
+window.__events = events;
+window.__todos = todos;
 })();
 </script></body></html>

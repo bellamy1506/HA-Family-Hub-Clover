@@ -695,6 +695,449 @@ const CHECKS = [
       return `${names.length} popups`;
     },
   },
+  // Wave 0, B2: Settings shows this copy's own columns while the household's
+  // Settings > Calendars list is empty (as on the house); saving must not
+  // copy them into that list, which would override every copy's columns
+  // and break "Hide work calendars" (it did, on the house, 2026-10-29).
+  ...[
+    ["Settings save: an empty column list stays empty", "", null, []],
+    ["Settings save: a column edited in Settings is saved", "", (root) => { const name = root.querySelector(".person-name"); name.value = "Willy"; }, ["Willy", "Home", "Us", "Work"]],
+    ["Settings save: a column removed in Settings is saved", "", (root) => root.querySelectorAll(".person-remove-btn")[3].click(), ["Will", "Home", "Us"]],
+    ["Settings save: the household's own list is kept", "&people=1", null, ["Will", "Us"]],
+  ].map(([name, extra, edit, expected]) => ({
+    name, width: 402,
+    run: async (page) => {
+      await open(page, `view=month&month=split${extra}`);
+      await settle(page, extra ? 2 : CALENDARS); // the household's list has two columns
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".settings-btn").click());
+      const rows = await page.evaluate(() => window.__el.shadowRoot.querySelectorAll(".person-row").length);
+      assert.strictEqual(rows, extra ? 2 : 4, "Settings lists the columns showing");
+      if (edit) await page.evaluate(`(${edit.toString()})(window.__el.shadowRoot)`);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".settings-save").click());
+      await page.waitForFunction(() => (window.__sent || []).some((m) => m.type === "family_hub/set_settings"));
+      const people = await page.evaluate(() => window.__sent.filter((m) => m.type === "family_hub/set_settings").pop().settings.people);
+      assert.deepStrictEqual(people.map((p) => p.name), expected, `saved column list: ${JSON.stringify(people)}`);
+      return expected.length ? `saved ${expected.join(", ")}` : "saved empty";
+    },
+  })),
+  // Wave 0, B1: a new event starts on the first column the board can change
+  // and delete later (Us on the house), not the first column (Will, an
+  // iCloud calendar it can only add to). The day still follows the one
+  // picked on the board.
+  ...[
+    ["New event: starts on the first calendar the board can change", "", "calendar.us"],
+    ["New event: the first column when none can be changed", "&editable=none", "calendar.wills_calendar"],
+  ].map(([name, extra, expected]) => ({
+    name, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, `view=month&month=split${extra}`));
+      const picked = await page.evaluate(() => {
+        const el = window.__el;
+        const d = new Date(); d.setDate(d.getDate() + 5);
+        el._monthSplitSelectedDate = el._dateKey(d);
+        el.shadowRoot.querySelector(".add-fab-calendar").click();
+        const root = el.shadowRoot;
+        return { calendar: root.querySelector(".add-event-calendar-select").value, date: root.querySelector(".add-event-date").value, want: el._monthSplitSelectedDate, open: root.querySelector(".add-event-overlay").classList.contains("open"), alsoFor: [...root.querySelectorAll(".add-event-people-check")].map((c) => c.value) };
+      });
+      assert.ok(picked.open, "the add form is open");
+      assert.strictEqual(picked.calendar, expected, "calendar picked");
+      assert.strictEqual(picked.date, picked.want, "the day picked on the board");
+      assert.ok(!picked.alsoFor.includes(expected), `"Also for" leaves out the picked calendar: ${picked.alsoFor}`);
+      return `${picked.calendar}, ${picked.date}`;
+    },
+  })),
+  // Wave 0, B1b: an event the board can't change or delete says so, in one
+  // plain line where Edit would be, naming its calendar. An Us event keeps
+  // its Edit and Delete buttons and gets no line.
+  {
+    name: "Event sheet: says where to change an event the board can't", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      const sheet = (summary) => page.evaluate(async (want) => {
+        const el = window.__el;
+        const id = Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === want);
+        el._openEventInfo(id);
+        await new Promise((r) => setTimeout(r, 300));
+        const root = el.shadowRoot;
+        const shown = (sel) => { const n = root.querySelector(sel); return !!n && n.style.display !== "none"; };
+        const line = root.querySelector(".event-info-content .fh-outside-board");
+        const rows = [...root.querySelectorAll(".event-info-content > .event-info-row")].map((r) => r.classList[1] || r.querySelector(".label")?.textContent || "");
+        return { line: line ? line.textContent : null, edit: shown(".event-info-edit-row"), del: shown(".event-info-delete-row"), rows };
+      }, summary);
+      const will = await sheet("SECRET flight");
+      assert.strictEqual(will.line, "This event is in Will’s Calendar, outside the board. Change or delete it in the app it came from.", `Will's event: ${will.line}`);
+      assert.ok(!will.edit && !will.del, "no Edit or Delete for it");
+      assert.ok(will.rows.indexOf("fh-outside-board") === will.rows.indexOf("When") + 1, `the line sits where Edit would: ${will.rows}`);
+      const work = await sheet("SECRET meeting");
+      assert.strictEqual(work.line, "This event is in the Work calendar, outside the board. Change or delete it in the app it came from.", `Work's event: ${work.line}`);
+      const us = await sheet("SECRET dinner");
+      assert.strictEqual(us.line, null, "an Us event has no line");
+      assert.ok(us.edit && us.del, "and keeps Edit and Delete");
+      return "Will and Work explained, Us editable";
+    },
+  },
+  // Wave 0, B5: after the board adds, deletes or clears something it says
+  // what happened, with an Undo for 8 seconds where undo is possible, and
+  // never asks "are you sure?" for something it can undo.
+  ...[
+    {
+      name: "Undo: an added event is taken off again", query: "view=month&month=split",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          root.querySelector(".add-fab-calendar").click();
+          root.querySelector(".add-event-title").value = "Dentist";
+          root.querySelector(".add-event-date").value = "2026-11-03";
+          root.querySelector(".add-event-start-time").value = "15:30";
+          root.querySelector(".add-event-end-time").value = "16:30";
+          root.querySelector(".add-event-save").click();
+        });
+      },
+      says: "On the board: Dentist, Tue Nov 3, 3:30 pm, on Us", undone: "Taken off the board: Dentist",
+      before: (w) => w.__events["calendar.us"].some((e) => e.summary === "Dentist" && e.start.dateTime === "2026-11-03T15:30:00"),
+      after: (w) => !w.__events["calendar.us"].some((e) => e.summary === "Dentist"),
+    },
+    {
+      name: "Undo: a deleted event comes back, without asking first", query: "view=week&week=agenda",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const el = window.__el;
+          el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET dinner"));
+        });
+        await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+        await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      },
+      says: "Deleted: SECRET dinner, Thu Oct 29, 6 pm, from Us", undone: "Back on the board: SECRET dinner",
+      before: (w) => !w.__events["calendar.us"].some((e) => e.summary === "SECRET dinner"),
+      after: (w) => w.__events["calendar.us"].some((e) => e.summary === "SECRET dinner" && e.start.dateTime === "2026-10-29T18:00:00" && e.end.dateTime === "2026-10-29T19:00:00" && e.description.includes("<!--reminder:30-->")),
+    },
+    {
+      name: "Undo: a reminder added is removed again", query: "view=month&month=split&lists=1",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          root.querySelector(".add-fab-reminder").click();
+          root.querySelector(".add-event-title").value = "Call the vet";
+          root.querySelector(".add-event-reminder-date").value = "2026-10-28";
+          root.querySelector(".add-event-reminder-time").value = "09:15";
+          root.querySelector(".add-event-save").click();
+        });
+      },
+      says: "Reminder set: Call the vet, Wed Oct 28, 9:15 am", undone: "Reminder removed: Call the vet",
+      before: (w) => w.__todos["todo.us_notes"].some((t) => t.summary === "Call the vet"),
+      after: (w) => !w.__todos["todo.us_notes"].some((t) => t.summary === "Call the vet"),
+    },
+    {
+      name: "Undo: a note marked done comes back", query: "view=week&week=week&lists=1",
+      act: async (page) => {
+        await page.waitForFunction(() => Object.values(window.__el._eventDetails).some((d) => d.todoUid === "n1"));
+        await page.evaluate(() => {
+          const el = window.__el;
+          el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].todoUid === "n1"));
+          el.shadowRoot.querySelector(".event-info-reminder-done-btn").click();
+        });
+      },
+      says: "Done: SECRET package on the porch", undone: "Back on the board: SECRET package on the porch",
+      before: (w) => w.__todos["todo.us_notes"][0].status === "completed",
+      after: (w) => w.__todos["todo.us_notes"][0].status === "needs_action",
+    },
+    {
+      name: "Undo: a cleared meal comes back", query: "view=week&week=week&lists=1",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          [...root.querySelectorAll(".menu-banner")].find((b) => b.textContent.includes("Tacos tonight")).click();
+          root.querySelector(".btn-clear:not(.btn-delete-dish)").click();
+          root.querySelector(".btn-save:not(.settings-save)").click();
+        });
+      },
+      says: "Cleared: Dinner, Tue Oct 27 (Tacos tonight)", undone: "Back on the board: Tacos tonight",
+      before: (w) => !w.__todos["todo.meal_plan"].length,
+      after: (w) => w.__todos["todo.meal_plan"].some((t) => t.summary === "Tacos tonight" && t.due === "2026-10-27" && t.description.includes('"block":2')),
+    },
+  ].map((c) => ({
+    name: c.name, width: 402,
+    run: async (page) => {
+      const dialogs = [];
+      page.on("dialog", (d) => { dialogs.push(d.message()); d.dismiss(); });
+      await settle(page, await open(page, c.query));
+      await c.act(page);
+      await page.waitForFunction(() => { const t = window.__el.shadowRoot.querySelector(".fh-undo-toast.show"); return t && !t.hidden; });
+      await page.waitForTimeout(300); // its slide in
+      const toast = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const btn = root.querySelector(".fh-undo-btn");
+        const r = btn.getBoundingClientRect();
+        const hit = root.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const t = root.querySelector(".fh-undo-toast").getBoundingClientRect();
+        const fab = root.querySelector(".add-event-fab").getBoundingClientRect();
+        const clear = t.bottom <= fab.top || t.top >= fab.bottom || t.right <= fab.left || t.left >= fab.right;
+        return { text: root.querySelector(".fh-undo-text").textContent, undo: !btn.hidden, x: r.left + r.width / 2, y: r.top + r.height / 2, onTop: hit === btn, h: r.height, clear };
+      });
+      assert.ok(toast.clear, "it doesn't cover the + button");
+      assert.strictEqual(toast.text, c.says, "says what happened");
+      assert.ok(toast.undo && toast.onTop && toast.h >= 44, `an Undo button on top, at least 44 px: ${JSON.stringify(toast)}`);
+      assert.ok(await page.evaluate(`(${c.before.toString()})(window)`), "it happened");
+      await page.mouse.click(toast.x, toast.y);
+      await page.waitForFunction((want) => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent === want, c.undone);
+      assert.ok(await page.evaluate(`(${c.after.toString()})(window)`), "Undo put it back");
+      assert.ok(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden), "no Undo of the undo");
+      assert.deepStrictEqual(dialogs, [], "nothing asked first");
+      return toast.text;
+    },
+  })),
+  {
+    name: "Undo: none where it can't be, and a repeating delete asks which", width: 402,
+    run: async (page) => {
+      const dialogs = [];
+      page.on("dialog", (d) => { dialogs.push(d.message()); d.dismiss(); });
+      await settle(page, await open(page, "view=week&week=agenda"));
+      // Added on Will's (iCloud: add only): an answer, no Undo.
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-calendar-select").value = "calendar.wills_calendar";
+        root.querySelector(".add-event-title").value = "Haircut";
+        root.querySelector(".add-event-allday-btn[data-value='on']").click();
+        root.querySelector(".add-event-date").value = "2026-10-31";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const added = await page.evaluate(() => ({ text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent, undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden }));
+      assert.deepStrictEqual(added, { text: "On the board: Haircut, Sat Oct 31, all day, on Will", undo: false }, "an answer without Undo");
+      // A repeating event: no Undo; the sheet asks which, and Cancel keeps it.
+      await page.evaluate(() => {
+        const el = window.__el;
+        el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly"));
+      });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      const ask = await page.evaluate(() => [...window.__el.shadowRoot.querySelectorAll(".event-info-delete-row .fh-repeat-btn")].map((b) => b.textContent));
+      assert.deepStrictEqual(ask, ["This one", "Every one", "Cancel"], "asks which, with two labelled buttons");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-repeat-btn.cancel").click());
+      await page.waitForTimeout(200);
+      assert.deepStrictEqual(dialogs, [], "no browser dialog");
+      assert.strictEqual(await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").length), 2, "Cancel keeps both");
+      assert.ok(await page.evaluate(() => !!window.__el.shadowRoot.querySelector(".event-info-delete-btn:not([style*='none'])")), "Delete is back");
+      return "no Undo on Will's; a repeating delete asks which";
+    },
+  },
+  // Wave 0, B3: without Grocy (the house), More > Shopping List opens the
+  // household's real list, todo.shopping_list, in Home Assistant's own
+  // To-do list card; with Grocy, Grocy's list as before.
+  ...[["", "fh-shopping-overlay"], ["&grocy=1", "grocy-shopping-list-overlay"]].map(([extra, overlay]) => ({
+    name: `Shopping list: ${extra ? "Grocy's, when Grocy is set up" : "the household's to-do list, without Grocy"}`, width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week${extra}`));
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".grocy-shopping-list-btn").click());
+      await page.waitForFunction((o) => window.__el.shadowRoot.querySelector(`.${o}.open`), overlay);
+      await page.waitForTimeout(200);
+      const seen = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const card = root.querySelector(".fh-shopping-overlay.open fake-ha-card");
+        return { open: [...root.querySelectorAll(".modal-overlay.open")].map((o) => o.classList[1]), config: card && card.config, hass: !!(card && card.hass === window.__el._hass) };
+      });
+      assert.deepStrictEqual(seen.open, [overlay], "the right list opens, alone");
+      if (extra) return "Grocy's list";
+      assert.deepStrictEqual(seen.config, { type: "todo-list", entity: "todo.shopping_list" }, "Home Assistant's To-do list card, for the shopping list");
+      assert.ok(seen.hass, "the card has Home Assistant");
+      const kept = await page.evaluate(() => { const el = window.__el; const before = el.shadowRoot.querySelector("fake-ha-card").hassSets; el.hass = { ...el._hass }; return el.shadowRoot.querySelector("fake-ha-card").hassSets > before; });
+      assert.ok(kept, "it keeps getting Home Assistant's updates");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-shopping-overlay .modal-close").click());
+      assert.ok(!(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-shopping-overlay").classList.contains("open"))), "its close button closes it");
+      return "todo.shopping_list";
+    },
+  })),
+  // Wave 0, B4: with the recipe box off (the house; the card's recipe_box
+  // option brings it back), no Recipe Box or Suggestions buttons, on the
+  // top bar or folded into More on a narrow screen.
+  ...[["tablet", 1200, "", false], ["tablet, recipe box on", 1200, "&recipebox=1", true], ["phone", 402, "", false], ["phone, recipe box on", 402, "&recipebox=1", true]].map(([where, width, extra, shown]) => ({
+    name: `Recipe box buttons: ${shown ? "shown" : "hidden"} (${where})`, width,
+    run: async (page) => {
+      await settle(page, await open(page, `view=week&week=week&bar=full${extra}`));
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".more-menu-btn").click());
+      const seen = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const vis = (sel) => { const n = root.querySelector(sel); return !!n && getComputedStyle(n).display !== "none" && n.getClientRects().length > 0; };
+        return { suggestions: vis(".suggestions-btn"), recipeBox: vis(".loved-btn"), inMore: vis(".loved-menu-item"), more: vis(".more-menu-btn") };
+      });
+      assert.ok(seen.more, "More is there");
+      const any = seen.suggestions || seen.recipeBox || seen.inMore;
+      assert.strictEqual(any, shown, `Recipe Box or Suggestions ${shown ? "shown" : "hidden"}: ${JSON.stringify(seen)}`);
+      return JSON.stringify(seen);
+    },
+  })),
+  // Wave 0, B4: someone who can't change the menu (the wall's user) gets
+  // "Suggest", which saves an idea, not the meal. The sheet says so before,
+  // and the board says so after, with an Undo that takes the idea back.
+  {
+    name: "Meal idea: says it isn't on the board yet, with an Undo", width: 1200, height: 800,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=week&admin=0&nomeal=1"));
+      const sheet = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".menu-banner.empty[data-block-index='2']").click();
+        const vis = (sel) => { const n = root.querySelector(sel); return !!n && getComputedStyle(n).display !== "none"; };
+        return { save: vis(".edit-overlay .btn-save"), suggest: vis(".btn-suggest-meal") && root.querySelector(".btn-suggest-meal").textContent.trim(), hint: vis(".menu-suggest-hint") && root.querySelector(".menu-suggest-hint").textContent.trim() };
+      });
+      assert.deepStrictEqual(sheet, { save: false, suggest: "\u{1F4A1} Suggest", hint: "This saves your idea, not the meal. It goes on the board once someone who can change the menu opens this meal and taps Add to menu." }, "the sheet says what Suggest does");
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".edit-overlay .input-name").value = "Tacos";
+        root.querySelector(".btn-suggest-meal").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const said = await page.evaluate(() => ({ text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent, undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden }));
+      assert.ok(/^Saved as an idea: Tacos, dinner on [A-Z][a-z]{2} [A-Z][a-z]{2} \d+\. Not on the board until someone adds it\.$/.test(said.text) && said.undo, `the answer: ${JSON.stringify(said)}`);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Idea taken back"));
+      const sent = await page.evaluate(() => window.__sent.filter((m) => m.type.endsWith("_menu_suggestion")).map((m) => `${m.type} ${m.name || m.uid}`));
+      assert.deepStrictEqual(sent, ["family_hub/add_menu_suggestion Tacos", "family_hub/remove_menu_suggestion s1"], "suggested, then taken back");
+      return said.text;
+    },
+  },
+  // Wave 0, B5: deleting a repeating event asks "This one" or "Every one";
+  // This one sends its recurrence_id (it used to remove the whole series).
+  ...[["This one", 1, "Deleted: SECRET weekly, Wed Oct 28, 11 am, from Us"], ["Every one", 0, "Deleted: SECRET weekly, every one, from Us"]].map(([choice, left, says]) => ({
+    name: `Repeating event: "${choice}" deletes ${left ? "only that one" : "the series"}`, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      await page.evaluate(() => {
+        const el = window.__el;
+        el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly"));
+      });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      await page.evaluate((c) => [...window.__el.shadowRoot.querySelectorAll(".fh-repeat-btn")].find((b) => b.textContent === c).click(), choice);
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const seen = await page.evaluate(() => ({
+        sent: window.__sent.filter((m) => m.type === "family_hub/calendar/delete_event").map((m) => m.recurrence_id || null),
+        left: window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").map((e) => e.start.dateTime),
+        text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent,
+        undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden,
+      }));
+      assert.deepStrictEqual(seen.sent, [left ? "20261028T110000" : null], "recurrence_id only for this one");
+      assert.deepStrictEqual(seen.left, left ? ["2026-11-04T11:00:00"] : [], "what's left of the series");
+      assert.strictEqual(seen.text, says, "says what went");
+      assert.ok(!seen.undo, "no Undo for a repeating event");
+      return seen.text;
+    },
+  })),
+  // Wave 0 review fixes. Undo takes back exactly what this add made, even
+  // when the same title at the same time was already there, outside the
+  // board's window; nothing claims success when the save failed; discreet
+  // mode's toasts name no one and no event; a repeat's question goes away
+  // with the sheet.
+  {
+    name: "Undo: an add's Undo never takes a twin that was already there", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda&twin=1"));
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-title").value = "Dentist";
+        root.querySelector(".add-event-date").value = "2026-11-03";
+        root.querySelector(".add-event-start-time").value = "15:30";
+        root.querySelector(".add-event-end-time").value = "16:30";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show") && !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Taken off"));
+      const left = await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.summary === "Dentist").map((e) => e.uid));
+      assert.deepStrictEqual(left, ["us-twin"], "the one that was there stays; the new one went");
+      return "twin kept";
+    },
+  },
+  {
+    name: "Undo: a reminder's Undo never takes a twin that was already there", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=month&month=split&lists=1&twin=1"));
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-reminder").click();
+        root.querySelector(".add-event-title").value = "Call the vet";
+        root.querySelector(".add-event-reminder-date").value = "2026-10-28";
+        root.querySelector(".add-event-reminder-time").value = "09:15";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show") && !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Reminder removed"));
+      const left = await page.evaluate(() => window.__todos["todo.us_notes"].filter((t) => t.summary === "Call the vet").map((t) => t.uid));
+      assert.deepStrictEqual(left, ["n-twin"], "the one that was there stays; the new one went");
+      return "twin kept";
+    },
+  },
+  ...[
+    ["a note marked done", "view=week&week=week&lists=1&failtodo=1", () => {
+      const el = window.__el;
+      el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].todoUid === "n1"));
+      el.shadowRoot.querySelector(".event-info-reminder-done-btn").click();
+    }, "Couldn't mark that done. Try again."],
+    ["a meal cleared", "view=week&week=week&lists=1&failtodo=1", () => {
+      const root = window.__el.shadowRoot;
+      [...root.querySelectorAll(".menu-banner")].find((b) => b.textContent.includes("Tacos tonight")).click();
+      root.querySelector(".btn-clear:not(.btn-delete-dish)").click();
+      root.querySelector(".btn-save:not(.settings-save)").click();
+    }, "Couldn't clear that meal. Try again."],
+  ].map(([what, query, act, says]) => ({
+    name: `Answers: ${what} that didn't save says so`, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, query));
+      if (what.includes("note")) await page.waitForFunction(() => Object.values(window.__el._eventDetails).some((d) => d.todoUid === "n1"));
+      await page.evaluate(act);
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const seen = await page.evaluate(() => { const t = window.__el.shadowRoot.querySelector(".fh-undo-toast"); return { text: t.querySelector(".fh-undo-text").textContent, error: t.classList.contains("is-error"), undo: !t.querySelector(".fh-undo-btn").hidden }; });
+      assert.deepStrictEqual(seen, { text: says, error: true, undo: false }, "an error, no Undo");
+      return seen.text;
+    },
+  })),
+  {
+    name: "Answers: discreet mode names no one and no event", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda&discreet=on"));
+      const said = [];
+      const toast = async () => { await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show")); const t = await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent); said.push(t); return t; };
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-title").value = "SECRET Dentist";
+        root.querySelector(".add-event-date").value = "2026-11-03";
+        root.querySelector(".add-event-start-time").value = "15:30";
+        root.querySelector(".add-event-end-time").value = "16:30";
+        root.querySelector(".add-event-save").click();
+      });
+      assert.strictEqual(await toast(), "On the board: Tue Nov 3, 3:30 pm, on Person 3", "the add");
+      await page.evaluate(() => { const el = window.__el; el._hideUndoToast(); el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].uid === "us-dinner")); });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      assert.strictEqual(await toast(), "Deleted: Thu Oct 29, 6 pm, from Person 3", "the delete");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").click());
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent.startsWith("Back on the board"));
+      said.push(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent));
+      assert.strictEqual(said[2], "Back on the board", "the undo");
+      assert.ok(said.every((t) => !/SECRET|Dentist|Us\b|Will/.test(t)), `nothing named: ${JSON.stringify(said)}`);
+      return said.join(" / ");
+    },
+  },
+  {
+    name: "Repeating event: closing the sheet ends the question", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      await page.evaluate(() => { const el = window.__el; el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly")); });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      assert.ok(await page.evaluate(() => !!window.__el.shadowRoot.querySelector(".fh-repeat-ask")), "asked");
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-overlay .modal-close").click());
+      await page.waitForTimeout(200);
+      const after = await page.evaluate(() => ({ ask: !!window.__el.shadowRoot.querySelector(".fh-repeat-ask"), btn: window.__el.shadowRoot.querySelector(".event-info-delete-btn").style.display }));
+      assert.deepStrictEqual(after, { ask: false, btn: "" }, "the question went, the Delete button is back");
+      assert.ok(await page.evaluate(() => window.__events["calendar.us"].filter((e) => e.uid === "us-weekly").length === 2), "nothing deleted");
+      return "settled on close";
+    },
+  },
 ];
 
 (async () => {

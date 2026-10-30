@@ -3218,6 +3218,11 @@ if (this._myPermissions === undefined) this._myPermissions = {};
 if (this._menuSuggestions === undefined) this._menuSuggestions = [];
 if (this._addEventActiveTab === undefined) this._addEventActiveTab = "calendar";
 if (this._eventTypeFilter === undefined) this._eventTypeFilter = [];
+// House fork: wave 0 (B4). The house switched the recipe box off (owner,
+// 2026-10-25), and Family Hub has no switch for it, so its Recipe Box and
+// Suggestions buttons stay hidden unless this card's config says
+// recipe_box: true. CSS in the house block before </style>.
+this.toggleAttribute("recipe-box", config.recipe_box === true);
 if (!this._built) this._build();
 }
 set hass(hass) {
@@ -3257,6 +3262,8 @@ const cardEl = wrap && wrap.firstElementChild;
 if (cardEl) cardEl.hass = hass;
 });
 }
+// House fork: wave 0 (B3), the shopping list's card, see _openHouseShoppingList.
+if (this._shoppingCard) this._shoppingCard.hass = hass;
 }
 // One shared list of "refresh everything" fetches, used by the very first
 // load, a reconnect (e.g. switching dashboard views), and the 60s poll -
@@ -9467,6 +9474,9 @@ entity_id: entityId,
 result = {
 supported: !!res.supported,
 updateSupported: !!res.update_supported,
+// House fork: wave 0 (B5), for _calendarFeatures.
+createSupported: !!res.create_supported,
+unavailable: !!res.unavailable,
 integrationName: res.integration_name || "your calendar's own app",
 };
 } catch (e) {
@@ -9474,7 +9484,10 @@ integrationName: res.integration_name || "your calendar's own app",
 // - never silently offer a Delete/Edit button that might not actually work.
 result = { supported: false, updateSupported: false, integrationName: "your calendar's own app" };
 }
-this._calendarDeleteSupport[entityId] = result;
+// House fork: wave 0 (B5): while Home Assistant is still starting a
+// calendar, the answer says it can do nothing; ask again next time
+// instead of keeping that for the rest of the session.
+if (!result.unavailable) this._calendarDeleteSupport[entityId] = result;
 return result;
 }
 async _fetchWeather() {
@@ -9833,7 +9846,9 @@ return lists;
 // marking it done against the wrong to-do entity would silently no-op
 // (Home Assistant just logs a warning) rather than actually completing it.
 async _markReminderDone(uid, entityId) {
-if (!this._hass || !uid) return;
+if (!this._hass || !uid) return false;
+// House fork: wave 0 (B5), says whether it worked, for _answerReminderDone.
+let done = true;
 try {
 await this._hass.callService(
 "todo",
@@ -9842,8 +9857,10 @@ await this._hass.callService(
 { entity_id: entityId || this._config.reminders_entity }
 );
 } catch (e) {
+done = false;
 }
 this._fetchReminders();
+return done;
 }
 // Best-effort, fire-and-forget: lets the backend poller know which to-do
 // list to check for due reminders, without requiring anyone to type the
@@ -10023,7 +10040,7 @@ const servingsRaw = root.querySelector(".input-servings").value.trim();
 const btn = root.querySelector(".btn-suggest-meal");
 if (btn) btn.disabled = true;
 try {
-await this._hass.connection.sendMessagePromise({
+const sent = await this._hass.connection.sendMessagePromise({
 type: "family_hub/add_menu_suggestion",
 date_key: this._editingDateKey,
 block_index: this._editingBlockIndex || 0,
@@ -10035,6 +10052,8 @@ servings: this._currentGrocyRecipeId && servingsRaw ? parseInt(servingsRaw, 10) 
 });
 await this._fetchMenuSuggestions();
 this._closeEditor();
+// House fork: wave 0 (B4), see _answerMealSuggested.
+this._answerMealSuggested(sent && sent.suggestion);
 } catch (e) {
 window.alert("Couldn't send that suggestion - please try again.");
 }
@@ -10398,14 +10417,18 @@ this._fetchMealTemplates();
 }
 async _removeMealPlan(dateKey, blockIndex) {
 const existing = this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex];
-if (!existing) return;
+if (!existing) return false;
+// House fork: wave 0 (B5), says whether it worked, for _clearMealWithUndo.
+let removed = true;
 try {
 await this._hass.callService("todo", "remove_item", {
 item: existing.uid,
 }, { entity_id: this._mealPlanEntity() });
 } catch (e) {
+removed = false;
 }
 this._fetchMealPlan();
+return removed;
 }
 async _moveMealPlan(fromDateKey, fromBlockIndex, toDateKey, toBlockIndex) {
 if (fromDateKey === toDateKey && fromBlockIndex === toBlockIndex) return;
@@ -12194,6 +12217,36 @@ upstream's. */
 upstream's .event.past (0.45), so they stay easy to read; what's ahead still
 stands out. Week's past events keep upstream's fade. */
 .agenda-item.event.past { opacity: 0.6; }
+/* House fork: wave 0 (B1b), the line on an event the board can't change,
+see _explainUnchangeableEvent: plain text in the sheet's own color. */
+.event-info-row.fh-outside-board { line-height: 1.4; }
+/* House fork: wave 0 (B5), the answer after saving, see _showUndoToast.
+Dark with white text on every theme, large enough to read on the wall, and
+an Undo at least 44 px tall. Above popups, where upstream's toast sits; on a
+phone, above the + button, which it would otherwise cover. A faint edge
+keeps it apart from dark themes. */
+.fh-undo-toast { position: fixed; left: 50%; bottom: calc(24px + var(--fh-fab-offset, 0px)); transform: translate(-50%, 12px); z-index: 1301; display: flex; align-items: center; gap: 14px; width: max-content; max-width: min(92vw, 600px); box-sizing: border-box; padding: 8px 8px 8px 18px; border-radius: 16px; background: #1f2933; color: #fff; font-size: 15px; font-weight: 600; line-height: 1.35; box-shadow: 0 6px 20px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.18); opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+@media (max-width: 760px) { .fh-undo-toast { bottom: calc(86px + var(--fh-fab-offset, 0px)); } }
+.fh-undo-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.fh-undo-toast[hidden] { display: none; }
+.fh-undo-toast.is-error { background: #c0392b; }
+.fh-undo-btn { flex: none; min-height: 44px; min-width: 76px; padding: 0 16px; border: 2px solid currentColor; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
+.fh-undo-btn[hidden] { display: none; }
+.fh-undo-btn:disabled { opacity: 0.6; }
+/* House fork: wave 0 (B5), "This one" or "Every one" for a repeating event,
+in the sheet's Delete row (see _askWhichRepeat). */
+.fh-repeat-q { margin: 2px 0 8px; line-height: 1.4; }
+.fh-repeat-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.fh-repeat-btn { min-height: 44px; padding: 6px 16px; border-radius: 10px; border: 2px solid #c0392b; background: #fdecea; color: #a5281b; font-size: 14px; font-weight: 700; cursor: pointer; }
+.fh-repeat-btn.cancel { border-color: var(--fc-border); background: var(--fc-card); color: var(--fc-text); }
+/* House fork: wave 0 (B3), Home Assistant's To-do list card inside the
+shopping list popup (see _openHouseShoppingList), in the board's colors and
+without a second card frame. */
+/* House fork: wave 0 (B4), the recipe box is off unless the card's config
+says recipe_box: true (see setConfig): no Recipe Box or Suggestions buttons,
+on the top bar or folded into More on a narrow screen. */
+:host(:not([recipe-box])) .suggestions-btn, :host(:not([recipe-box])) .loved-btn, :host(:not([recipe-box])) .loved-menu-item { display: none !important; }
+.fh-shopping-card { --ha-card-background: transparent; --ha-card-box-shadow: none; --ha-card-border-width: 0; --card-background-color: var(--fc-card); --primary-text-color: var(--fc-text); --secondary-text-color: var(--fc-text-secondary); --divider-color: var(--fc-border); --primary-color: var(--fc-accent); margin: 0 -16px; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>
@@ -12378,7 +12431,8 @@ stands out. Week's past events keep upstream's fade. */
 <button class="rating-btn btn-heart" title="Love it">&#10084;&#65039;</button>
 <button class="rating-btn btn-thumbsdown" title="Not a fan">&#128078;</button>
 </div>
-<div class="remind-hint menu-suggest-hint" style="display:none;">You can suggest a meal for this day - someone who can edit the menu decides whether it goes on.</div>
+<!-- House fork: wave 0 (B4), what Suggest really does (it saves an idea, see _answerMealSuggested). -->
+<div class="remind-hint menu-suggest-hint" style="display:none;">This saves your idea, not the meal. It goes on the board once someone who can change the menu opens this meal and taps Add to menu.</div>
 <div class="modal-actions">
 <button class="btn-clear">Clear</button>
 <button class="btn-delete-dish btn-clear" style="display:none;">Delete</button>
@@ -12614,6 +12668,14 @@ stands out. Week's past events keep upstream's fade. */
 <div class="grocy-shopping-list-items"></div>
 <div class="grocy-shopping-list-total" style="display:none;"></div>
 </div>
+</div>
+</div>
+<!-- House fork: wave 0 (B3), the household's shopping list, see _openHouseShoppingList. -->
+<div class="modal-overlay fh-shopping-overlay">
+<div class="modal-box loved-box">
+<button class="modal-close fh-shopping-close" aria-label="Close">&#10005;</button>
+<h2>&#128717; Shopping list</h2>
+<div class="fh-shopping-card"></div>
 </div>
 </div>
 <div class="modal-overlay grocy-expiring-overlay">
@@ -14362,7 +14424,9 @@ this._renderMealTemplates();
 });
 root.querySelector(".print-btn").addEventListener("click", () => this._printView());
 root.querySelector(".grocery-list-push-btn").addEventListener("click", () => this._pushCheckedGroceryItems());
-root.querySelector(".grocy-shopping-list-btn").addEventListener("click", () => this._openGrocyShoppingList());
+// House fork: wave 0 (B3), Grocy's list only when Grocy is set up, see _openShoppingList.
+root.querySelector(".grocy-shopping-list-btn").addEventListener("click", () => this._openShoppingList());
+root.querySelector(".fh-shopping-close").addEventListener("click", () => this._root.querySelector(".fh-shopping-overlay").classList.remove("open"));
 root.querySelector(".grocy-shopping-list-close").addEventListener("click", () => this._closeGrocyShoppingList());
 root.querySelectorAll(".shopping-tab-btn").forEach((btn) => {
 btn.addEventListener("click", () => this._switchShoppingListTab(btn.dataset.shoppingTab));
@@ -16504,6 +16568,29 @@ remindersEntity,
 };
 });
 }
+// House fork: wave 0 (B2). Settings lists the board's current columns,
+// and while the household's own Settings > Calendars list
+// (settings.people) is empty those come from this dashboard copy's card
+// config. Saving them back filled that list, which then overrides every
+// copy's columns: the "Hide work calendars" copy showed Work again (it
+// happened on the house; the list was emptied by hand on 2026-10-29). So
+// when the list is empty, note what the rows read as Settings opens, and
+// _saveSettings keeps it empty unless they were changed (_columnsUnedited).
+// Reads the rows through _syncPeopleDraftFromDom, the same way Save does,
+// then puts the draft back as it was.
+_rememberColumnsAtOpen(settings) {
+this._columnsAtOpen = null;
+if (Array.isArray(settings.people) && settings.people.length) return;
+const draft = this._settingsPeopleDraft;
+this._syncPeopleDraftFromDom();
+this._columnsAtOpen = JSON.stringify(this._settingsPeopleDraft);
+this._settingsPeopleDraft = draft;
+}
+// True when the household's list was empty as Settings opened and the
+// rows are the same now (call after _syncPeopleDraftFromDom).
+_columnsUnedited() {
+return typeof this._columnsAtOpen === "string" && JSON.stringify(this._settingsPeopleDraft) === this._columnsAtOpen;
+}
 _openSettings() {
 const root = this._root;
 this._populateThisDeviceField();
@@ -16718,6 +16805,8 @@ this._notifyProfileEditingUserId = null;
 this._notifyDevicesEditIdx = null;
 this._setSettingsTab("general");
 this._renderPeopleSettings(this._settingsPeopleDraft);
+// House fork: wave 0 (B2), see _rememberColumnsAtOpen.
+this._rememberColumnsAtOpen(settings);
 this._renderHolidayBackgroundsSettings(this._settingsHolidayBackgroundsDraft);
 this._updateSettingsBlockVisibility(count);
 const screenSaver = settings.screenSaver || this._defaultSettings().screenSaver;
@@ -18531,7 +18620,8 @@ async _saveSettings() {
 const root = this._root;
 this._syncPeopleDraftFromDom();
 this._syncHolidayBackgroundsDraftFromDom();
-const people = this._settingsPeopleDraft
+// House fork: wave 0 (B2), see _rememberColumnsAtOpen.
+const people = this._columnsUnedited() ? [] : this._settingsPeopleDraft
 .filter((p) => p.entity)
 .map((p) => ({
 entity: p.entity,
@@ -19499,7 +19589,9 @@ if (doneBtn) {
 doneBtn.addEventListener("click", async () => {
 doneBtn.disabled = true;
 doneBtn.textContent = "Marking done…";
-await this._markReminderDone(detail.todoUid, detail.calendarEntity);
+const markedDone = await this._markReminderDone(detail.todoUid, detail.calendarEntity);
+// House fork: wave 0 (B5), see _answerReminderDone.
+this._answerReminderDone(detail, markedDone);
 root.querySelector(".event-info-overlay").classList.remove("open");
 this._eventInfoOpenId = null;
 });
@@ -20019,6 +20111,8 @@ if (!detail.isReminder) this._renderEventInfoPeopleSection(id);
 this._renderEventInfoChecklistSection(id);
 if (!detail.isReminder && this._canDeleteEvent()) this._wireEventInfoDeleteButton(id, detail);
 if (!detail.isReminder && this._canEditEvent()) this._wireEventInfoEditButton(id, detail);
+// House fork: wave 0 (B1b), see _explainUnchangeableEvent.
+if (!detail.isReminder) this._explainUnchangeableEvent(id, detail);
 root.querySelectorAll(".event-info-use-meal-btn").forEach((btn) => {
 btn.addEventListener("click", async () => {
 const blockIndex = parseInt(btn.dataset.blockIndex, 10);
@@ -20078,6 +20172,32 @@ this._fetchEventPeopleOverrides();
 // _getCalendarDeleteSupport (cached per calendar entity) and turns it
 // into either a working Delete button or a greyed-out one whose click
 // just explains why, per the household's own wording.
+// House fork: wave 0 (B1b). An event on a calendar the board can add to
+// but never change or delete (the house's iCloud calendars, J008) lost its
+// Edit and Delete rows without a word, so it looked like the board was
+// broken. Now one plain line says why, where Edit would be: after When
+// and Location. Same answer, from the same cached lookup, as
+// _wireEventInfoDeleteButton and _wireEventInfoEditButton use.
+async _explainUnchangeableEvent(id, detail) {
+const support = await this._getCalendarDeleteSupport(detail.calendarEntity);
+if (this._eventInfoOpenId !== id || support.unavailable) return;
+if (detail.uid && (support.supported || support.updateSupported)) return;
+const content = this._root.querySelector(".event-info-content");
+if (!content || content.querySelector(".fh-outside-board")) return;
+const line = document.createElement("div");
+line.className = "event-info-row fh-outside-board";
+line.textContent = this._outsideBoardText(detail);
+content.insertBefore(line, content.querySelector(".event-info-edit-row, .event-info-people-row"));
+}
+// "This event is in Will's Calendar, outside the board. ..." The calendar's
+// own name in Home Assistant, else the column's; "the Work calendar" when
+// the name doesn't already say calendar. Discreet mode names no one.
+_outsideBoardText(detail) {
+const state = this._hass && this._hass.states && this._hass.states[detail.calendarEntity];
+const name = ((state && state.attributes && state.attributes.friendly_name) || detail.personName || "").trim();
+const where = this._isDiscreetMode() || !name ? "a calendar" : /calendar$/i.test(name) ? name : `the ${name} calendar`;
+return `This event is in ${where}, outside the board. Change or delete it in the app it came from.`;
+}
 async _wireEventInfoDeleteButton(id, detail) {
 const support = await this._getCalendarDeleteSupport(detail.calendarEntity);
 // The household may have closed this popup (or opened a different
@@ -20098,8 +20218,14 @@ return;
 btn.disabled = false;
 btn.textContent = `\u{1F5D1} ${this._t("event_info.delete_event_btn", "Delete event")}`;
 btn.addEventListener("click", async () => {
+// House fork: wave 0 (B5): a delete that can be undone doesn't ask first,
+// see _undoForDelete; a repeating event asks which, see _askWhichRepeat.
+const undo = this._undoForDelete(detail);
+const repeat = this._repeatInstance(detail);
+const which = repeat ? await this._askWhichRepeat(btn, !!repeat.recurrence_id) : null;
+if (repeat && !which) return;
 if (
-!window.confirm(
+!undo && !repeat && !window.confirm(
 this._t(
 "event_info.delete_confirm",
 `Delete "${detail.summary}"? This can't be undone here - it removes the event from ${detail.personName}'s calendar.`,
@@ -20115,6 +20241,8 @@ await this._hass.connection.sendMessagePromise({
 type: "family_hub/calendar/delete_event",
 entity_id: detail.calendarEntity,
 uid: detail.uid,
+// House fork: wave 0 (B5), just this occurrence; without it, the series.
+...(which === "one" ? { recurrence_id: repeat.recurrence_id } : {}),
 });
 } catch (e) {
 window.alert(
@@ -20130,6 +20258,8 @@ return;
 }
 this._root.querySelector(".event-info-overlay").classList.remove("open");
 this._eventInfoOpenId = null;
+// House fork: wave 0 (B5), see _answerEventDeleted.
+this._answerEventDeleted(detail, undo, which);
 await this._fetchEvents();
 });
 }
@@ -21031,6 +21161,332 @@ el.hidden = true;
 }, 250);
 }, isError ? 4500 : 2200);
 }
+// House fork: wave 0 (B5). After the board adds, deletes or clears
+// something it says what happened, in words ("On the board: Dentist, Tue
+// Nov 3, 3:30 pm, on Us"), with an Undo for 8 seconds where undo is
+// possible; nothing asks "are you sure?" first (research note
+// delight-and-discoverability, section 2). Its own element beside
+// upstream's .fh-toast, which stays text only: this one takes taps.
+// undo is an async function returning what to say once it worked, or
+// nothing when it couldn't.
+_showUndoToast(message, undo, isError) {
+const root = this._root;
+const anchor = root && root.querySelector(".fh-toast");
+if (!anchor) return;
+let el = root.querySelector(".fh-undo-toast");
+if (!el) {
+el = document.createElement("div");
+el.className = "fh-undo-toast";
+el.setAttribute("role", "status");
+el.setAttribute("aria-live", "polite");
+el.hidden = true;
+el.innerHTML = '<span class="fh-undo-text"></span><button type="button" class="fh-undo-btn">Undo</button>';
+el.querySelector(".fh-undo-btn").addEventListener("click", () => this._runUndo());
+anchor.parentNode.insertBefore(el, anchor.nextSibling);
+}
+clearTimeout(this._undoToastTimer);
+this._undoAction = typeof undo === "function" ? undo : null;
+el.querySelector(".fh-undo-text").textContent = message;
+const btn = el.querySelector(".fh-undo-btn");
+btn.hidden = !this._undoAction;
+btn.disabled = false;
+el.classList.toggle("is-error", !!isError);
+el.hidden = false;
+void el.offsetWidth;
+el.classList.add("show");
+this._undoToastTimer = setTimeout(() => this._hideUndoToast(), this._undoAction ? 8000 : 5000);
+}
+_hideUndoToast() {
+this._undoAction = null;
+const el = this._root && this._root.querySelector(".fh-undo-toast");
+if (!el) return;
+el.classList.remove("show");
+clearTimeout(this._undoToastTimer);
+this._undoToastTimer = setTimeout(() => (el.hidden = true), 250);
+}
+async _runUndo() {
+const undo = this._undoAction;
+if (!undo) return;
+this._undoAction = null;
+clearTimeout(this._undoToastTimer);
+const btn = this._root.querySelector(".fh-undo-btn");
+if (btn) btn.disabled = true;
+let said = null;
+try {
+said = await undo();
+} catch (e) {
+said = null;
+}
+if (said) this._showUndoToast(said);
+else this._showUndoToast("Couldn't undo that. Check the board, and change it there if it's still wrong.", null, true);
+}
+// "Tue Nov 3"
+_houseDay(d) {
+return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${d.toLocaleDateString("en-US", { month: "short" })} ${d.getDate()}`;
+}
+// "3:30 pm", "7 pm"
+_houseTime(d) {
+const h = d.getHours();
+const m = d.getMinutes();
+return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+}
+// "Tue Nov 3, 3:30 pm", "Sat Oct 31, all day", "Sat Oct 31 to Mon Nov 2",
+// "Fri Oct 30, 8 pm to Sun Nov 1, 2 pm". An all-day end is the next midnight.
+_houseWhen(start, end, allDay) {
+if (allDay) {
+const last = new Date(end.getTime() - 1);
+return this._dateKey(last) > this._dateKey(start) ? `${this._houseDay(start)} to ${this._houseDay(last)}` : `${this._houseDay(start)}, all day`;
+}
+const at = `${this._houseDay(start)}, ${this._houseTime(start)}`;
+return end && this._dateKey(end) !== this._dateKey(start) ? `${at} to ${this._houseDay(end)}, ${this._houseTime(end)}` : at;
+}
+// The column's name for a calendar ("Us"), else Home Assistant's.
+_columnName(entity) {
+const people = this._getPeople();
+const column = people.find((p) => p.entity === entity);
+if (this._isDiscreetMode()) return this._discreetPersonName(column || { entity }, people);
+const state = this._hass && this._hass.states && this._hass.states[entity];
+return (column && column.name) || (state && state.attributes && state.attributes.friendly_name) || entity;
+}
+// Titles in the answers, as the event sheet shows them: nothing in
+// discreet mode or while privacy mode hides events.
+_quiet(text) {
+return this._isDiscreetMode() || this._privacyModeEffectiveLocked() ? "" : text;
+}
+// "On the board: Dentist, Tue Nov 3", leaving out empty parts.
+_sayJoined(head, parts) {
+const rest = parts.filter(Boolean).join(", ");
+return rest ? `${head}: ${rest}` : head;
+}
+// Whether a calendar event (as Home Assistant's calendar API returns it)
+// starts at this moment, or on this day for an all-day one.
+_sameStart(ev, start, allDay) {
+if (!ev || !ev.start) return false;
+if (allDay) return ev.start.date === this._dateKey(start);
+return !!ev.start.dateTime && new Date(ev.start.dateTime).getTime() === start.getTime();
+}
+// After the add form saved an event (data as sent to calendar.create_event,
+// which returns no id). Undo finds what was created, by title and start,
+// skipping any twin that was already on the board, and deletes it; offered
+// only where the calendar can delete and this person may.
+// The add form's event: when it starts and ends.
+_addedTimes(data) {
+const allDay = !!data.start_date;
+const start = allDay ? new Date(`${data.start_date}T00:00:00`) : new Date(data.start_date_time.replace(" ", "T"));
+const end = allDay ? new Date(`${data.end_date}T00:00:00`) : new Date(data.end_date_time.replace(" ", "T"));
+return { start, end, allDay };
+}
+// The calendar's events now with the add form's title and start.
+async _eventsLike(entity, data) {
+const { start, end, allDay } = this._addedTimes(data);
+const until = new Date(Math.max(end.getTime(), start.getTime() + 86400000));
+const events = await this._hass.callApi("GET", `calendars/${entity}?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(until.toISOString())}`);
+return (events || []).filter((ev) => ev.uid && ev.summary === data.summary && this._sameStart(ev, start, allDay));
+}
+// Before the add form creates an event (calendar.create_event returns no
+// id): the uids already there with its title and start, so the new one
+// can be told apart. null when there will be no Undo: this person may not
+// delete, the calendar can't, or it didn't answer.
+async _eventsBeforeAdd(entity, data) {
+if (!this._canDeleteEvent() || !(this._calendarFeatures(entity) & 2)) return null;
+try {
+return new Set((await this._eventsLike(entity, data)).map((ev) => ev.uid));
+} catch (e) {
+return null;
+}
+}
+// After the add form saved an event. Undo deletes exactly the event this
+// add made: the one with its title and start that wasn't there before. If
+// that isn't exactly one event, there's no Undo.
+async _answerEventAdded(entity, data, before) {
+const { start, end, allDay } = this._addedTimes(data);
+const message = this._sayJoined("On the board", [this._quiet(data.summary), this._houseWhen(start, end, allDay), `on ${this._columnName(entity)}`]);
+let made = null;
+if (before) {
+try {
+const fresh = (await this._eventsLike(entity, data)).filter((ev) => !before.has(ev.uid));
+if (fresh.length === 1) made = fresh[0];
+} catch (e) {
+made = null;
+}
+}
+if (!made) {
+this._showUndoToast(message);
+return;
+}
+this._showUndoToast(message, async () => {
+await this._hass.connection.sendMessagePromise({ type: "family_hub/calendar/delete_event", entity_id: entity, uid: made.uid });
+this._fetchEvents();
+return this._sayJoined("Taken off the board", [this._quiet(data.summary)]);
+});
+}
+// Before a delete: how to put the event back, or null when it can't be (a
+// repeating event, a calendar the board can't add to, or an event not
+// among those fetched), and then upstream's confirm still asks. Re-creates
+// it from the calendar's own copy, so notes and reminder marks come back.
+_undoForDelete(detail) {
+const entity = detail.calendarEntity;
+if (!(this._calendarFeatures(entity) & 1)) return null;
+const raw = ((this._events && this._events[entity]) || []).find((ev) => ev.uid && ev.uid === detail.uid);
+if (!raw || raw.rrule || raw.recurrence_id || !raw.start || !raw.end) return null;
+const data = { summary: raw.summary };
+if (raw.description) data.description = raw.description;
+if (raw.location) data.location = raw.location;
+if (raw.start.date) {
+data.start_date = raw.start.date;
+data.end_date = raw.end.date;
+} else {
+data.start_date_time = raw.start.dateTime;
+data.end_date_time = raw.end.dateTime;
+}
+return async () => {
+await this._hass.callService("calendar", "create_event", data, { entity_id: entity });
+this._fetchEvents();
+return this._sayJoined("Back on the board", [this._quiet(raw.summary)]);
+};
+}
+_answerEventDeleted(detail, undo, which) {
+const when = which === "all" ? "every one" : this._houseWhen(detail.start, detail.end, detail.allDay);
+this._showUndoToast(this._sayJoined("Deleted", [this._quiet(detail.summary), when, `from ${this._columnName(detail.calendarEntity)}`]), undo);
+}
+// The fetched occurrence of a repeating event (Home Assistant's calendar
+// API gives each one the series' uid, its rrule and its own
+// recurrence_id), or null for a one-off. Upstream's Delete sent no
+// recurrence_id, so on Us (Local Calendar) deleting one occurrence
+// removed the whole series (research note icloud-editing, section 1).
+_repeatInstance(detail) {
+const same = ((this._events && this._events[detail.calendarEntity]) || []).filter((ev) => ev.uid && ev.uid === detail.uid);
+if (!same.some((ev) => ev.rrule || ev.recurrence_id)) return null;
+return same.find((ev) => this._sameStart(ev, detail.start, detail.allDay)) || { uid: detail.uid };
+}
+// Asks in the sheet's Delete row, with two labelled buttons (and Cancel)
+// instead of an OK/Cancel box: "one", "all", or null for Cancel (also when
+// the sheet closes or shows another event). Without
+// the occurrence's recurrence_id only "Every one" can be offered.
+_askWhichRepeat(btn, canOne) {
+return new Promise((resolve) => {
+const ask = document.createElement("div");
+ask.className = "fh-repeat-ask";
+ask.innerHTML = `<div class="fh-repeat-q">${canOne ? "This event repeats. Delete just this one, or every one?" : "This event repeats, and the board can only delete every one."}</div><div class="fh-repeat-btns">${canOne ? '<button type="button" class="fh-repeat-btn" data-which="one">This one</button>' : ""}<button type="button" class="fh-repeat-btn" data-which="all">Every one</button><button type="button" class="fh-repeat-btn cancel" data-which="">Cancel</button></div>`;
+btn.style.display = "none";
+btn.parentNode.appendChild(ask);
+// The Delete row is the sheet's last: bring the buttons into view.
+if (ask.scrollIntoView) ask.scrollIntoView({ block: "nearest" });
+// Closing the sheet, or opening another event in it, counts as Cancel.
+const overlay = this._root.querySelector(".event-info-overlay");
+const content = this._root.querySelector(".event-info-content");
+let answered = false;
+const finish = (which) => {
+if (answered) return;
+answered = true;
+watch.disconnect();
+ask.remove();
+btn.style.display = "";
+resolve(which);
+};
+const watch = new MutationObserver(() => {
+if (!ask.isConnected || (overlay && !overlay.classList.contains("open"))) finish(null);
+});
+if (overlay) watch.observe(overlay, { attributes: true, attributeFilter: ["class"] });
+if (content) watch.observe(content, { childList: true });
+ask.addEventListener("click", (e) => {
+const choice = e.target.closest(".fh-repeat-btn");
+if (choice) finish(choice.dataset.which || null);
+});
+});
+}
+// After the add form saved a reminder (a to-do with a due time). Undo
+// removes it again.
+// The list's items now with this title, due at this minute.
+async _remindersLike(entityId, title, due) {
+const result = await this._hass.connection.sendMessagePromise({ type: "call_service", domain: "todo", service: "get_items", service_data: {}, target: { entity_id: entityId }, return_response: true });
+const items = (result && result.response && result.response[entityId] && result.response[entityId].items) || [];
+return items.filter((it) => it.uid && it.summary === title && it.due && it.due.startsWith(due.slice(0, 16)));
+}
+// Before the add form saves a reminder (todo.add_item returns no id): the
+// uids already there with its title and time, or null if the list didn't
+// answer (then there's no Undo).
+async _remindersBefore(entityId, title, due) {
+try {
+return new Set((await this._remindersLike(entityId, title, due)).map((it) => it.uid));
+} catch (e) {
+return null;
+}
+}
+// After the add form saved a reminder. Undo removes exactly the one this
+// add made, as _answerEventAdded does for events.
+async _answerReminderAdded(entityId, title, due, before) {
+const when = new Date(due);
+const message = this._sayJoined("Reminder set", [this._quiet(title), this._houseDay(when), this._houseTime(when)]);
+let made = null;
+if (before) {
+try {
+const fresh = (await this._remindersLike(entityId, title, due)).filter((it) => !before.has(it.uid));
+if (fresh.length === 1) made = fresh[0];
+} catch (e) {
+made = null;
+}
+}
+if (!made) {
+this._showUndoToast(message);
+return;
+}
+this._showUndoToast(message, async () => {
+await this._hass.callService("todo", "remove_item", { item: made.uid }, { entity_id: entityId });
+this._fetchReminders();
+return this._sayJoined("Reminder removed", [this._quiet(title)]);
+});
+}
+// After "Mark done" on a reminder or note. Undo makes it not done again.
+// After "Mark done" on a reminder or note. Undo makes it not done again;
+// if marking it done failed, it says so.
+_answerReminderDone(detail, done) {
+if (!detail.todoUid) return;
+if (!done) {
+this._showUndoToast("Couldn't mark that done. Try again.", null, true);
+return;
+}
+this._showUndoToast(this._sayJoined("Done", [this._quiet(detail.summary)]), async () => {
+await this._hass.callService("todo", "update_item", { item: detail.todoUid, status: "needs_action" }, { entity_id: detail.calendarEntity });
+this._fetchReminders();
+return this._sayJoined("Back on the board", [this._quiet(detail.summary)]);
+});
+}
+// A meal cleared in the meal editor (Clear, then Save). Undo puts the same
+// meal back, unless something else has been planned there since.
+// House fork: wave 0 (B4). "Suggest" (for someone who can't change the
+// menu, like the wall's user) saves an idea, which shows only inside that
+// meal's editor until someone who can adds it; the meal slot stays empty.
+// The editor used to close without a word. Undo takes the idea back (its
+// author may).
+_answerMealSuggested(suggestion) {
+if (!suggestion || !suggestion.uid) return;
+const day = new Date(`${suggestion.date_key}T00:00:00`);
+const block = (this._getBlocksForDay(day)[suggestion.block_index || 0] || "meal").toLowerCase();
+this._showUndoToast(`${this._sayJoined("Saved as an idea", [this._quiet(suggestion.name), `${block} on ${this._houseDay(day)}`])}. Not on the board until someone adds it.`, async () => {
+await this._hass.connection.sendMessagePromise({ type: "family_hub/remove_menu_suggestion", uid: suggestion.uid });
+await this._fetchMenuSuggestions();
+return this._sayJoined("Idea taken back", [this._quiet(suggestion.name)]);
+});
+}
+async _clearMealWithUndo(dateKey, blockIndex) {
+const meal = this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex];
+const removed = await this._removeMealPlan(dateKey, blockIndex);
+if (!meal) return;
+if (!removed) {
+this._showUndoToast("Couldn't clear that meal. Try again.", null, true);
+return;
+}
+const day = new Date(`${dateKey}T00:00:00`);
+const block = this._getBlocksForDay(day)[blockIndex] || "Meal";
+const name = this._quiet(meal.name);
+this._showUndoToast(`Cleared: ${block}, ${this._houseDay(day)}${name ? ` (${name})` : ""}`, async () => {
+await this._fetchMealPlan();
+if (this._mealPlan[dateKey] && this._mealPlan[dateKey][blockIndex]) return null;
+const ok = await this._upsertMealPlan(dateKey, blockIndex, meal.name, meal.description, meal.link, meal.color, meal.recur, meal.grocyRecipeId, meal.servings, meal.spanDays, meal.additionalRecipes, meal.leftoverDates, meal.cook);
+return ok ? this._sayJoined("Back on the board", [this._quiet(meal.name)]) : null;
+});
+}
 _openDishEditor(recipe) {
 const root = this._root;
 this._dishEditorMode = true;
@@ -21200,7 +21656,8 @@ this._showToast(noListError, true);
 return;
 }
 } else {
-this._removeMealPlan(dateKey, blockIndex);
+// House fork: wave 0 (B5), see _clearMealWithUndo.
+this._clearMealWithUndo(dateKey, blockIndex);
 }
 this._closeEditor();
 }
@@ -21623,6 +22080,54 @@ statusEl.classList.add("is-error");
 // "Grocery List" modal/More-menu button) - the two are really one errand
 // (plan the ingredients, then shop and put them away), so opening either
 // way lands here and both tabs' data are loaded up front.
+// House fork: wave 0 (B3). More > Shopping List opened Grocy's list,
+// which on a house without Grocy says "Grocy isn't connected" and whose
+// Add does nothing. The household's real list is Home Assistant's own
+// todo.shopping_list (J008; "Hey Siri, ask the house, add milk" fills it).
+// So without Grocy the button opens that list, in Home Assistant's own
+// To-do list card (see items, add one, tick one off), in a popup; with
+// Grocy set up, Grocy's list as before.
+async _openShoppingList() {
+if (await this._grocyConnected()) this._openGrocyShoppingList();
+else this._openHouseShoppingList();
+}
+// Whether Family Hub has Grocy set up; asked once per open board.
+async _grocyConnected() {
+if (this._grocyConnectedAnswer !== undefined) return this._grocyConnectedAnswer;
+try {
+const res = await this._hass.connection.sendMessagePromise({ type: "family_hub/get_grocy_shopping_lists" });
+this._grocyConnectedAnswer = !!res && res.configured === true;
+} catch (e) {
+return false;
+}
+return this._grocyConnectedAnswer;
+}
+// The card is made once, then kept, and gets every hass update (set hass).
+async _openHouseShoppingList() {
+const root = this._root;
+const mount = root.querySelector(".fh-shopping-card");
+this._openModal(root.querySelector(".fh-shopping-overlay"));
+if (this._shoppingCard || this._shoppingCardLoading) return;
+const entity = "todo.shopping_list";
+if (!this._hass || !this._hass.states[entity]) {
+mount.textContent = "There's no shopping list in Home Assistant yet. Once its Shopping list is set up, it shows here.";
+return;
+}
+this._shoppingCardLoading = true;
+try {
+if (typeof window.loadCardHelpers !== "function") throw new Error("no loadCardHelpers");
+const helpers = await window.loadCardHelpers();
+const card = helpers.createCardElement({ type: "todo-list", entity });
+card.hass = this._hass;
+mount.innerHTML = "";
+mount.appendChild(card);
+this._shoppingCard = card;
+} catch (e) {
+mount.textContent = "The shopping list didn't open here. It's under To-do lists in Home Assistant's menu.";
+} finally {
+this._shoppingCardLoading = false;
+}
+}
 _openGrocyShoppingList() {
 this._openModal(this._root.querySelector(".grocy-shopping-list-overlay"));
 this._root.querySelector(".grocy-shopping-list-add-input").value = "";
@@ -23830,12 +24335,35 @@ if (!isNaN(d.getTime())) return d;
 if (this._viewFamily(this._viewMode) === "day") return this._dayAnchor();
 return new Date();
 }
+// House fork: wave 0 (B1). A new event starts on the first column whose
+// calendar the board can change and delete afterwards (Home Assistant's
+// calendar supported_features: create 1, delete 2, update 4), so a typo
+// isn't permanent. On the house that's Us: Will, Home and Work are iCloud
+// calendars the board can add to but never change (J008). With none like
+// that, the first column, as before. The day is still _addEventDefaultDate's.
+_newEventCalendar(people) {
+const pick = people.find((p) => (this._calendarFeatures(p.entity) & 6) === 6) || people[0];
+return pick ? pick.entity : "";
+}
+// House fork: what a calendar can do, as Home Assistant's calendar
+// supported_features (create 1, delete 2, update 4): the card's cached
+// family_hub/calendar/delete_support answer when it has one, which is what
+// the sheet's Edit and Delete rows go by, else the calendar's state (the
+// same attribute that answer reads); 0 while neither is known.
+_calendarFeatures(entity) {
+const known = this._calendarDeleteSupport && this._calendarDeleteSupport[entity];
+if (known) return (known.createSupported ? 1 : 0) | (known.supported ? 2 : 0) | (known.updateSupported ? 4 : 0);
+const state = this._hass && this._hass.states && this._hass.states[entity];
+return state && state.attributes ? Number(state.attributes.supported_features) || 0 : 0;
+}
 _openAddEvent(tab) {
 const root = this._root;
 const select = root.querySelector(".add-event-calendar-select");
 select.innerHTML = this._getPeople()
 .map((p) => `<option value="${p.entity}">${p.name}</option>`)
 .join("");
+// House fork: wave 0 (B1), see _newEventCalendar.
+select.value = this._newEventCalendar(this._getPeople());
 // which Reminders list a new reminder gets saved to - the shared
 // family list plus this user's own individual list and anything they're
 // subscribed to (see _addableRemindersLists). Rebuilt fresh every open
@@ -24261,6 +24789,8 @@ endTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMi
 data.start_date_time = `${dateVal} ${startTime}:00`;
 data.end_date_time = `${endDateVal} ${endTime}:00`;
 }
+// House fork: wave 0 (B5), see _eventsBeforeAdd.
+const undoBase = await this._eventsBeforeAdd(entity, data);
 try {
 await this._hass.callService("calendar", "create_event", data, { entity_id: entity });
 } catch (e) {
@@ -24302,6 +24832,8 @@ if (savedPeople.length) this._eventPeopleOverrides[key] = savedPeople;
 }
 }
 await this._saveAddEventChecklistIfAny({ calendar_entity: entity, start: startTs, summary: title });
+// House fork: wave 0 (B5), see _answerEventAdded.
+this._answerEventAdded(entity, data, undoBase);
 this._closeAddEvent();
 this._fetchEvents();
 }
@@ -24344,6 +24876,8 @@ item: title,
 due_datetime: `${dateVal}T${notifyTime}:00`,
 };
 if (fullDescription) data.description = fullDescription;
+// House fork: wave 0 (B5), see _remindersBefore.
+const remindersBefore = await this._remindersBefore(entityId, title, data.due_datetime);
 try {
 await this._hass.callService("todo", "add_item", data, { entity_id: entityId });
 } catch (e) {
@@ -24366,6 +24900,8 @@ if (newItemUid) {
   await this._saveAddEventChecklistIfAny({ todo_entity: entityId, item_uid: newItemUid });
 }
 }
+// House fork: wave 0 (B5), see _answerReminderAdded.
+this._answerReminderAdded(entityId, title, data.due_datetime, remindersBefore);
 this._closeAddEvent();
 this._fetchReminders();
 }

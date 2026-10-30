@@ -1,0 +1,237 @@
+{
+  "_about": "The house board's configuration as read from the live Home Assistant on 2026-10-29 (family_hub/get_settings, theme_builder/list, family_hub/device_settings/list, lovelace/dashboards/list, lovelace/config family-hub, and the calendar and to-do entity names), with Home Assistant user ids replaced by roles (owner, jenn, wall) and phone notify targets left out. Additions for the sandbox are marked sandbox_added. No calendar events, to-do items, meals or notes were read.",
+
+  "calendars": [
+    {"name": "Will’s Calendar", "entity_id": "calendar.wills_calendar", "stands_in_for": "iCloud (CalDAV), create only"},
+    {"name": "Jenn’s Calendar", "entity_id": "calendar.jenns_calendar", "stands_in_for": "Jenn's Google calendar (planned; account type not known yet)", "sandbox_added": true},
+    {"name": "Home", "entity_id": "calendar.home", "stands_in_for": "iCloud (CalDAV), create only"},
+    {"name": "Us", "entity_id": "calendar.us", "stands_in_for": "Local Calendar (same as the house)"},
+    {"name": "Work", "entity_id": "calendar.work", "stands_in_for": "iCloud (CalDAV), create only"}
+  ],
+
+  "todo_lists": [
+    {"name": "Us notes", "entity_id": "todo.us_notes"},
+    {"name": "Meal plan", "entity_id": "todo.meal_plan"},
+    {"name": "House reminders", "entity_id": "todo.house_reminders"},
+    {"name": "Family Meal Templates", "entity_id": "todo.family_meal_templates"},
+    {"name": "Owner_Reminders", "entity_id": "todo.owner_reminders", "role": "owner"},
+    {"name": "Owner_Wish List", "entity_id": "todo.owner_wish_list", "role": "owner"},
+    {"name": "Jenn_Reminders", "entity_id": "todo.jenn_reminders", "role": "jenn"},
+    {"name": "Jenn_Wish List", "entity_id": "todo.jenn_wish_list", "role": "jenn"},
+    {"name": "Wall_Reminders", "entity_id": "todo.wall_reminders", "role": "wall"},
+    {"name": "Wall_Wish List", "entity_id": "todo.wall_wish_list", "role": "wall"}
+  ],
+
+  "household_settings": {
+    "blocks": ["Breakfast", "Lunch", "Dinner"],
+    "dateBlocks": {},
+    "weekdayBlocks": {},
+    "fontSize": "medium",
+    "blockSize": "medium",
+    "showTimeline": false,
+    "weekViewVariantShared": "planner",
+    "monthViewVariantShared": "split",
+    "weekDayCountShared": 7,
+    "weekRowsShared": 1,
+    "currentDayFirstShared": false,
+    "hideTopBarDeviceShared": false,
+    "timelineStartHour": 8,
+    "timelineEndHour": 23,
+    "defaultView": "month",
+    "countdownEnabled": true,
+    "countdownLabel": "",
+    "countdownDate": "",
+    "countdownItems": [],
+    "countdownTicker": false,
+    "dailyDigestEnabled": false,
+    "dailyDigestTime": "07:00",
+    "grocyExpiringEnabled": false,
+    "grocyLowStockEnabled": false,
+    "routinesEnabled": false,
+    "goalsShowInChores": false,
+    "goalsShowInRewards": false,
+    "choresConfettiOnComplete": true,
+    "notificationClickPath": "",
+    "people": [],
+    "weekendBreakfast": false,
+    "showMealsInMonth": false,
+    "agendaDays": 7,
+    "agendaShowMeals": false,
+    "agendaShowReminders": false,
+    "discreetModeEnabled": false,
+    "mealPlanEntity": "",
+    "mealTemplatesEntity": "todo.family_meal_templates",
+    "weatherEntity": "",
+    "greyOutPastEvents": true,
+    "smallScreenMode": false,
+    "scrollLocked": false,
+    "bottomPadding": 0,
+    "theme": {
+      "colors": {"bg": "#fbf7e5", "card": "#f5f3f0", "border": "#e6ddc4", "text": "#423d34", "textSecondary": "#96877a", "accent": "#8f5a00", "accentText": "#fff8ea", "accent2": "#305545", "accent3": "#b5583c", "surfaceAlt": "#efe6cf", "surface2": "#f2eede"},
+      "fonts": {"dayName": 13, "dayNumber": 22, "wxTemp": 14, "event": 14, "chip": 13, "headerTitle": 15, "countdown": 11, "blockLabel": 9, "blockMeal": 13}
+    },
+    "useGlobalTheme": true,
+    "globalThemeId": "liquidglass",
+    "screenSaver": {"sourceType": "video", "videoUrl": "", "cameraEntity": "", "idleSeconds": 180, "usersEnabled": {}, "disableWhileRecipeOpen": false, "returnDashboardPath": ""},
+    "screenSaverWidgets": [],
+    "alarmDevices": [],
+    "alarmTtsEntityId": "",
+    "holidayBackgrounds": [
+      {"id": "predefined-new_years", "source": "predefined", "predefinedKey": "new_years", "name": "New Year's Day", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-valentines", "source": "predefined", "predefinedKey": "valentines", "name": "Valentine's Day", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-st_patricks", "source": "predefined", "predefinedKey": "st_patricks", "name": "St. Patrick's Day", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-easter", "source": "predefined", "predefinedKey": "easter", "name": "Easter", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-july4th", "source": "predefined", "predefinedKey": "july4th", "name": "4th of July", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-halloween", "source": "predefined", "predefinedKey": "halloween", "name": "Halloween", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-thanksgiving", "source": "predefined", "predefinedKey": "thanksgiving", "name": "Thanksgiving", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"},
+      {"id": "predefined-christmas", "source": "predefined", "predefinedKey": "christmas", "name": "Christmas", "enabled": false, "imageUrl": "", "expandFullDay": false, "expandScope": "day"}
+    ],
+    "notifyProfilesMigrated": true,
+    "wishlistClaimsPermissionMigrated": true
+  },
+
+  "members": ["owner", "jenn"],
+  "user_profile_template": {
+    "notifyTargets": [],
+    "subscribedCalendars": [],
+    "remindersEnabled": false,
+    "digestEnabled": false,
+    "digestSections": {"calendar": true, "reminders": true, "meals": true, "chores": true, "grocyExpiring": true, "grocyLowStock": true},
+    "color": "",
+    "includeInChores": true,
+    "isChildAccount": false,
+    "isKioskAccount": false,
+    "notifyRewardClaimed": false,
+    "notifyChoreApproved": false,
+    "notifyChoreRejected": false,
+    "notifyChoreDue": false,
+    "notifyTimerAlarm": false,
+    "isAlarmKiosk": false,
+    "primaryCalendar": "",
+    "remindersSubscriptions": {},
+    "additionalRemindersEntities": [],
+    "badges": []
+  },
+
+  "tablet_theme": {
+    "copy_of": "liquidglass",
+    "id": "liquidglasstablet",
+    "name": "Liquid Glass Tablet",
+    "fonts": {"blockLabel": 11, "blockMeal": 16, "chip": 15, "countdown": 13, "dayName": 16, "dayNumber": 28, "event": 20, "headerTitle": 19, "wxTemp": 17}
+  },
+
+  "dashboard": {
+    "create": {"url_path": "family-hub", "title": "Family Hub", "icon": "mdi:calendar-heart", "require_admin": false, "show_in_sidebar": true, "mode": "storage"},
+    "config": {
+      "title": "Family Hub",
+      "views": [
+        {
+          "path": "family-hub",
+          "title": "Family Hub",
+          "type": "panel",
+          "cards": [
+            {
+              "type": "vertical-stack",
+              "cards": [
+                {
+                  "type": "conditional",
+                  "conditions": [{"condition": "state", "entity": "input_boolean.board_private", "state_not": "on"}],
+                  "card": {
+                    "type": "custom:family-week-calendar-card",
+                    "meal_plan_entity": "todo.meal_plan",
+                    "reminders_entity": "todo.us_notes",
+                    "weather_entity": "weather.forecast_home",
+                    "people": [
+                      {"color": "#7ec9d9", "entity": "calendar.wills_calendar", "name": "Will"},
+                      {"color": "#d97e9e", "entity": "calendar.jenns_calendar", "name": "Jenn"},
+                      {"color": "#9ed97e", "entity": "calendar.home", "name": "Home"},
+                      {"color": "#d9bf7e", "entity": "calendar.us", "name": "Us"},
+                      {"color": "#b07ed9", "entity": "calendar.work", "name": "Work"}
+                    ]
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [{"condition": "state", "entity": "input_boolean.board_private", "state": "on"}],
+                  "card": {
+                    "type": "custom:family-week-calendar-card",
+                    "meal_plan_entity": "todo.meal_plan",
+                    "reminders_entity": "todo.us_notes",
+                    "weather_entity": "weather.forecast_home",
+                    "people": [
+                      {"color": "#7ec9d9", "entity": "calendar.wills_calendar", "name": "Will"},
+                      {"color": "#9ed97e", "entity": "calendar.home", "name": "Home"},
+                      {"color": "#d9bf7e", "entity": "calendar.us", "name": "Us"}
+                    ]
+                  }
+                },
+                {
+                  "type": "tile",
+                  "entity": "input_boolean.board_private",
+                  "icon": "mdi:lock",
+                  "name": "Hide work calendars",
+                  "vertical": false,
+                  "tap_action": {"action": "toggle"},
+                  "icon_tap_action": {"action": "toggle"}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "path": "house-reminders",
+          "title": "House reminders",
+          "icon": "mdi:home-alert",
+          "type": "sections",
+          "sections": [
+            {"type": "grid", "cards": [{"type": "todo-list", "entity": "todo.house_reminders", "title": "House reminders"}]}
+          ]
+        }
+      ]
+    }
+  },
+
+  "copies": [
+    {
+      "_about": "The Clover Tablet's board copy on the house (user Clover).",
+      "role": "wall",
+      "device_id": "dev-sandboxwalltablet",
+      "instance_id": "inst-sandboxwalltablet",
+      "instance_label": "family-hub",
+      "device_name": "Wall tablet (sandbox template)",
+      "device_settings": {"familyHubDeviceCustomNameLocal": "", "familyHubDeviceThemeOverrideLocal": "liquidglasstablet"},
+      "instance_settings": {
+        "familyCalendarCurrentDayFirstLocal": "on",
+        "familyCalendarWeekDayCountLocal": 4,
+        "familyCalendarWeekRowsLocal": 1,
+        "familyCalendarWeekViewVariantLocal": "week",
+        "familyCalendarMonthViewVariantLocal": "split",
+        "familyCalendarShowTimelineLocal": "on",
+        "familyCalendarSmallScreenModeLocal": "off",
+        "familyCalendarHideTopBarDeviceLocal": "off",
+        "familyCalendarTopBarTitleOnlyLocal": "off",
+        "familyCalendarStartViewLocal": "week"
+      }
+    },
+    {
+      "_about": "The owner's two iPhone copies on the house (both the same): Planner for Week, Split for Month, Title only top bar, Liquid Glass Dark.",
+      "role": "owner",
+      "device_id": "dev-sandboxownerphone",
+      "instance_id": "inst-sandboxownerphone",
+      "instance_label": "family-hub",
+      "device_name": "Owner phone (sandbox template)",
+      "device_settings": {"familyHubDeviceCustomNameLocal": "", "familyHubDeviceThemeOverrideLocal": "liquidglassdark"},
+      "instance_settings": {
+        "familyCalendarCurrentDayFirstLocal": "off",
+        "familyCalendarWeekDayCountLocal": 7,
+        "familyCalendarWeekRowsLocal": 1,
+        "familyCalendarWeekViewVariantLocal": "planner",
+        "familyCalendarMonthViewVariantLocal": "split",
+        "familyCalendarShowTimelineLocal": "off",
+        "familyCalendarSmallScreenModeLocal": "off",
+        "familyCalendarHideTopBarDeviceLocal": "off",
+        "familyCalendarTopBarTitleOnlyLocal": "on"
+      }
+    }
+  ]
+}
