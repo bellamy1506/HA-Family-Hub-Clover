@@ -23,7 +23,9 @@
      calendars and to-do lists keep what the card adds, deletes and ticks
      (calendar.create_event, family_hub/calendar/delete_event, todo
      add_item, update_item, remove_item); service calls are kept in
-     window.__services. Every message the card sends is kept in window.__sent.
+     window.__services. grocy=1 (Family Hub has Grocy set up; it isn't on
+     the house). Home Assistant's own cards come from a stand-in
+     window.loadCardHelpers whose cards record their config and hass. Every message the card sends is kept in window.__sent.
      Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
@@ -38,6 +40,12 @@ localStorage.setItem("familyCalendarShowTimelineLocal", q.get("timeline") || "of
 localStorage.setItem("familyCalendarTopBarTitleOnlyLocal", "on");
 if (q.get("start")) localStorage.setItem("familyCalendarStartViewLocal", q.get("start"));
 localStorage.setItem("familyHubDeviceThemeOverrideLocal", q.get("theme") || "");
+</script>
+<script>
+// Home Assistant's card helpers, as a dashboard offers them to custom cards.
+class FakeHaCard extends HTMLElement { setConfig(c) { this.config = c; } set hass(h) { this._hass = h; this.hassSets = (this.hassSets || 0) + 1; } get hass() { return this._hass; } }
+customElements.define("fake-ha-card", FakeHaCard);
+window.loadCardHelpers = async () => ({ createCardElement: (config) => { const c = document.createElement("fake-ha-card"); c.setConfig(config); return c; } });
 </script>
 <script src="card.js"></script>
 <script>
@@ -84,6 +92,7 @@ const FEATURES = { "calendar.us": q.get("editable") === "none" ? 1 : 7 };
 // Friendly names as on the house: "Will's Calendar", "Home", "Us", "Work".
 const FRIENDLY = { "calendar.wills_calendar": "Will\u2019s Calendar" };
 people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: FRIENDLY[e] || n, supported_features: FEATURES[e] || 1 } }));
+states["todo.shopping_list"] = { entity_id: "todo.shopping_list", state: "3", attributes: { friendly_name: "Shopping list" } };
 if (q.get("lists")) for (const [e, n] of [["todo.meal_plan", "Meal plan"], ["todo.us_notes", "Us notes"]]) states[e] = { entity_id: e, state: "1", attributes: { friendly_name: n } };
 const hass = {
   user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
@@ -125,6 +134,7 @@ const hass = {
         for (let o = -10; o <= 14; o++) forecast.push({ datetime: `${day(o)}T12:00:00`, condition: "partlycloudy", temperature: 60 + (o % 5), templow: 45 + (o % 4) });
         return { response: { [msg.target.entity_id]: { forecast } } };
       }
+      if (msg.type === "family_hub/get_grocy_shopping_lists") return q.get("grocy") ? { configured: true, lists: [{ id: 1, name: "Shopping list" }] } : { configured: false, lists: [] };
       if (msg.type === "family_hub/calendar/delete_event") {
         events[msg.entity_id] = (events[msg.entity_id] || []).filter((e) => e.uid !== msg.uid);
         return { deleted: true };

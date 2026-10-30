@@ -3257,6 +3257,8 @@ const cardEl = wrap && wrap.firstElementChild;
 if (cardEl) cardEl.hass = hass;
 });
 }
+// House fork: wave 0 (B3), the shopping list's card, see _openHouseShoppingList.
+if (this._shoppingCard) this._shoppingCard.hass = hass;
 }
 // One shared list of "refresh everything" fetches, used by the very first
 // load, a reconnect (e.g. switching dashboard views), and the 60s poll -
@@ -12210,6 +12212,10 @@ keeps it apart from dark themes. */
 .fh-undo-btn { flex: none; min-height: 44px; min-width: 76px; padding: 0 16px; border: 2px solid currentColor; border-radius: 12px; background: transparent; color: inherit; font: inherit; font-weight: 800; cursor: pointer; }
 .fh-undo-btn[hidden] { display: none; }
 .fh-undo-btn:disabled { opacity: 0.6; }
+/* House fork: wave 0 (B3), Home Assistant's To-do list card inside the
+shopping list popup (see _openHouseShoppingList), in the board's colors and
+without a second card frame. */
+.fh-shopping-card { --ha-card-background: transparent; --ha-card-box-shadow: none; --ha-card-border-width: 0; --card-background-color: var(--fc-card); --primary-text-color: var(--fc-text); --secondary-text-color: var(--fc-text-secondary); --divider-color: var(--fc-border); --primary-color: var(--fc-accent); margin: 0 -16px; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>
@@ -12630,6 +12636,14 @@ keeps it apart from dark themes. */
 <div class="grocy-shopping-list-items"></div>
 <div class="grocy-shopping-list-total" style="display:none;"></div>
 </div>
+</div>
+</div>
+<!-- House fork: wave 0 (B3), the household's shopping list, see _openHouseShoppingList. -->
+<div class="modal-overlay fh-shopping-overlay">
+<div class="modal-box loved-box">
+<button class="modal-close fh-shopping-close" aria-label="Close">&#10005;</button>
+<h2>&#128717; Shopping list</h2>
+<div class="fh-shopping-card"></div>
 </div>
 </div>
 <div class="modal-overlay grocy-expiring-overlay">
@@ -14378,7 +14392,9 @@ this._renderMealTemplates();
 });
 root.querySelector(".print-btn").addEventListener("click", () => this._printView());
 root.querySelector(".grocery-list-push-btn").addEventListener("click", () => this._pushCheckedGroceryItems());
-root.querySelector(".grocy-shopping-list-btn").addEventListener("click", () => this._openGrocyShoppingList());
+// House fork: wave 0 (B3), Grocy's list only when Grocy is set up, see _openShoppingList.
+root.querySelector(".grocy-shopping-list-btn").addEventListener("click", () => this._openShoppingList());
+root.querySelector(".fh-shopping-close").addEventListener("click", () => this._root.querySelector(".fh-shopping-overlay").classList.remove("open"));
 root.querySelector(".grocy-shopping-list-close").addEventListener("click", () => this._closeGrocyShoppingList());
 root.querySelectorAll(".shopping-tab-btn").forEach((btn) => {
 btn.addEventListener("click", () => this._switchShoppingListTab(btn.dataset.shoppingTab));
@@ -21883,6 +21899,54 @@ statusEl.classList.add("is-error");
 // "Grocery List" modal/More-menu button) - the two are really one errand
 // (plan the ingredients, then shop and put them away), so opening either
 // way lands here and both tabs' data are loaded up front.
+// House fork: wave 0 (B3). More > Shopping List opened Grocy's list,
+// which on a house without Grocy says "Grocy isn't connected" and whose
+// Add does nothing. The household's real list is Home Assistant's own
+// todo.shopping_list (J008; "Hey Siri, ask the house, add milk" fills it).
+// So without Grocy the button opens that list, in Home Assistant's own
+// To-do list card (see items, add one, tick one off), in a popup; with
+// Grocy set up, Grocy's list as before.
+async _openShoppingList() {
+if (await this._grocyConnected()) this._openGrocyShoppingList();
+else this._openHouseShoppingList();
+}
+// Whether Family Hub has Grocy set up; asked once per open board.
+async _grocyConnected() {
+if (this._grocyConnectedAnswer !== undefined) return this._grocyConnectedAnswer;
+try {
+const res = await this._hass.connection.sendMessagePromise({ type: "family_hub/get_grocy_shopping_lists" });
+this._grocyConnectedAnswer = !!res && res.configured === true;
+} catch (e) {
+return false;
+}
+return this._grocyConnectedAnswer;
+}
+// The card is made once, then kept, and gets every hass update (set hass).
+async _openHouseShoppingList() {
+const root = this._root;
+const mount = root.querySelector(".fh-shopping-card");
+this._openModal(root.querySelector(".fh-shopping-overlay"));
+if (this._shoppingCard || this._shoppingCardLoading) return;
+const entity = "todo.shopping_list";
+if (!this._hass || !this._hass.states[entity]) {
+mount.textContent = "There's no shopping list in Home Assistant yet. Once its Shopping list is set up, it shows here.";
+return;
+}
+this._shoppingCardLoading = true;
+try {
+if (typeof window.loadCardHelpers !== "function") throw new Error("no loadCardHelpers");
+const helpers = await window.loadCardHelpers();
+const card = helpers.createCardElement({ type: "todo-list", entity });
+card.hass = this._hass;
+mount.innerHTML = "";
+mount.appendChild(card);
+this._shoppingCard = card;
+} catch (e) {
+mount.textContent = "The shopping list didn't open here. It's under To-do lists in Home Assistant's menu.";
+} finally {
+this._shoppingCardLoading = false;
+}
+}
 _openGrocyShoppingList() {
 this._openModal(this._root.querySelector(".grocy-shopping-list-overlay"));
 this._root.querySelector(".grocy-shopping-list-add-input").value = "";
