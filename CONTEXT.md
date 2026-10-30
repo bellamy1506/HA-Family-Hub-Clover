@@ -26,9 +26,33 @@ _Avoid_: recommendation, review
 
 ## On the wall
 
+**Clover**:
+The house's one name, for talking to it and for what it shows: you ask Clover, and the board is Clover's face (owner, 2026-10-30). Clover works out whether something is for the board, a question, or the rest of the house.
+_Avoid_: the board or the house as something you talk to; Home Assistant, in conversation
+
 **Board**:
-The Family Hub dashboard on the wall tablet (and on phones); "tell the board" and "ask the board" are its Siri phrases.
+What Clover shows on the wall tablet and on phones: the calendar, meals, notes and lists.
 _Avoid_: Skylight, hub, kiosk
+
+**Week card**:
+Upstream's calendar card, the board until the house board replaces it.
+_Avoid_: the card (ambiguous once there are two), Family Week Calendar
+
+**House board**:
+The house-owned card that replaces the week card on the wall and the phones.
+_Avoid_: Board 2, new card, v2
+
+**Resting face**:
+What the board shows when nobody is touching it, read from across the room.
+_Avoid_: screensaver, idle screen, home screen
+
+**Capture**:
+Anything getting onto the board, from wherever it came up: voice, a phone, a share, the wall.
+_Avoid_: input, entry, data entry
+
+**Echo**:
+Clover's answer after a capture: what landed, where, and what was guessed, with a way to undo it.
+_Avoid_: confirmation, toast, receipt
 
 **Copy**:
 One browser storage at one address, belonging to whoever last signed in on it; what Family Hub's code calls a "device". One phone can hold several (the owner's iPhone has one for home and one for Home Assistant Cloud), and a user's view settings and theme follow them between their copies, while each copy keeps its own name.
