@@ -14,7 +14,10 @@
      daily forecast, so Week's day headers show temperatures), grey=off
      ("Grey out past events" off; on by default), lengths=1 (today's
      timeline gets 15, 30, 90 and 120 minute events), start=household|week|month
-     (this copy's Start view; unset by default). Themes:
+     (this copy's Start view; unset by default), people=1 (the household's
+     own Settings > Calendars list holds Will and Us; empty by default, as
+     on the house). Every message the card sends is kept in window.__sent.
+     Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
 <style>html,body{margin:0;background:#111}#hdr{height:56px}</style></head>
@@ -59,7 +62,7 @@ const events = {
 // lengths=1: today's events of other lengths on the Us calendar (15 and 30
 // minutes, a long title in 90 minutes, and 2 hours sharing its hour).
 if (q.get("lengths")) events["calendar.us"].push(span(0, "SECRET quick call", 11, 0, 30), span(0, "SECRET pills", 11, 30, 15), span(0, "SECRET parent teacher conference at the elementary school", 13, 0, 90), span(0, "SECRET long meeting about the kitchen renovation plans", 14, 0, 120));
-const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
+const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: q.get("people") ? [{ entity: "calendar.wills_calendar", name: "Will", color: "#7ec9d9" }, { entity: "calendar.us", name: "Us", color: "#d9bf7e" }] : [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
 const states = {};
 people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
 const hass = {
@@ -73,6 +76,7 @@ const hass = {
   callWS: async () => ({}), callService: async () => ({}),
   connection: {
     sendMessagePromise: async (msg) => {
+      (window.__sent = window.__sent || []).push(JSON.parse(JSON.stringify(msg)));
       await sleep(40);
       if (msg.type === "family_hub/get_settings") return { settings };
       if (msg.type === "theme_builder/list") { await sleep(300); return { themes: [THEME, ...PRESETS] }; }

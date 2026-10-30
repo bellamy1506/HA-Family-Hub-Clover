@@ -695,6 +695,31 @@ const CHECKS = [
       return `${names.length} popups`;
     },
   },
+  // Wave 0, B2: Settings shows this copy's own columns while the household's
+  // Settings > Calendars list is empty (as on the house); saving must not
+  // copy them into that list, which would override every copy's columns
+  // and break "Hide work calendars" (it did, on the house, 2026-10-29).
+  ...[
+    ["Settings save: an empty column list stays empty", "", null, []],
+    ["Settings save: a column edited in Settings is saved", "", (root) => { const name = root.querySelector(".person-name"); name.value = "Willy"; }, ["Willy", "Home", "Us", "Work"]],
+    ["Settings save: a column removed in Settings is saved", "", (root) => root.querySelectorAll(".person-remove-btn")[3].click(), ["Will", "Home", "Us"]],
+    ["Settings save: the household's own list is kept", "&people=1", null, ["Will", "Us"]],
+  ].map(([name, extra, edit, expected]) => ({
+    name, width: 402,
+    run: async (page) => {
+      await open(page, `view=month&month=split${extra}`);
+      await settle(page, extra ? 2 : CALENDARS); // the household's list has two columns
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".settings-btn").click());
+      const rows = await page.evaluate(() => window.__el.shadowRoot.querySelectorAll(".person-row").length);
+      assert.strictEqual(rows, extra ? 2 : 4, "Settings lists the columns showing");
+      if (edit) await page.evaluate(`(${edit.toString()})(window.__el.shadowRoot)`);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".settings-save").click());
+      await page.waitForFunction(() => (window.__sent || []).some((m) => m.type === "family_hub/set_settings"));
+      const people = await page.evaluate(() => window.__sent.filter((m) => m.type === "family_hub/set_settings").pop().settings.people);
+      assert.deepStrictEqual(people.map((p) => p.name), expected, `saved column list: ${JSON.stringify(people)}`);
+      return expected.length ? `saved ${expected.join(", ")}` : "saved empty";
+    },
+  })),
 ];
 
 (async () => {
