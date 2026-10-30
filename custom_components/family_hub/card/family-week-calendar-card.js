@@ -23856,12 +23856,30 @@ if (!isNaN(d.getTime())) return d;
 if (this._viewFamily(this._viewMode) === "day") return this._dayAnchor();
 return new Date();
 }
+// House fork: wave 0 (B1). A new event starts on the first column whose
+// calendar the board can change and delete afterwards (Home Assistant's
+// calendar supported_features: create 1, delete 2, update 4), so a typo
+// isn't permanent. On the house that's Us: Will, Home and Work are iCloud
+// calendars the board can add to but never change (J008). With none like
+// that, the first column, as before. The day is still _addEventDefaultDate's.
+_newEventCalendar(people) {
+const states = (this._hass && this._hass.states) || {};
+const changeable = (p) => {
+const state = states[p.entity];
+const features = state && state.attributes ? Number(state.attributes.supported_features) || 0 : 0;
+return (features & 6) === 6;
+};
+const pick = people.find(changeable) || people[0];
+return pick ? pick.entity : "";
+}
 _openAddEvent(tab) {
 const root = this._root;
 const select = root.querySelector(".add-event-calendar-select");
 select.innerHTML = this._getPeople()
 .map((p) => `<option value="${p.entity}">${p.name}</option>`)
 .join("");
+// House fork: wave 0 (B1), see _newEventCalendar.
+select.value = this._newEventCalendar(this._getPeople());
 // which Reminders list a new reminder gets saved to - the shared
 // family list plus this user's own individual list and anything they're
 // subscribed to (see _addableRemindersLists). Rebuilt fresh every open

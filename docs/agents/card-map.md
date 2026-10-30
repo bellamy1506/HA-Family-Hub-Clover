@@ -112,6 +112,8 @@ Anything drawn before `_fetchEvents` lands has no events. That gap caused every 
 
 - **Settings keeps the column list empty (wave 0, B2, 2026-10-29):** while the household's Settings > Calendars list (`settings.people`) is empty, Settings shows this copy's own columns (from its card config, through `_getPeople`). `_rememberColumnsAtOpen` notes the rows as Settings opens (one line in `_openSettings`, after `_renderPeopleSettings`), and `_saveSettings` writes `people: []` while `_columnsUnedited` says they weren't changed (one line). A column added, removed or edited in Settings is saved as always, and then overrides every copy's columns. Tests: `tests/test_settings_columns.js`, the "Settings save" checks in `tests/browser/test_board_open.js` (harness `people=1`; every message the card sends is in `window.__sent`).
 
+- **New events start on a calendar the board can change (wave 0, B1, 2026-10-29):** `_newEventCalendar` picks the first column whose calendar's `supported_features` has both delete (2) and update (4), else the first column; one line in `_openAddEvent`, after the calendar options are drawn and before "Also for" (`_renderAddEventPeopleField`) reads the pick. On the house that's Us. The day is still `_addEventDefaultDate`'s. Tests: `tests/test_new_event_calendar.js`, the "New event" checks in `tests/browser/test_board_open.js` (harness: Us has features 7, the rest 1; `editable=none` makes every calendar add only).
+
 When adding a new view or a new kind of event element, also:
 - tag its day unit with `data-fh-unit="kind|YYYY-MM-DD[|entity]"`;
 - add its event class to `_shapeEventLike`;
