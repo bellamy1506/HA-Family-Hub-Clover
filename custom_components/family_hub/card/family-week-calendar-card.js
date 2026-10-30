@@ -12194,6 +12194,9 @@ upstream's. */
 upstream's .event.past (0.45), so they stay easy to read; what's ahead still
 stands out. Week's past events keep upstream's fade. */
 .agenda-item.event.past { opacity: 0.6; }
+/* House fork: wave 0 (B1b), the line on an event the board can't change,
+see _explainUnchangeableEvent: plain text in the sheet's own color. */
+.event-info-row.fh-outside-board { line-height: 1.4; }
 </style>
 <ha-card>
 <div class="ha-starting-banner" role="status" hidden data-i18n="common.ha_starting_banner">Home Assistant is starting up - not everything may be available yet.</div>
@@ -20045,6 +20048,8 @@ if (!detail.isReminder) this._renderEventInfoPeopleSection(id);
 this._renderEventInfoChecklistSection(id);
 if (!detail.isReminder && this._canDeleteEvent()) this._wireEventInfoDeleteButton(id, detail);
 if (!detail.isReminder && this._canEditEvent()) this._wireEventInfoEditButton(id, detail);
+// House fork: wave 0 (B1b), see _explainUnchangeableEvent.
+if (!detail.isReminder) this._explainUnchangeableEvent(id, detail);
 root.querySelectorAll(".event-info-use-meal-btn").forEach((btn) => {
 btn.addEventListener("click", async () => {
 const blockIndex = parseInt(btn.dataset.blockIndex, 10);
@@ -20104,6 +20109,32 @@ this._fetchEventPeopleOverrides();
 // _getCalendarDeleteSupport (cached per calendar entity) and turns it
 // into either a working Delete button or a greyed-out one whose click
 // just explains why, per the household's own wording.
+// House fork: wave 0 (B1b). An event on a calendar the board can add to
+// but never change or delete (the house's iCloud calendars, J008) lost its
+// Edit and Delete rows without a word, so it looked like the board was
+// broken. Now one plain line says why, where Edit would be: after When
+// and Location. Same answer, from the same cached lookup, as
+// _wireEventInfoDeleteButton and _wireEventInfoEditButton use.
+async _explainUnchangeableEvent(id, detail) {
+const support = await this._getCalendarDeleteSupport(detail.calendarEntity);
+if (this._eventInfoOpenId !== id) return;
+if (detail.uid && (support.supported || support.updateSupported)) return;
+const content = this._root.querySelector(".event-info-content");
+if (!content || content.querySelector(".fh-outside-board")) return;
+const line = document.createElement("div");
+line.className = "event-info-row fh-outside-board";
+line.textContent = this._outsideBoardText(detail);
+content.insertBefore(line, content.querySelector(".event-info-edit-row, .event-info-people-row"));
+}
+// "This event is in Will's Calendar, outside the board. ..." The calendar's
+// own name in Home Assistant, else the column's; "the Work calendar" when
+// the name doesn't already say calendar. Discreet mode names no one.
+_outsideBoardText(detail) {
+const state = this._hass && this._hass.states && this._hass.states[detail.calendarEntity];
+const name = ((state && state.attributes && state.attributes.friendly_name) || detail.personName || "").trim();
+const where = this._isDiscreetMode() || !name ? "a calendar" : /calendar$/i.test(name) ? name : `the ${name} calendar`;
+return `This event is in ${where}, outside the board. Change or delete it in the app it came from.`;
+}
 async _wireEventInfoDeleteButton(id, detail) {
 const support = await this._getCalendarDeleteSupport(detail.calendarEntity);
 // The household may have closed this popup (or opened a different

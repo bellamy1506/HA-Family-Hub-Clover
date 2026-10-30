@@ -746,6 +746,36 @@ const CHECKS = [
       return `${picked.calendar}, ${picked.date}`;
     },
   })),
+  // Wave 0, B1b: an event the board can't change or delete says so, in one
+  // plain line where Edit would be, naming its calendar. An Us event keeps
+  // its Edit and Delete buttons and gets no line.
+  {
+    name: "Event sheet: says where to change an event the board can't", width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, "view=week&week=agenda"));
+      const sheet = (summary) => page.evaluate(async (want) => {
+        const el = window.__el;
+        const id = Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === want);
+        el._openEventInfo(id);
+        await new Promise((r) => setTimeout(r, 300));
+        const root = el.shadowRoot;
+        const shown = (sel) => { const n = root.querySelector(sel); return !!n && n.style.display !== "none"; };
+        const line = root.querySelector(".event-info-content .fh-outside-board");
+        const rows = [...root.querySelectorAll(".event-info-content > .event-info-row")].map((r) => r.classList[1] || r.querySelector(".label")?.textContent || "");
+        return { line: line ? line.textContent : null, edit: shown(".event-info-edit-row"), del: shown(".event-info-delete-row"), rows };
+      }, summary);
+      const will = await sheet("SECRET flight");
+      assert.strictEqual(will.line, "This event is in Will’s Calendar, outside the board. Change or delete it in the app it came from.", `Will's event: ${will.line}`);
+      assert.ok(!will.edit && !will.del, "no Edit or Delete for it");
+      assert.ok(will.rows.indexOf("fh-outside-board") === will.rows.indexOf("When") + 1, `the line sits where Edit would: ${will.rows}`);
+      const work = await sheet("SECRET meeting");
+      assert.strictEqual(work.line, "This event is in the Work calendar, outside the board. Change or delete it in the app it came from.", `Work's event: ${work.line}`);
+      const us = await sheet("SECRET dinner");
+      assert.strictEqual(us.line, null, "an Us event has no line");
+      assert.ok(us.edit && us.del, "and keeps Edit and Delete");
+      return "Will and Work explained, Us editable";
+    },
+  },
 ];
 
 (async () => {

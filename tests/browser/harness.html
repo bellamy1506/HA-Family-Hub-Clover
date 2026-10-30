@@ -57,7 +57,7 @@ const dropped = (list) => (q.get("drop") ? list.filter((e) => !(e.start.dateTime
 const events = {
   "calendar.wills_calendar": [timed(0, "SECRET dentist appointment with a long title that wraps", 9), timed(1, "SECRET flight", 13), allDay(2, "SECRET trip"), timed(-3, "SECRET lunch", 12), timed(3, "SECRET call", 15), timed(3, "SECRET call two", 16), timed(3, "SECRET call three", 17), timed(3, "SECRET call four", 18)],
   "calendar.home": [timed(0, "SECRET trash night", 19), allDay(1, "SECRET holiday")],
-  "calendar.us": [timed(2, "SECRET dinner", 18)],
+  "calendar.us": [{ ...timed(2, "SECRET dinner", 18), uid: "us-dinner" }],
   "calendar.work": [timed(1, "SECRET meeting", 10)],
 };
 // lengths=1: today's events of other lengths on the Us calendar (15 and 30
@@ -69,7 +69,9 @@ const states = {};
 // create 1, delete 2, update 4): Us is fully editable, the iCloud calendars
 // add only. editable=none makes every calendar add only.
 const FEATURES = { "calendar.us": q.get("editable") === "none" ? 1 : 7 };
-people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n, supported_features: FEATURES[e] || 1 } }));
+// Friendly names as on the house: "Will's Calendar", "Home", "Us", "Work".
+const FRIENDLY = { "calendar.wills_calendar": "Will\u2019s Calendar" };
+people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: FRIENDLY[e] || n, supported_features: FEATURES[e] || 1 } }));
 const hass = {
   user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
   callApi: async (m, path) => {
@@ -89,6 +91,10 @@ const hass = {
         const forecast = [];
         for (let o = -10; o <= 14; o++) forecast.push({ datetime: `${day(o)}T12:00:00`, condition: "partlycloudy", temperature: 60 + (o % 5), templow: 45 + (o % 4) });
         return { response: { [msg.target.entity_id]: { forecast } } };
+      }
+      if (msg.type === "family_hub/calendar/delete_support") {
+        const f = (states[msg.entity_id] && states[msg.entity_id].attributes.supported_features) || 0;
+        return { supported: !!(f & 2), update_supported: !!(f & 4), create_supported: !!(f & 1), integration_name: "CalDAV" };
       }
       if (msg.type === "family_hub/privacy_mode/get_state") { await sleep(+(q.get("privacydelay") || 0)); return { enabled: q.get("privacy") === "on" }; }
       if (msg.type === "family_hub/calendar_cache/get") {
