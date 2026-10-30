@@ -776,6 +776,148 @@ const CHECKS = [
       return "Will and Work explained, Us editable";
     },
   },
+  // Wave 0, B5: after the board adds, deletes or clears something it says
+  // what happened, with an Undo for 8 seconds where undo is possible, and
+  // never asks "are you sure?" for something it can undo.
+  ...[
+    {
+      name: "Undo: an added event is taken off again", query: "view=month&month=split",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          root.querySelector(".add-fab-calendar").click();
+          root.querySelector(".add-event-title").value = "Dentist";
+          root.querySelector(".add-event-date").value = "2026-11-03";
+          root.querySelector(".add-event-start-time").value = "15:30";
+          root.querySelector(".add-event-end-time").value = "16:30";
+          root.querySelector(".add-event-save").click();
+        });
+      },
+      says: "On the board: Dentist, Tue Nov 3, 3:30 pm, on Us", undone: "Taken off the board: Dentist",
+      before: (w) => w.__events["calendar.us"].some((e) => e.summary === "Dentist" && e.start.dateTime === "2026-11-03T15:30:00"),
+      after: (w) => !w.__events["calendar.us"].some((e) => e.summary === "Dentist"),
+    },
+    {
+      name: "Undo: a deleted event comes back, without asking first", query: "view=week&week=agenda",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const el = window.__el;
+          el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET dinner"));
+        });
+        await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+        await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      },
+      says: "Deleted: SECRET dinner, Thu Oct 29, 6 pm, from Us", undone: "Back on the board: SECRET dinner",
+      before: (w) => !w.__events["calendar.us"].some((e) => e.summary === "SECRET dinner"),
+      after: (w) => w.__events["calendar.us"].some((e) => e.summary === "SECRET dinner" && e.start.dateTime === "2026-10-29T18:00:00" && e.end.dateTime === "2026-10-29T19:00:00" && e.description.includes("<!--reminder:30-->")),
+    },
+    {
+      name: "Undo: a reminder added is removed again", query: "view=month&month=split&lists=1",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          root.querySelector(".add-fab-reminder").click();
+          root.querySelector(".add-event-title").value = "Call the vet";
+          root.querySelector(".add-event-reminder-date").value = "2026-10-28";
+          root.querySelector(".add-event-reminder-time").value = "09:15";
+          root.querySelector(".add-event-save").click();
+        });
+      },
+      says: "Reminder set: Call the vet, Wed Oct 28, 9:15 am", undone: "Reminder removed: Call the vet",
+      before: (w) => w.__todos["todo.us_notes"].some((t) => t.summary === "Call the vet"),
+      after: (w) => !w.__todos["todo.us_notes"].some((t) => t.summary === "Call the vet"),
+    },
+    {
+      name: "Undo: a note marked done comes back", query: "view=week&week=week&lists=1",
+      act: async (page) => {
+        await page.waitForFunction(() => Object.values(window.__el._eventDetails).some((d) => d.todoUid === "n1"));
+        await page.evaluate(() => {
+          const el = window.__el;
+          el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].todoUid === "n1"));
+          el.shadowRoot.querySelector(".event-info-reminder-done-btn").click();
+        });
+      },
+      says: "Done: SECRET package on the porch", undone: "Back on the board: SECRET package on the porch",
+      before: (w) => w.__todos["todo.us_notes"][0].status === "completed",
+      after: (w) => w.__todos["todo.us_notes"][0].status === "needs_action",
+    },
+    {
+      name: "Undo: a cleared meal comes back", query: "view=week&week=week&lists=1",
+      act: async (page) => {
+        await page.evaluate(() => {
+          const root = window.__el.shadowRoot;
+          [...root.querySelectorAll(".menu-banner")].find((b) => b.textContent.includes("Tacos tonight")).click();
+          root.querySelector(".btn-clear:not(.btn-delete-dish)").click();
+          root.querySelector(".btn-save:not(.settings-save)").click();
+        });
+      },
+      says: "Cleared: Dinner, Tue Oct 27 (Tacos tonight)", undone: "Back on the board: Tacos tonight",
+      before: (w) => !w.__todos["todo.meal_plan"].length,
+      after: (w) => w.__todos["todo.meal_plan"].some((t) => t.summary === "Tacos tonight" && t.due === "2026-10-27" && t.description.includes('"block":2')),
+    },
+  ].map((c) => ({
+    name: c.name, width: 402,
+    run: async (page) => {
+      const dialogs = [];
+      page.on("dialog", (d) => { dialogs.push(d.message()); d.dismiss(); });
+      await settle(page, await open(page, c.query));
+      await c.act(page);
+      await page.waitForFunction(() => { const t = window.__el.shadowRoot.querySelector(".fh-undo-toast.show"); return t && !t.hidden; });
+      await page.waitForTimeout(300); // its slide in
+      const toast = await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        const btn = root.querySelector(".fh-undo-btn");
+        const r = btn.getBoundingClientRect();
+        const hit = root.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const t = root.querySelector(".fh-undo-toast").getBoundingClientRect();
+        const fab = root.querySelector(".add-event-fab").getBoundingClientRect();
+        const clear = t.bottom <= fab.top || t.top >= fab.bottom || t.right <= fab.left || t.left >= fab.right;
+        return { text: root.querySelector(".fh-undo-text").textContent, undo: !btn.hidden, x: r.left + r.width / 2, y: r.top + r.height / 2, onTop: hit === btn, h: r.height, clear };
+      });
+      assert.ok(toast.clear, "it doesn't cover the + button");
+      assert.strictEqual(toast.text, c.says, "says what happened");
+      assert.ok(toast.undo && toast.onTop && toast.h >= 44, `an Undo button on top, at least 44 px: ${JSON.stringify(toast)}`);
+      assert.ok(await page.evaluate(`(${c.before.toString()})(window)`), "it happened");
+      await page.mouse.click(toast.x, toast.y);
+      await page.waitForFunction((want) => window.__el.shadowRoot.querySelector(".fh-undo-text").textContent === want, c.undone);
+      assert.ok(await page.evaluate(`(${c.after.toString()})(window)`), "Undo put it back");
+      assert.ok(await page.evaluate(() => window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden), "no Undo of the undo");
+      assert.deepStrictEqual(dialogs, [], "nothing asked first");
+      return toast.text;
+    },
+  })),
+  {
+    name: "Undo: none where it can't be, and the delete still asks", width: 402,
+    run: async (page) => {
+      const dialogs = [];
+      page.on("dialog", (d) => { dialogs.push(d.message()); d.dismiss(); });
+      await settle(page, await open(page, "view=week&week=agenda"));
+      // Added on Will's (iCloud: add only): an answer, no Undo.
+      await page.evaluate(() => {
+        const root = window.__el.shadowRoot;
+        root.querySelector(".add-fab-calendar").click();
+        root.querySelector(".add-event-calendar-select").value = "calendar.wills_calendar";
+        root.querySelector(".add-event-title").value = "Haircut";
+        root.querySelector(".add-event-allday-btn[data-value='on']").click();
+        root.querySelector(".add-event-date").value = "2026-10-31";
+        root.querySelector(".add-event-save").click();
+      });
+      await page.waitForFunction(() => window.__el.shadowRoot.querySelector(".fh-undo-toast.show"));
+      const added = await page.evaluate(() => ({ text: window.__el.shadowRoot.querySelector(".fh-undo-text").textContent, undo: !window.__el.shadowRoot.querySelector(".fh-undo-btn").hidden }));
+      assert.deepStrictEqual(added, { text: "On the board: Haircut, Sat Oct 31, all day, on Will", undo: false }, "an answer without Undo");
+      // A repeating event: no Undo, so upstream's confirm still asks.
+      await page.evaluate(() => {
+        const el = window.__el;
+        el._openEventInfo(Object.keys(el._eventDetails).find((k) => el._eventDetails[k].summary === "SECRET weekly"));
+      });
+      await page.waitForFunction(() => !window.__el.shadowRoot.querySelector(".event-info-delete-btn").disabled);
+      await page.evaluate(() => window.__el.shadowRoot.querySelector(".event-info-delete-btn").click());
+      await page.waitForTimeout(200);
+      assert.strictEqual(dialogs.length, 1, `asked first: ${dialogs}`);
+      assert.ok(await page.evaluate(() => window.__events["calendar.us"].some((e) => e.uid === "us-weekly")), "cancelled, still there");
+      return "no Undo on Will's; a repeating delete asks";
+    },
+  },
 ];
 
 (async () => {
