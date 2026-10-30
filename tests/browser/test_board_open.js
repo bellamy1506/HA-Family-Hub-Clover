@@ -720,6 +720,32 @@ const CHECKS = [
       return expected.length ? `saved ${expected.join(", ")}` : "saved empty";
     },
   })),
+  // Wave 0, B1: a new event starts on the first column the board can change
+  // and delete later (Us on the house), not the first column (Will, an
+  // iCloud calendar it can only add to). The day still follows the one
+  // picked on the board.
+  ...[
+    ["New event: starts on the first calendar the board can change", "", "calendar.us"],
+    ["New event: the first column when none can be changed", "&editable=none", "calendar.wills_calendar"],
+  ].map(([name, extra, expected]) => ({
+    name, width: 402,
+    run: async (page) => {
+      await settle(page, await open(page, `view=month&month=split${extra}`));
+      const picked = await page.evaluate(() => {
+        const el = window.__el;
+        const d = new Date(); d.setDate(d.getDate() + 5);
+        el._monthSplitSelectedDate = el._dateKey(d);
+        el.shadowRoot.querySelector(".add-fab-calendar").click();
+        const root = el.shadowRoot;
+        return { calendar: root.querySelector(".add-event-calendar-select").value, date: root.querySelector(".add-event-date").value, want: el._monthSplitSelectedDate, open: root.querySelector(".add-event-overlay").classList.contains("open"), alsoFor: [...root.querySelectorAll(".add-event-people-check")].map((c) => c.value) };
+      });
+      assert.ok(picked.open, "the add form is open");
+      assert.strictEqual(picked.calendar, expected, "calendar picked");
+      assert.strictEqual(picked.date, picked.want, "the day picked on the board");
+      assert.ok(!picked.alsoFor.includes(expected), `"Also for" leaves out the picked calendar: ${picked.alsoFor}`);
+      return `${picked.calendar}, ${picked.date}`;
+    },
+  })),
 ];
 
 (async () => {

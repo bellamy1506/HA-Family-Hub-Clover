@@ -16,7 +16,8 @@
      timeline gets 15, 30, 90 and 120 minute events), start=household|week|month
      (this copy's Start view; unset by default), people=1 (the household's
      own Settings > Calendars list holds Will and Us; empty by default, as
-     on the house). Every message the card sends is kept in window.__sent.
+     on the house), editable=none (every calendar add only; by default Us
+     can also be changed and deleted, as on the house). Every message the card sends is kept in window.__sent.
      Themes:
      liquidglassdark (the test's own colors), and the built-in presets
      liquidglass, halight and midnight with their real colors. -->
@@ -64,7 +65,11 @@ const events = {
 if (q.get("lengths")) events["calendar.us"].push(span(0, "SECRET quick call", 11, 0, 30), span(0, "SECRET pills", 11, 30, 15), span(0, "SECRET parent teacher conference at the elementary school", 13, 0, 90), span(0, "SECRET long meeting about the kitchen renovation plans", 14, 0, 120));
 const settings = { blocks: ["Breakfast", "Lunch", "Dinner"], dateBlocks: {}, weekdayBlocks: {}, blockSize: "medium", defaultView: q.get("view") || "month", weekViewVariantShared: "planner", monthViewVariantShared: "split", weekDayCountShared: 7, weekRowsShared: 1, timelineStartHour: 8, timelineEndHour: 21, countdownEnabled: false, countdownItems: [], people: q.get("people") ? [{ entity: "calendar.wills_calendar", name: "Will", color: "#7ec9d9" }, { entity: "calendar.us", name: "Us", color: "#d9bf7e" }] : [], showMealsInMonth: q.get("meals") === "all", agendaShowMeals: q.get("meals") === "all", agendaDays: 7, greyOutPastEvents: q.get("grey") !== "off", bottomPadding: 0, useGlobalTheme: false, globalThemeId: "", memberUserIds: ["u1"], userProfiles: {}, holidayBackgrounds: [] };
 const states = {};
-people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n } }));
+// Calendar abilities as on the house (Home Assistant's supported_features:
+// create 1, delete 2, update 4): Us is fully editable, the iCloud calendars
+// add only. editable=none makes every calendar add only.
+const FEATURES = { "calendar.us": q.get("editable") === "none" ? 1 : 7 };
+people.forEach(([e, n]) => (states[e] = { entity_id: e, state: "off", attributes: { friendly_name: n, supported_features: FEATURES[e] || 1 } }));
 const hass = {
   user: { id: "u1", is_admin: true, name: "Test" }, language: "en", locale: { language: "en" }, themes: { themes: {}, darkMode: false }, states,
   callApi: async (m, path) => {
