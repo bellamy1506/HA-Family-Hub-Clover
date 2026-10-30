@@ -3,7 +3,7 @@
 // first column (Will, an iCloud calendar it can only add to, J008).
 // Run: node tests/test_new_event_calendar.js   (no dependencies)
 //
-// Runs the real _newEventCalendar against stub calendar states, and checks
+// Runs the real _newEventCalendar and _calendarFeatures against stub states, and checks
 // its one-line hook in _openAddEvent. The browser side is the "New event"
 // checks in tests/browser/test_board_open.js.
 const assert = require("assert");
@@ -11,9 +11,11 @@ const assert = require("assert");
 const { methodBody } = require("./lib/card_source");
 
 const pick = new Function("people", methodBody("_newEventCalendar", "people"));
+const calendarFeatures = new Function("entity", methodBody("_calendarFeatures", "entity"));
 const people = ["calendar.wills_calendar", "calendar.home", "calendar.us", "calendar.work"].map((entity) => ({ entity }));
 const card = (features) => ({
   _hass: { states: Object.fromEntries(Object.entries(features).map(([e, f]) => [e, { attributes: { supported_features: f } }])) },
+  _calendarFeatures: calendarFeatures,
 });
 
 // Home Assistant's calendar features: create 1, delete 2, update 4.
@@ -22,7 +24,7 @@ assert.strictEqual(pick.call(card({ "calendar.wills_calendar": 3, "calendar.home
 assert.strictEqual(pick.call(card({ "calendar.home": 6, "calendar.us": 7 }), people), "calendar.home", "the first that can change and delete");
 assert.strictEqual(pick.call(card({ "calendar.wills_calendar": 1, "calendar.us": 1 }), people), "calendar.wills_calendar", "none can: the first column");
 assert.strictEqual(pick.call(card({}), people), "calendar.wills_calendar", "no states yet: the first column");
-assert.strictEqual(pick.call({}, people), "calendar.wills_calendar", "no Home Assistant yet: the first column");
+assert.strictEqual(pick.call({ _calendarFeatures: calendarFeatures }, people), "calendar.wills_calendar", "no Home Assistant yet: the first column");
 assert.strictEqual(pick.call(card({ "calendar.us": "7" }), people), "calendar.us", "a feature number given as text");
 assert.strictEqual(pick.call(card({}), []), "", "no columns: nothing");
 
