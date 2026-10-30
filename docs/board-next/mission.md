@@ -28,7 +28,7 @@ Observable, not aspirational:
 
 - **Capture:** anything can get onto the board in under about 10 seconds from a phone, by voice, or by forwarding the email or photo it arrived in, and a rough entry ("dentist tue 3") is accepted and tidied, not rejected.
 - **Trust:** what's on the board matches the phones within a minute; nothing appears twice, nothing vanishes, and a mistake is one tap to undo.
-- **At rest:** from across the room the board answers *what's now, what's next, is there anything I need to do or bring*, with no touch. Detail waits for someone to come close.
+- **At rest:** with no touch, the board answers *what's now, what's next, is there anything I need to do or bring*. From across the room it has to be structurally clear, not readable: you can see that things are coming up, and roughly when and whose, before you can read them (owner, 2026-10-30). Reading and detail wait for someone to come closer.
 - **No manual:** a first-time user (Jenn, a guest, a house-sitter) can do every common thing without being told how, and finds less-common things at the moment they need them.
 - **Comfort:** using it feels calm and a little warm. Small, earned moments of pleasure, never nagging, never a game.
 - **Floor:** it keeps working through reboots, updates and months of neglect. Each addition costs the owner no recurring attention, or it doesn't ship.
