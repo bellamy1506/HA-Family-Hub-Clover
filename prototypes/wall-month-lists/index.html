@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wall Month and Lists Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "How do Month and Lists look on the wall, and how are they reached?"
+  (HA-Family-Hub-Clover #79). The wall's resting face (layout D with the marks pick E) plus three ways in:
+  A tabs along the bottom, B buttons in the corner, C a rail down the side; each with its own Month and Lists.
+  The bar switches the variant, the screen, the time of day and the distance; the address's #hash holds the
+  state (#a-month-morning-fit), and "shot" anywhere in it draws the wall alone at 1200x800 for screenshots;
+  "kbd" shows the keyboard stand-in, "sel4" picks a day in Month, "from11" opens C's columns at a day,
+  "listCostco" picks a list in B and C. Made-up data only. Nothing here talks to Home Assistant or AnyList.
+-->
+<style>
+/* The page is a plain viewer; the wall is the subject and keeps one fixed light look. */
+:root { --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2;
+  --ui: Roboto, Inter, system-ui, -apple-system, "Segoe UI", sans-serif }
+@media (prefers-color-scheme: dark) { :root { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; color-scheme: dark } }
+html, body { background: var(--page); color: var(--ink); font-family: var(--ui); margin: 0 }
+body { padding: 16px 16px 200px }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700 }
+.intro { margin: 0 0 14px; color: var(--soft); max-width: 80ch; line-height: 1.45 }
+.stage { display: flex; justify-content: center; align-items: flex-start }
+.frame { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(0,0,0,.12) }
+.frame > .face { position: absolute; top: 0; left: 0; transform-origin: 0 0 }
+.about { max-width: 80ch; margin: 14px auto 0; color: var(--soft); line-height: 1.45 }
+.about b { color: var(--ink) }
+
+/* The switcher: not part of the design being judged. */
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: min(860px, calc(100vw - 20px)); box-sizing: border-box;
+  background: var(--bar); color: var(--bar-ink); padding: 8px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35) }
+.switcher .grp { display: flex; align-items: center; gap: 2px; background: rgba(127,127,127,.2); border-radius: 12px; padding: 3px }
+.switcher button { font: 600 14px var(--ui); color: inherit; background: transparent; border: 0; border-radius: 9px; padding: 7px 9px; cursor: pointer; min-height: 36px }
+.switcher button[aria-pressed="true"] { background: var(--bar-ink); color: var(--bar) }
+.switcher .name { min-width: 190px; text-align: center; font: 700 14px var(--ui) }
+.switcher .tag { font: 700 11px var(--ui); letter-spacing: .08em; opacity: .7; align-self: center; padding: 0 4px }
+body.shot { padding: 0; background: #F4F5F2 }
+body.shot h1, body.shot .intro, body.shot .about, body.shot .switcher { display: none }
+body.shot .frame { border-radius: 0; box-shadow: none }
+body.shot .face * { animation: none !important; transition: none !important }
+
+/* ---------- The wall: fixed light look (7:1 text, weights 500+, no thin type) ---------- */
+.face { width: 1200px; height: 800px; box-sizing: border-box; overflow: hidden; background: #F4F5F2; color: #16191B;
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased }
+.face * { box-sizing: border-box }
+:where(.face button) { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: inherit; -webkit-tap-highlight-color: transparent }
+.face .clamp1, .face .clamp2, .face .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden }
+.face .clamp1 { -webkit-line-clamp: 1 } .face .clamp2 { -webkit-line-clamp: 2 } .face .clamp3 { -webkit-line-clamp: 3 }
+.face small.ap { font-size: .5em; font-weight: 600; margin-left: .08em; letter-spacing: .02em }
+.face .wx { display: flex; align-items: center; gap: 12px; font-weight: 700 }
+.face .wx svg { flex: none } .face .lo { color: #464C50; font-weight: 600 }
+.face .needs { display: flex; align-items: center; background: #FFF0C7; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px; padding: 6px 24px; font-weight: 600 }
+
+/* Event rows, the marks pick E: a pale block in the person's color, one green for Us and shared plans. Sizes in em. */
+.face .ev { display: grid; grid-template-columns: .3em minmax(0, 1fr) auto; column-gap: .42em; align-items: start; border-radius: .25em; padding: .03em .3em .05em 0;
+  background: color-mix(in srgb, var(--c) 17%, #F4F5F2); text-align: left; width: 100% }
+.face .ev .barc { align-self: stretch; border-radius: .25em 0 0 .25em; background: var(--c); min-height: 1.9em; margin: -.03em 0 -.05em }
+.face .ev .tm { font-size: .76em; font-weight: 600; color: #464C50; white-space: nowrap; overflow-x: clip; line-height: 1.35 }
+.face .ev .tt { font-weight: 600; line-height: 1.15 }
+.face .ev .ico { width: 1.2em; height: 1.2em; fill: #464C50; margin-top: .05em }
+.face .ev.work, .face .ev.ad { background: color-mix(in srgb, var(--c) 8%, #F4F5F2) }
+.face .ev.ad .barc { min-height: 0 }
+.face .ev.ad .tt { font-size: .8em; margin: .12em 0 }
+.face .ev.ad .ico { width: 1em; height: 1em }
+.face .who { margin-left: .45em; font-weight: 600; color: #464C50 }
+.face .dot { display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: #16191B; margin-right: .32em; vertical-align: .1em }
+.face .clash { width: 1.15em; height: 1.15em; fill: #464C50; margin-left: .35em; vertical-align: -.24em }
+.face .tag { display: inline-block; font-size: .9em; font-weight: 700; background: #DDE1DB; color: #16191B; border-radius: .35em; padding: 0 .4em; margin-right: .4em }
+.face .note { display: flex; align-items: flex-start; gap: .4em; font-weight: 600; line-height: 1.15; text-align: left }
+.face .note .ring { flex: none; width: .82em; height: .82em; border: .11em solid #464C50; border-radius: 50%; margin-top: .14em }
+.face .note .dot { width: .38em; height: .38em; margin: .4em 0 0; flex: none }
+.face .note.done span:not(.ring) { text-decoration: line-through; color: #5A6166 }
+.face .note.done .ring { background: #16191B; border-color: #16191B }
+.face .laterln, .face .more { font-size: .76em; font-weight: 600; color: #464C50; text-align: left }
+
+/* ---------- Layout D, the resting face, as the marks pick retuned it ---------- */
+.D { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 14px; padding: 24px 32px 22px }
+.D .band { display: grid; grid-template-columns: 20px 1fr auto; column-gap: 22px; align-items: start }
+.D .band .barc { border-radius: 10px; align-self: stretch; background: var(--c) }
+.D .band .lab { font-size: 28px; font-weight: 700; color: #464C50 }
+.D .band .line { font-size: 84px; font-weight: 700; line-height: 1.04; letter-spacing: -.01em }
+.D .band .line .t { margin-right: .26em }
+.D .band .side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px }
+.D .clock { font-size: 60px; font-weight: 700; line-height: 1 }
+.D .wx { font-size: 32px; gap: 8px }
+.D .side .date { font-size: 24px; font-weight: 600; color: #464C50 }
+.D .bring { font-size: 24px; font-weight: 600; display: flex; gap: 8px; align-items: center; white-space: nowrap }
+.D .needs { min-height: 58px; font-size: 34px; line-height: 1.15 }
+.D .browse { min-height: 80px; display: flex; align-items: center; gap: 20px; background: #E3E7E1; border-radius: 14px; padding: 0 8px 0 24px; font-size: 30px; font-weight: 700 }
+.D .browse .sp { flex: 1 }
+.D .cols { flex: 1; display: grid; grid-template-columns: 1.45fr 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); min-height: 0 }
+.D .col { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3; font-size: 26px }
+.D .col:first-child { border-left: 0; padding-left: 0; font-size: 28px }
+.D .col .note { font-size: .93em }
+.D .col .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.D .col .dn { font-size: 30px; font-weight: 700 }
+.D .col .hl { font-size: 22px; font-weight: 600; color: #464C50; white-space: nowrap }
+.D .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden }
+.D .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 6px; font-size: 22px; font-weight: 600; line-height: 1.15 }
+.D .dinner .lab { display: block; font-size: 18px; font-weight: 700; color: #464C50 }
+.D .col:first-child .dinner { font-size: 26px }
+
+/* ---------- Shared controls ---------- */
+.btn { height: 80px; min-width: 80px; padding: 0 22px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #B9BFB8;
+  font-size: 22px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #16191B; white-space: nowrap }
+.btn[disabled] { opacity: .35; cursor: default }
+.btn svg { width: 30px; height: 30px; fill: currentColor; flex: none }
+.btn.ar { width: 80px; padding: 0; font-size: 40px; font-weight: 700 }
+.plusb svg { fill: #16191B }
+
+/* A: a tab bar along the bottom edge. */
+.vA { display: flex; flex-direction: column }
+.vA > .main { position: relative; flex: 1; min-height: 0 }
+.vA > .bar { flex: none; height: 84px; display: flex; align-items: stretch; background: #E7EAE5; border-top: 2px solid #D3D7D1; padding: 0 12px 0 16px }
+.bar .tab { display: flex; align-items: center; gap: 12px; padding: 0 26px; font-size: 22px; font-weight: 600; color: #3D4347; min-width: 160px; position: relative }
+.bar .tab svg { width: 30px; height: 30px; fill: currentColor }
+.bar .tab[aria-current] { color: #16191B; font-weight: 700 }
+.bar .tab[aria-current]::before { content: ""; position: absolute; left: 14px; right: 14px; top: -2px; height: 6px; border-radius: 0 0 5px 5px; background: #16191B }
+.bar .sp { flex: 1 }
+.bar .ib { width: 84px; display: grid; place-items: center }
+.bar .ib svg { width: 34px; height: 34px; fill: #3D4347 }
+.bar .plusb { width: 84px; display: grid; place-items: center }
+.bar .plusb span, .rail .plusb span { width: 64px; height: 64px; border-radius: 32px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #3D4347; display: grid; place-items: center }
+.bar .plusb svg, .rail .plusb svg { width: 36px; height: 36px }
+
+/* B: gray buttons in the bottom right corner, beside the +. */
+.vB { position: relative }
+.vB > .main { position: absolute; inset: 0 }
+.corner { position: absolute; right: 24px; bottom: 16px; display: flex; gap: 10px; z-index: 4 }
+.corner .pill { height: 80px; display: flex; align-items: center; gap: 10px; padding: 0 24px 0 20px; border-radius: 40px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #B9BFB8;
+  font-size: 22px; font-weight: 600; color: #3D4347 }
+.corner .pill svg { width: 28px; height: 28px; fill: currentColor }
+.corner .pill[aria-current] { background: #16191B; color: #F4F5F2; box-shadow: none }
+.corner .plusb { width: 80px; height: 80px; border-radius: 40px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #3D4347; display: grid; place-items: center }
+.corner .plusb svg { width: 38px; height: 38px }
+.vB .D .col:nth-child(n+3) { padding-bottom: 96px }
+
+/* C: a rail down the left edge. */
+.vC { display: flex }
+.vC > .rail { flex: none; width: 108px; background: #E7EAE5; border-right: 2px solid #D3D7D1; display: flex; flex-direction: column; align-items: center; padding: 14px 0 12px; gap: 4px }
+.rail .tab { width: 100px; height: 92px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 17px; font-weight: 600; color: #3D4347 }
+.rail .tab .ind { width: 68px; height: 40px; border-radius: 20px; display: grid; place-items: center }
+.rail .tab svg { width: 30px; height: 30px; fill: currentColor }
+.rail .tab[aria-current] { color: #16191B; font-weight: 700 }
+.rail .tab[aria-current] .ind { background: #16191B; color: #F4F5F2 }
+.rail .sp { flex: 1 }
+.rail .ib, .rail .plusb { width: 92px; height: 84px; display: grid; place-items: center }
+.rail .ib svg { width: 34px; height: 34px; fill: #3D4347 }
+.vC > .main { position: relative; flex: 1; min-width: 0 }
+.vC .D { padding-left: 26px; padding-right: 28px }
+
+/* ---------- Month ---------- */
+.MS { height: 100%; display: flex; flex-direction: column; padding: 10px 24px 14px }
+.mh { flex: none; display: flex; align-items: center; gap: 12px; height: 84px; padding-bottom: 4px }
+.mh .t { font-size: 34px; font-weight: 700; margin-right: 8px; white-space: nowrap }
+.key { display: flex; gap: 16px; font-size: 20px; font-weight: 600; color: #3D4347; white-space: nowrap }
+.key span::before { content: ""; display: inline-block; width: 18px; height: 18px; border-radius: 4px; background: var(--k); margin-right: 7px; vertical-align: -2px }
+.key span.kw::before { height: 7px; vertical-align: 3px; background: color-mix(in srgb, var(--k) 45%, #F4F5F2) }
+.mh .sp { flex: 1 }
+.wkd { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); font-size: 19px; font-weight: 700; color: #3D4347; padding: 2px 0 6px }
+.wkd span { padding-left: 8px }
+.grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr));
+  border-top: 2px solid #D5D9D3; border-left: 2px solid #D5D9D3; background: #FBFBF9 }
+.mc { border-right: 2px solid #D5D9D3; border-bottom: 2px solid #D5D9D3; padding: 4px 5px 10px; display: flex; flex-direction: column; gap: 3px; min-height: 0; min-width: 0; overflow: hidden; position: relative }
+.mc.wkend { background: #F1F3EF }
+.mc.past > * { opacity: .45 }
+.mc[aria-selected="true"] { background: #E3E7E1; box-shadow: inset 0 0 0 4px #16191B }
+.mc .top { display: flex; align-items: center; justify-content: space-between; gap: 4px; flex: none }
+.mc .n { font-size: 20px; font-weight: 700; min-width: 30px; height: 28px; border-radius: 14px; display: grid; place-items: center; padding: 0 6px; white-space: nowrap }
+.mc.today .n { background: #16191B; color: #F4F5F2 }
+.mc .w { font-size: 16px; font-weight: 600; color: #3D4347; display: flex; align-items: center; gap: 2px }
+.mc .w svg { width: 20px; height: 20px }
+.mc .items { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; overflow: hidden }
+.mi { flex: none; font-size: 17px; font-weight: 600; line-height: 1.2; padding: 1px 5px 1px 10px; border-radius: 4px; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--c) 17%, #F4F5F2); box-shadow: inset 5px 0 0 var(--c) }
+.mi.ad { background: color-mix(in srgb, var(--c) 9%, #F4F5F2) }
+.mi .dot { width: .42em; height: .42em; margin-right: .3em }
+.mi.one { -webkit-line-clamp: 1; white-space: nowrap; display: block }
+.mc .wk { position: absolute; left: 5px; right: 5px; bottom: 3px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--c) 45%, #F4F5F2) }
+.mc .more { font-size: 15px; font-weight: 600; color: #3D4347; flex: none }
+/* B's grid: bars only, like the phones. */
+.mc .bars { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 5px; padding-top: 4px; overflow: hidden }
+.mb { flex: none; height: 10px; border-radius: 5px; background: var(--c) }
+.mb.ad { height: 13px; background: color-mix(in srgb, var(--c) 35%, #F4F5F2); box-shadow: inset 4px 0 0 var(--c) }
+.mb.dotted { position: relative } .mb.dotted::after { content: ""; position: absolute; right: -2px; top: -4px; width: 12px; height: 12px; border-radius: 6px; background: #16191B; box-shadow: 0 0 0 2px #FBFBF9 }
+
+/* A day: A's panel over the grid, B's pane beside it. */
+.dpanel { position: absolute; top: 0; bottom: 0; width: 500px; background: #FFFFFF; box-shadow: 0 0 0 1px #CDD2CC, 0 10px 40px rgba(0,0,0,.2); z-index: 6;
+  display: flex; flex-direction: column; gap: 12px; padding: 18px 22px 18px 26px; font-size: 26px; animation: slideR 280ms cubic-bezier(.2,.8,.2,1) }
+.dpanel.left { left: 0; animation-name: slideL } .dpanel.right { right: 0 }
+@keyframes slideR { from { transform: translateX(100%) } } @keyframes slideL { from { transform: translateX(-100%) } }
+.dd .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex: none }
+.dd .dt { font-size: 32px; font-weight: 700; line-height: 1.1 }
+.dd .ds { font-size: 22px; font-weight: 600; color: #464C50; display: flex; align-items: center; gap: 8px; margin-top: 4px }
+.dd .ds svg { width: 30px; height: 30px }
+.dd .list { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto }
+.dd .empty { font-size: 24px; font-weight: 600; color: #464C50 }
+.dd .din { flex: none; border-top: 2px solid #D5D9D3; padding-top: 8px; font-size: 24px; font-weight: 600 }
+.dd .din b { display: block; font-size: 18px; color: #464C50 }
+.dd .addday { flex: none; justify-content: flex-start; width: 100% }
+.MS .body { flex: 1; min-height: 0; display: flex; gap: 22px }
+.MS .gw { flex: none; width: 690px; display: flex; flex-direction: column; min-height: 0 }
+.dpane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; font-size: 24px; padding: 4px 0 104px }
+.dpane .dt { font-size: 30px }
+
+/* ---------- Lists ---------- */
+.LS { height: 100%; display: flex; flex-direction: column; padding: 10px 24px 14px }
+.lh { flex: none; display: flex; align-items: center; gap: 12px; height: 84px; padding-bottom: 4px }
+.lh .t { font-size: 34px; font-weight: 700 }
+.lh .sp { flex: 1 }
+.sec { display: flex; flex-direction: column; min-height: 0; min-width: 0 }
+.sec h3 { flex: none; font-size: 26px; font-weight: 700; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.sec h3 .c { font-size: 20px; font-weight: 600; color: #3D4347 }
+.sec h3 .src { font-size: 18px; font-weight: 600; color: #3D4347 }
+.addbox { flex: none; height: 80px; border-radius: 14px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #9EA5A0; display: flex; align-items: center; padding: 0 16px; gap: 10px; font-size: 24px; margin-bottom: 4px }
+.addbox:focus-within { box-shadow: inset 0 0 0 3px #16191B }
+.addbox input { flex: 1; border: 0; outline: 0; font: inherit; font-weight: 600; background: transparent; min-width: 0; color: #16191B; height: 100% }
+.addbox input::placeholder { color: #565D62; font-weight: 500 }
+.addbox svg { width: 30px; height: 30px; fill: #3D4347; flex: none }
+.its { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start }
+.its.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px }
+.li { display: flex; align-items: center; gap: 16px; min-height: 80px; border-bottom: 2px solid #E1E4DF; font-size: 24px; font-weight: 600; width: 100%; padding: 6px 4px; line-height: 1.2 }
+.li .ring { flex: none; width: 34px; height: 34px; border: 3px solid #3D4347; border-radius: 50%; display: grid; place-items: center }
+.li .ring svg { width: 24px; height: 24px; fill: #F4F5F2; display: none }
+.li.done .ring { background: #16191B; border-color: #16191B } .li.done .ring svg { display: block }
+.li.done .tx { text-decoration: line-through; color: #5A6166 }
+.li.fresh { background: #FFF3CC }
+.li .tx { flex: 1; min-width: 0 }
+.li .dot { flex: none; width: 13px; height: 13px; border-radius: 50%; background: #16191B }
+.li.laterrow { color: #3D4347; font-size: 22px }
+.sub { font-size: 19px; font-weight: 700; color: #3D4347; padding: 14px 4px 2px; grid-column: 1 / -1 }
+.empty1 { font-size: 22px; font-weight: 600; color: #464C50; padding: 18px 4px }
+.hj { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 4px; border-bottom: 2px solid #E1E4DF; padding: 10px 4px; font-size: 24px; font-weight: 600 }
+.hj .tx { flex: 1 0 100%; min-width: 0; line-height: 1.2 } .hj .due { flex: 1; font-size: 20px; color: #3D4347 } .hj .due.over { color: #8A4B00 }
+.hj.done .tx { text-decoration: line-through; color: #5A6166 }
+.hj .btn { height: 80px; font-size: 20px; padding: 0 18px }
+.lnote { font-size: 18px; font-weight: 500; color: #3D4347; padding: 8px 4px; line-height: 1.35 }
+/* A: a column per list. */
+.LA { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1fr 1.1fr 1.1fr; gap: 22px }
+/* B: the lists down the left, the chosen one large. */
+.LB { flex: 1; min-height: 0; display: flex; gap: 26px }
+.LB .ix { flex: none; width: 290px; display: flex; flex-direction: column; gap: 6px }
+.ix .grp { font-size: 19px; font-weight: 700; color: #3D4347; padding: 8px 18px 0 }
+.ix .it { height: 80px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 26px; font-weight: 600; background: #FFFFFF; box-shadow: inset 0 0 0 2px #CDD2CC }
+.ix .it .c { font-size: 20px; color: #3D4347 }
+.ix .it[aria-current] { background: #16191B; color: #F4F5F2; box-shadow: none } .ix .it[aria-current] .c { color: #D9DDD7 }
+.LB .sec { flex: 1; padding-bottom: 100px }
+/* C: shopping wide, one AnyList list at a time; notes over house jobs. */
+.LC { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.45fr 1fr; gap: 30px }
+.chips { flex: none; display: flex; gap: 10px; margin-bottom: 10px }
+.chip { height: 80px; border-radius: 40px; padding: 0 26px; display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 600; background: #FFFFFF; box-shadow: inset 0 0 0 2px #CDD2CC }
+.chip .c { font-size: 20px; color: #3D4347 }
+.chip[aria-current] { background: #16191B; color: #F4F5F2; box-shadow: none } .chip[aria-current] .c { color: #D9DDD7 }
+.LC .right { min-height: 0; display: flex; flex-direction: column; gap: 18px }
+.LC .right .sec:first-child { flex: none } .LC .right .sec:last-child { flex: 1 1 auto }
+.LC .right .lnote { display: none }
+
+/* ---------- The echo, the stand-in keyboard ---------- */
+.echo { position: absolute; z-index: 9; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; background: #16191B; color: #F4F5F2;
+  border-radius: 16px; padding: 8px 8px 8px 24px; font-size: 24px; font-weight: 600; width: max-content; max-width: 900px; transition: opacity 180ms, transform 180ms }
+.echo.hide { opacity: 0; transform: translate(-50%, 16px); pointer-events: none }
+.echo .ub { min-height: 64px; padding: 0 22px; border-radius: 12px; background: #F4F5F2; color: #16191B; font-weight: 700 }
+.echo .txt { padding: 12px 0; line-height: 1.25 }
+.vA .echo { bottom: 104px } .vB .echo { left: 40% }
+.kbd { position: absolute; left: 0; right: 0; bottom: 0; height: 330px; background: #D6DAD5; z-index: 12; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; box-shadow: 0 -2px 0 #BFC4BE }
+.kbd .r { display: flex; gap: 8px; flex: 1 }
+.kbd .k { flex: 1; background: #FAFAF8; border-radius: 8px; display: grid; place-items: center; font-size: 26px; color: #16191B; font-weight: 500; box-shadow: 0 2px 0 #B5BAB4; user-select: none }
+.kbd .k.w2 { flex: 2 } .kbd .k.w6 { flex: 6 } .kbd .k.dk { background: #C3C8C2 }
+.kbd .cap { position: absolute; right: 14px; top: -34px; font-size: 16px; font-weight: 700; color: #F4F5F2; background: #5A6166; padding: 4px 10px; border-radius: 8px }
+.vC .kbd { left: 0 }
+</style>
+
+<h1>Wall: Month and Lists</h1>
+<p class="intro">The wall's resting face with three ways to reach Month and Lists, each with its own Month and Lists. Made-up household. Everything inside the wall can be tapped: the controls, days in Month, list items (they tick off, with Undo), the add boxes (a stand-in keyboard comes up; its keys type). Left alone for a minute, Month and Lists go back to the resting face.</p>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<p class="about" id="about"></p>
+
+<nav class="switcher" aria-label="Prototype controls">
+  <span class="tag">PROTOTYPE</span>
+  <div class="grp"><button id="prev" aria-label="Previous">&#8249;</button><span class="name" id="vname"></span><button id="next" aria-label="Next">&#8250;</button></div>
+  <div class="grp" id="screens"></div>
+  <div class="grp" id="times"></div>
+  <div class="grp" id="dists"></div>
+</nav>
+
+<script>
+// ---------- icons (MDI-style shapes drawn for this page) ----------
+const MDI = {
+  'paw': 'M8.35,3C9.53,2.83 10.78,4.12 11.14,5.9C11.5,7.67 10.85,9.25 9.67,9.43C8.5,9.61 7.24,8.32 6.87,6.54C6.5,4.77 7.17,3.19 8.35,3M15.5,3C16.69,3.19 17.35,4.77 17,6.54C16.62,8.32 15.37,9.61 14.19,9.43C13,9.25 12.35,7.67 12.72,5.9C13.08,4.12 14.33,2.83 15.5,3M3,7.6C4.14,7.11 5.69,8 6.5,9.55C7.26,11.13 7,12.79 5.87,13.28C4.74,13.77 3.2,12.89 2.41,11.32C1.62,9.75 1.9,8.08 3,7.6M21,7.6C22.1,8.08 22.38,9.75 21.59,11.32C20.8,12.89 19.26,13.77 18.13,13.28C17,12.79 16.74,11.13 17.5,9.55C18.31,8 19.86,7.11 21,7.6M19.33,18.38C19.37,19.32 18.65,20.36 17.79,20.75C16,21.57 13.88,19.87 11.89,19.87C9.9,19.87 7.76,21.64 6,20.75C5,20.26 4.31,18.96 4.44,17.88C4.62,16.39 6.41,15.59 7.47,14.5C8.88,13.09 9.88,10.44 11.89,10.44C13.89,10.44 14.95,13.05 16.3,14.5C17.41,15.72 19.26,16.75 19.33,18.38Z',
+  'tooth': 'M7,2C4,2 2,5 2,8C2,10.11 3,13 4,14C5,15 6,22 8,22C12.54,22 10,15 12,15C14,15 11.46,22 16,22C18,22 19,15 20,14C21,13 22,10.11 22,8C22,5 20,2 17,2C14,2 14,3 12,3C10,3 10,2 7,2Z',
+  'trash-can': 'M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M9,8H11V17H9V8M13,8H15V17H13V8Z',
+  'content-cut': 'M19,3L13,9L15,11L22,4V3M12,12.5A0.5,0.5 0 0,1 11.5,12A0.5,0.5 0 0,1 12,11.5A0.5,0.5 0 0,1 12.5,12A0.5,0.5 0 0,1 12,12.5M6,20A2,2 0 0,1 4,18C4,16.89 4.9,16 6,16A2,2 0 0,1 8,18C8,19.11 7.1,20 6,20M6,8A2,2 0 0,1 4,6C4,4.89 4.9,4 6,4A2,2 0 0,1 8,6C8,7.11 7.1,8 6,8M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 2,6A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64Z',
+  'cake-variant': 'M12,6C13.11,6 14,5.1 14,4C14,3.62 13.9,3.27 13.71,2.97L12,0L10.29,2.97C10.1,3.27 10,3.62 10,4A2,2 0 0,0 12,6M16.6,16L15.53,14.92L14.45,16C13.15,17.29 10.87,17.3 9.56,16L8.5,14.92L7.4,16C6.75,16.64 5.88,17 4.96,17C4.23,17 3.56,16.77 3,16.39V21A1,1 0 0,0 4,22H20A1,1 0 0,0 21,21V16.39C20.44,16.77 19.77,17 19.04,17C18.12,17 17.25,16.64 16.6,16M18,9H13V7H11V9H6A3,3 0 0,0 3,12V13.54C3,14.62 3.88,15.5 4.96,15.5C5.5,15.5 6,15.3 6.34,14.93L8.5,12.8L10.61,14.93C11.35,15.67 12.64,15.67 13.38,14.93L15.5,12.8L17.65,14.93C18,15.3 18.5,15.5 19.03,15.5C20.11,15.5 21,14.62 21,13.54V12A3,3 0 0,0 18,9Z',
+  'car-wrench': 'M20.96 16.45C20.97 16.3 21 16.15 21 16V16.5L20.96 16.45M11 16C11 16.71 11.15 17.39 11.42 18H6V19C6 19.55 5.55 20 5 20H4C3.45 20 3 19.55 3 19V11L5.08 5C5.28 4.42 5.84 4 6.5 4H17.5C18.16 4 18.72 4.42 18.92 5L21 11V16C21 13.24 18.76 11 16 11S11 13.24 11 16M8 13.5C8 12.670 7.33 12 6.5 12S5 12.67 5 13.5 5.67 15 6.5 15 8 14.33 8 13.5M19 10L17.5 5.5H6.5L5 10H19M22.87 21.19L18.76 17.08C19.17 16.04 18.94 14.82 18.08 13.97C17.18 13.06 15.83 12.88 14.74 13.38L16.68 15.32L15.33 16.68L13.34 14.73C12.8 15.82 13.05 17.17 13.930 18.08C14.79 18.94 16 19.16 17.05 18.76L21.16 22.86C21.34 23.05 21.61 23.05 21.79 22.86L22.83 21.83C23.05 21.65 23.05 21.33 22.87 21.19Z',
+  'set-center': 'M9,5A7,7 0 0,0 2,12A7,7 0 0,0 9,19C10.04,19 11.06,18.76 12,18.32C12.94,18.76 13.96,19 15,19A7,7 0 0,0 22,12A7,7 0 0,0 15,5C13.96,5 12.94,5.24 12,5.68C11.06,5.24 10.04,5 9,5M9,7C9.34,7 9.67,7.03 10,7.1C8.72,8.41 8,10.170 8,12C8,13.83 8.72,15.59 10,16.89C9.67,16.96 9.34,17 9,17A5,5 0 0,1 4,12A5,5 0 0,1 9,7M15,7A5,5 0 0,1 20,12A5,5 0 0,1 15,17C14.66,17 14.33,16.97 14,16.9C15.28,15.59 16,13.83 16,12C16,10.17 15.28,8.41 14,7.11C14.33,7.04 14.66,7 15,7Z',
+};
+const svg = (name, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${MDI[name]}"/></svg>`;
+const UI = {
+  upcoming: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v5H3zm0 7h5v9H3zm6.5 0h5v9h-5zM16 11h5v9h-5z"/></svg>',
+  month: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zm-2 7v10h14V9zm2 2h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm-8 4h2v2H7zm4 0h2v2h-2z"/></svg>',
+  lists: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8z"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a7.6 7.6 0 0 1 1.9 1.1l2.5-.9 1.7 2.9-2 1.7a7.6 7.6 0 0 1 0 2.2l2 1.7-1.7 2.9-2.5-.9a7.6 7.6 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a7.6 7.6 0 0 1-1.9-1.1l-2.5.9-1.7-2.9 2-1.7a7.6 7.6 0 0 1 0-2.2l-2-1.7 1.7-2.9 2.5.9a7.6 7.6 0 0 1 1.9-1.1zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+};
+const WXI = {
+  sun: '<circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g>',
+  cloud: '<circle cx="16" cy="12" r="7" fill="#E69F00"/><path d="M14 38h22a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-1 18z" fill="#8A949A"/>',
+  rain: '<path d="M13 30h23a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-2 18z" fill="#6E7A82"/><g stroke="#0072B2" stroke-width="3.5" stroke-linecap="round"><path d="M16 35l-3 7M26 35l-3 7M36 35l-3 7"/></g>',
+};
+const wxIcon = (k, px) => `<svg width="${px}" height="${px}" viewBox="0 0 48 48" aria-hidden="true">${WXI[k]}</svg>`;
+
+// ---------- made-up household: Friday, October 30 is "today" ----------
+const dateOf = i => new Date(2026, 9, 30 + i, 12);
+const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MO = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const dShort = i => { const d = dateOf(i); return `${WD[d.getDay()].slice(0, 3)}, ${MO[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+const dFull = i => { const d = dateOf(i); return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`; };
+const hm = (h, m = 0) => h * 60 + m;
+const COL = { will: '#005A8C', jenn: '#D55E00', us: '#007A5A', both: '#007A5A' };
+const NAMES = { will: 'Will', jenn: 'Jenn', us: 'Us', both: 'Will, Jenn' };
+const cv = p => `--c:${COL[p]}`;
+let nid = 0; const EV = [];
+const add = (d, p, s, e, t, x = {}) => EV.push({ id: ++nid, d, p, s, e, t, ...x });
+const allDay = (d, p, t, x = {}) => EV.push({ id: ++nid, d, p, allDay: true, t, ...x });
+for (let i = -5; i <= 41; i++) {   // routine: Will's work (a work calendar), Jenn's shifts, the gym, trash night
+  const wd = dateOf(i).getDay(), holiday = i === 27 || i === 28;   // Thanksgiving and the day after
+  if (wd >= 1 && wd <= 5 && !holiday) add(i, 'will', hm(8, 30), hm(16, 30), 'At work', { work: true });
+  if ([1, 3, 5].includes(wd) && !holiday) add(i, 'jenn', hm(7), hm(15, 30), 'Work shift');
+  if ([1, 4].includes(wd) && !holiday) add(i, 'will', hm(6, 15), hm(7, 15), 'Gym');
+  if (wd === 0) add(i, 'us', hm(19, 30), hm(19, 45), 'Trash night: bins to the curb');
+}
+add(-5, 'us', hm(13), hm(15), 'Brunch with the neighbors'); add(-3, 'jenn', hm(18), hm(19), 'Yoga');
+add(-2, 'will', hm(17, 30), hm(18), 'Pick up prescription'); add(-1, 'us', hm(18, 30), hm(20), 'Pumpkin carving');
+add(0, 'will', hm(17, 15), hm(17, 45), 'Pick up dry cleaning and drop off the library books');
+add(0, 'jenn', hm(16, 45), hm(17, 45), 'Yoga'); add(0, 'us', hm(19, 30), hm(20, 15), 'Plan holiday travel');
+allDay(1, 'us', 'Halloween: candy bowl by the door'); add(1, 'will', hm(9), hm(10), 'Oil change');
+add(1, 'jenn', hm(17, 30), hm(18, 30), 'Haircut', { isNew: true });
+add(1, 'us', hm(19), hm(21, 30), 'Date night: dinner and a movie', { clash: true }); add(1, 'jenn', hm(19), hm(21), 'Dinner with friends', { clash: true });
+allDay(2, 'us', 'Clocks fall back an hour'); add(2, 'both', hm(12, 30), hm(14), 'Lunch at the Parkers\'');
+allDay(3, 'jenn', 'Mom\'s birthday'); add(3, 'will', hm(12), hm(12, 30), 'Package pickup at the post office', { isNew: true });
+add(4, 'jenn', hm(10), hm(10, 45), 'Team call'); add(4, 'will', hm(15), hm(16), 'Dentist'); add(4, 'us', hm(17), hm(17, 45), 'Vet: both cats, checkup and shots', { isNew: true });
+add(5, 'jenn', hm(18, 30), hm(20), 'Book club', { isNew: true }); add(6, 'us', hm(8), hm(10), 'Furnace tune-up');
+add(7, 'both', hm(19), hm(22), 'Game night at Sam and Alex\'s'); add(8, 'jenn', hm(9), hm(11), 'Farmers market'); add(8, 'us', hm(13), hm(15), 'Rake the leaves');
+add(11, 'will', hm(12), hm(13), 'Lunch with Dan'); allDay(12, 'us', 'Veterans Day'); add(14, 'jenn', hm(16), hm(17), 'Dentist');
+add(15, 'will', hm(10), hm(11), 'Car inspection'); add(20, 'us', hm(18), hm(19, 30), 'Neighborhood meeting');
+allDay(22, 'us', 'Trip to Pittsburgh'); allDay(23, 'us', 'Trip to Pittsburgh'); allDay(27, 'us', 'Thanksgiving at Mom\'s');
+add(31, 'jenn', hm(18), hm(19), 'Yoga'); add(33, 'us', hm(17), hm(19), 'Holiday lights downtown');
+const WX = { 0: ['rain', 61, 44], 1: ['rain', 55, 40], 2: ['sun', 58, 39], 3: ['cloud', 63, 45], 4: ['sun', 60, 42], 5: ['cloud', 57, 41], 6: ['rain', 52, 38], 7: ['sun', 54, 36], 8: ['sun', 56, 37], 9: ['cloud', 53, 39] };
+const MEALS = { 0: { dinner: 'Salmon, rice and green beans' }, 1: { dinner: 'Out for date night' }, 2: { dinner: 'Pizza night' }, 3: { breakfast: 'Pancakes', dinner: 'Lasagna' },
+  4: { dinner: 'Tacos' }, 5: { dinner: 'Chicken soup' }, 6: { dinner: 'Leftovers' } };
+const SEED = () => ({
+  Groceries: ['Milk', 'Eggs', 'Coffee beans', 'Cat litter', 'Bananas', 'Sparkling water', 'Bread', 'Shredded cheese', 'Spinach', 'Chicken thighs', 'Tortillas'].map(t => ({ t })),
+  Costco: ['Paper towels', 'Cat food', 'Olive oil', 'Laundry detergent'].map(t => ({ t })),
+  'Notes.today': [{ t: 'Package on the porch', isNew: true }, { t: 'Call about the gutter quote' }],
+  'Notes.d2': [{ t: 'Change the smoke alarm batteries' }],
+  'Notes.later': [{ t: 'Return the blue sweater' }, { t: 'Look into new couch cushions' }, { t: 'Schedule the piano tuning' }],
+  House: [{ t: 'Furnace filter: check it', due: 'Due today' }, { t: 'Gutters: clear the leaves', due: '2 days overdue', over: true }],
+});
+const SHOPPING = ['Groceries', 'Costco'];   // the household's chosen AnyList lists, in AnyList's order
+const TIMES = {
+  morning: { label: '7:40 am', now: hm(7, 40), needs: 'Furnace filter: check it today', bring: 'Rain from 2 pm' },
+  afternoon: { label: '3:10 pm', now: hm(15, 10), needs: null, bring: 'Rain until 9 pm' },
+  evening: { label: '8:50 pm', now: hm(20, 50), needs: 'Tomorrow 7:00: Date night (Us) overlaps Jenn\'s Dinner with friends', bring: null },
+};
+const DISTS = { fit: { label: 'Fit' }, '9ft': { label: '9 ft', w: Math.round(11.9 * 14 / 108 * 153) } };
+const SCREENS = { rest: { label: 'Resting face' }, month: { label: 'Month' }, lists: { label: 'Lists' } };
+
+const VARIANTS = {
+  a: { name: 'A · Tabs along the bottom',
+    about: '<b>A. Tabs along the bottom, like the phones.</b> A bar across the bottom edge: Upcoming, Month and Lists, the same three words as the phones\' tabs, with the settings gear and the + at its right end. The resting face gives up the bar\'s height (about a row per day). <b>Month</b> fills the screen: each day\'s events as colored blocks with short titles, work as a thin strip; tap a day and it opens in a panel beside it. <b>Lists</b> shows every list at once, a column each, with an add box at the top of each.' },
+  b: { name: 'B · Buttons in the corner',
+    about: '<b>B. Buttons in the corner.</b> The resting face keeps its full height; two gray buttons, Month and Lists, sit beside the + in the bottom right corner, and the last two days give up their bottom row to them. Month and Lists open full screen with Close at the top right, the gear beside it. <b>Month</b> draws bars only, like the phones, with the chosen day listed beside the grid. <b>Lists</b> shows one list at a time, large, picked from a column on the left.' },
+  c: { name: 'C · A rail down the side',
+    about: '<b>C. A rail down the side.</b> A column of buttons down the left edge, the way many tablet apps are laid out: Upcoming, Month and Lists at the top, the + and the gear at the bottom. The resting face gives up the rail\'s width. <b>Month</b> is A\'s grid, but tapping a day opens the usual four day columns starting from that day. <b>Lists</b> gives shopping the most room, one AnyList list at a time, with notes over house jobs beside it.' },
+};
+
+// ---------- helpers ----------
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const tm = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}<small class="ap">${h < 12 ? 'am' : 'pm'}</small>`; };
+const tmShort = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}`; };
+const WORDS = [[/\b(vet)\b/i, 'paw'], [/\b(dentist)\b/i, 'tooth'], [/\b(trash)\b/i, 'trash-can'], [/\b(birthday)\b/i, 'cake-variant'], [/\bhaircut\b/i, 'content-cut'], [/\b(oil change|car inspection)\b/i, 'car-wrench']];
+const icon = t => { const hit = WORDS.find(([re]) => re.test(t)); return hit ? svg(hit[1], 'ico') : ''; };
+const shortT = t => t.split(/:\s/)[0];
+function day(i) {
+  const d = dateOf(i), evs = EV.filter(e => e.d === i);
+  return { i, name: WD[d.getDay()], short: WD[d.getDay()].slice(0, 3), mdate: `${MO[d.getMonth()].slice(0, 3)} ${d.getDate()}`, num: d.getDate(), wx: WX[i],
+    allDay: evs.filter(e => e.allDay), events: evs.filter(e => !e.allDay).sort((x, y) => x.s - y.s), meals: MEALS[i] || {} };
+}
+const notesOn = i => i === 2 ? L['Notes.d2'].map((n, k) => ({ ...n, sec: 'Notes.d2', k })) : [];
+
+// ---------- the resting face (layout D, marks E) ----------
+function row(e, now, keep) {
+  const when = now ? `<span class="tag">Now</span>until ${tmShort(e.e)}` : e.work ? `${tmShort(e.s)} to ${tmShort(e.e)}` : tm(e.s);
+  return `<button class="ev${e.work ? ' work' : ''}"${keep ? ' data-keep' : ''} data-ev="${e.id}" style="${cv(e.p)}"><span class="barc"></span>
+    <div><div class="tm">${e.isNew ? '<span class="dot"></span>' : ''}${when}<span class="who">${NAMES[e.p]}</span>${e.clash ? svg('set-center', 'clash') : ''}</div>
+    <div class="tt clamp2">${esc(e.t)}</div></div>${icon(e.t)}</button>`;
+}
+const adRow = a => `<button class="ev ad" data-keep data-ev="${a.id}" style="${cv(a.p)}"><span class="barc"></span><div class="tt clamp2">${esc(a.t)}</div>${icon(a.t)}</button>`;
+const noteRow = n => `<button class="note${n.done ? ' done' : ''}" data-tick="${n.sec}:${n.k}"><span class="ring"></span><span class="clamp2">${esc(n.t)}</span>${n.isNew ? '<span class="dot"></span>' : ''}</button>`;
+const mealsOf = d => [...(d.meals.breakfast ? [['Breakfast', d.meals.breakfast]] : []), ...(d.meals.lunch ? [['Lunch', d.meals.lunch]] : []),
+  ...(d.meals.dinner || d.i <= 6 ? [['Dinner', d.meals.dinner || 'Not planned']] : [])];
+
+function moment() {
+  const T = TIMES[S.t], now = T.now, d0 = day(0);
+  const nowEv = d0.events.filter(e => e.s <= now && now < e.e), ahead = d0.events.filter(e => e.s > now);
+  const tf = !ahead.length && !nowEv.length && now >= hm(18);
+  const fday = day(tf ? 1 : 0), fahead = tf ? fday.events.slice() : ahead;
+  return { T, now, today: d0, nowEv: tf ? [] : nowEv, focus: tf ? 1 : 0, fday, next: fahead[0], later: fahead.slice(1), tf };
+}
+function restHTML() {
+  const M = moment(), n = M.next, browsing = S.from != null, start = browsing ? S.from : M.focus;
+  const lab = n ? `${M.tf ? `Tomorrow, ${M.fday.name}` : 'Next'} · ${NAMES[n.p]}` : '';
+  const band = `<div class="band" style="${n ? cv(n.p) : '--c:transparent'}"><span class="barc"></span>
+    <div>${n ? `<div class="lab">${lab}</div><div class="line" data-shrink="64"><span class="clamp3"><span class="t">${tm(n.s)}</span>${esc(n.t)}</span></div>` : '<div class="line">Nothing else today</div>'}</div>
+    <div class="side"><div class="clock">${tm(M.now)}</div><div class="date">${M.today.short}, ${M.today.mdate}</div><div class="wx">${wxIcon(M.today.wx[0], 36)}<span>${M.today.wx[1]}°</span><span class="lo">${M.today.wx[2]}°</span></div>${M.T.bring ? `<div class="bring">${wxIcon('rain', 28)}${esc(M.T.bring)}</div>` : ''}</div></div>`;
+  const todayNotes = L['Notes.today'].map((x, k) => ({ ...x, sec: 'Notes.today', k }));
+  const cols = [0, 1, 2, 3].map(k => {
+    const d = day(start + k), first = k === 0, isFocus = !browsing && first;
+    const notes = [...(isFocus ? todayNotes : []), ...notesOn(d.i)].map(noteRow).join('') + (isFocus && L['Notes.later'].length ? `<button class="laterln" data-later>Later (${L['Notes.later'].length}) ›</button>` : '');
+    const rows = isFocus ? [...M.nowEv.map(e => row(e, true)), ...M.later.map(e => row(e, false, M.T.needs && e.clash))] : d.events.map(e => row(e));
+    const ms = mealsOf(d).map(([lbl, v]) => `<div class="dinner"><span class="lab">${lbl}</span><span class="clamp2">${esc(v)}</span></div>`).join('');
+    const title = isFocus ? (M.tf ? 'Tomorrow' : 'Today') : (d.i === 0 ? 'Today' : `${d.short} ${d.num}`);
+    return `<div class="col"><div class="hd"><span class="dn">${title}</span><span class="hl">${d.wx ? `${d.wx[1]}° ${d.wx[2]}°` : ''}</span></div>
+      ${notes}<div class="list" data-fit>${d.allDay.map(adRow).join('')}${rows.join('') || (first ? '<div class="more">Nothing on the calendar</div>' : '')}</div>${ms}</div>`;
+  }).join('');
+  const strip = browsing ? `<div class="browse"><span>${dShort(S.from)} to ${dShort(S.from + 3)}</span><span class="sp"></span><button class="btn" data-act="today">Back to today</button></div>`
+    : M.T.needs ? `<div class="needs"><span class="clamp2">${esc(M.T.needs)}</span></div>` : '';
+  return `<div class="D">${band}${strip}<div class="cols">${cols}</div></div>`;
+}
+
+// ---------- Month ----------
+const keyHTML = () => `<span class="key"><span style="--k:${COL.will}">Will</span><span style="--k:${COL.jenn}">Jenn</span><span style="--k:${COL.us}">Us</span><span class="kw" style="--k:${COL.will}">Work</span></span>`;
+function monthHead(extra) {
+  const first = -dateOf(0).getDay() + S.mpage * 35, m1 = dateOf(first).getMonth(), m2 = dateOf(first + 34).getMonth();
+  const label = m1 === m2 ? MO[m1] : `${MO[m1]} – ${MO[m2]}`;
+  return `<div class="mh"><span class="t">${label}</span>${keyHTML()}<span class="sp"></span>
+    <button class="btn" data-mtoday ${S.mpage === 0 ? 'disabled' : ''}>Today</button>
+    <button class="btn ar" data-mpage="-1" aria-label="Earlier weeks" ${S.mpage <= 0 ? 'disabled' : ''}>‹</button><button class="btn ar" data-mpage="1" aria-label="Later weeks">›</button>${extra || ''}</div>`;
+}
+const closeGear = () => `<button class="btn ar" data-gear aria-label="Settings" style="font-size:22px">${UI.gear}</button><button class="btn" data-go="rest">${UI.close}Close</button>`;
+function cells(kind, sel) {
+  const first = -dateOf(0).getDay() + S.mpage * 35;
+  return Array.from({ length: 35 }, (_, k) => {
+    const i = first + k, d = dateOf(i), dd = day(i), work = dd.events.filter(e => e.work);
+    const items = [...dd.allDay, ...dd.events.filter(e => !e.work)];
+    const num = d.getDate() === 1 ? `${MO[d.getMonth()].slice(0, 3)} 1` : d.getDate();
+    const cls = `mc${i < 0 ? ' past' : ''}${i === 0 ? ' today' : ''}${[0, 6].includes(d.getDay()) ? ' wkend' : ''}`;
+    const w = kind === 'words' && dd.wx ? `<span class="w">${wxIcon(dd.wx[0], 22)}${dd.wx[1]}°</span>` : '';
+    const body = kind === 'words'
+      ? `<div class="items" data-fit>${items.map(e => `<div class="mi${e.allDay ? ' ad' : ''}" style="${cv(e.p)}">${e.isNew ? '<span class="dot"></span>' : ''}<span class="tx">${esc(shortT(e.t))}</span></div>`).join('')}</div>`
+      : `<div class="bars" data-fit>${items.map(e => `<i class="mb${e.allDay ? ' ad' : ''}${e.isNew ? ' dotted' : ''}" style="${cv(e.p)}"></i>`).join('')}</div>`;
+    return `<button class="${cls}" data-cell="${i}" aria-selected="${i === sel}" aria-label="${dFull(i)}"><span class="top"><span class="n">${num}</span>${w}</span>${body}${work.map(e => `<span class="wk" style="${cv(e.p)}"></span>`).join('')}</button>`;
+  }).join('');
+}
+const WKD = `<div class="wkd">${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(x => `<span>${x}</span>`).join('')}</div>`;
+function dayDetail(i, opts = {}) {
+  const d = day(i), when = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.name;
+  const sub = `${i <= 1 ? `${d.name}, ` : ''}${MO[dateOf(i).getMonth()]} ${d.num}`;
+  const rows = [...d.allDay.map(adRow), ...notesOn(i).map(noteRow), ...d.events.map(e => row(e))].join('');
+  const din = d.meals.dinner ? `<div class="din"><b>Dinner</b>${esc(d.meals.dinner)}</div>` : '';
+  return `<div class="hd"><div><div class="dt">${when}</div><div class="ds">${sub}${d.wx ? ` · ${wxIcon(d.wx[0], 30)}${d.wx[1]}° ${d.wx[2]}°` : ''}</div></div>${opts.close ? `<button class="btn" data-dclose>${UI.close}Close</button>` : ''}</div>
+    <div class="list">${rows || '<div class="empty">Nothing on the calendar.</div>'}</div>${din}
+    <button class="btn addday" data-plus="${i}">${UI.plus}Add to ${i === 0 ? 'today' : i === 1 ? 'tomorrow' : dShort(i)}</button>`;
+}
+function monthHTML() {
+  if (S.v === 'b') {
+    const sel = S.sel ?? 0;
+    return `<div class="MS">${monthHead(closeGear())}<div class="body"><div class="gw">${WKD}<div class="grid">${cells('bars', sel)}</div></div>
+      <div class="dpane dd">${dayDetail(sel)}</div></div></div>`;
+  }
+  const panel = S.v === 'a' && S.sel != null ? (() => {
+    const col = (S.sel + dateOf(0).getDay()) % 7, side = col >= 4 ? 'left' : 'right';
+    return `<div class="dpanel dd ${side}" data-panel>${dayDetail(S.sel, { close: true })}</div>`;
+  })() : '';
+  return `<div class="MS">${monthHead()}${WKD}<div class="grid">${cells('words', S.v === 'a' ? S.sel : null)}</div></div>${panel}`;
+}
+
+// ---------- Lists ----------
+const L = SEED();
+const ring = `<span class="ring">${UI.check}</span>`;
+const itemRow = (sec, x, k) => `<button class="li${x.done ? ' done' : ''}${x.fresh ? ' fresh' : ''}" data-tick="${sec}:${k}">${ring}<span class="tx">${esc(x.t)}</span>${x.isNew ? '<span class="dot" aria-label="new"></span>' : ''}</button>`;
+const addBox = (sec, ph) => `<form class="addbox" data-add="${sec}">${UI.plus}<input name="t" placeholder="${ph}" autocomplete="off" enterkeyhint="done"></form>`;
+const shopSec = (name, cls = '') => `<div class="sec">
+    <h3>${name} <span class="c">${L[name].filter(x => !x.done).length} · AnyList</span></h3>${addBox(name, `Add to ${name}`)}
+    <div class="its ${cls}">${L[name].map((x, k) => itemRow(name, x, k)).join('') || '<div class="empty1">Nothing on it.</div>'}</div></div>`;
+function notesItems() {
+  // Later folds into one row, as on the face and the phones, and opens in place.
+  const g = [['Notes.today', 'Today'], ['Notes.d2', 'Sun, Nov 1']].filter(([s]) => L[s].length);
+  const later = L['Notes.later'].length ? (S.laterOpen ? `<div class="sub">Later</div>${L['Notes.later'].map((x, k) => itemRow('Notes.later', x, k)).join('')}`
+    : `<button class="li laterrow" data-lateropen><span class="tx">Later (${L['Notes.later'].length}) ›</span></button>`) : '';
+  return g.map(([s, lbl]) => `<div class="sub">${lbl}</div>${L[s].map((x, k) => itemRow(s, x, k)).join('')}`).join('') + later || '<div class="empty1">No notes.</div>';
+}
+const notesCount = () => ['Notes.today', 'Notes.d2', 'Notes.later'].reduce((a, s) => a + L[s].filter(x => !x.done).length, 0);
+const notesSec = () => `<div class="sec"><h3>Notes <span class="c">${notesCount()}</span></h3>${addBox('Notes.today', 'Add a note')}<div class="its">${notesItems()}</div></div>`;
+const houseItems = () => L.House.map((x, k) => `<div class="hj${x.done ? ' done' : ''}"><span class="tx">${esc(x.t)}</span><span class="due${x.over ? ' over' : ''}">${x.done ? 'Done' : x.due}</span>${x.done ? '' : `<button class="btn" data-hdone="${k}">Mark done</button>`}</div>`).join('') || '<div class="empty1">Nothing due.</div>';
+const houseSec = () => `<div class="sec"><h3>House <span class="c">${L.House.filter(x => !x.done).length} due</span></h3><div class="its">${houseItems()}
+  <div class="lnote">House jobs come from the house records; to add one, tell the house assistant.</div></div></div>`;
+function listsHTML() {
+  if (S.v === 'a') return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LA">${SHOPPING.map(n => shopSec(n)).join('')}${notesSec()}${houseSec()}</div></div>`;
+  if (S.v === 'b') {
+    const cur = S.list || 'Groceries', ixr = (k, lbl, c) => `<button class="it" data-list="${k}" ${k === cur ? 'aria-current="true"' : ''}><span>${lbl}</span><span class="c">${c}</span></button>`;
+    const body = SHOPPING.includes(cur) ? shopSec(cur, 'two') : cur === 'Notes' ? notesSec() : houseSec();
+    return `<div class="LS"><div class="lh"><span class="t">Lists</span><span class="sp"></span>${closeGear()}</div><div class="LB"><div class="ix">
+      <div class="grp">Shopping</div>${SHOPPING.map(n => ixr(n, n, L[n].filter(x => !x.done).length)).join('')}
+      <div class="grp"></div>${ixr('Notes', 'Notes', notesCount())}${ixr('House', 'House jobs', `${L.House.filter(x => !x.done).length} due`)}</div>${body}</div></div>`;
+  }
+  const cur = SHOPPING.includes(S.list) ? S.list : 'Groceries';
+  return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LC"><div class="sec">
+      <h3>Shopping <span class="src">from AnyList</span></h3>
+      <div class="chips">${SHOPPING.map(n => `<button class="chip" data-list="${n}" ${n === cur ? 'aria-current="true"' : ''}>${n} <span class="c">${L[n].filter(x => !x.done).length}</span></button>`).join('')}</div>
+      ${addBox(cur, `Add to ${cur}`)}<div class="its two">${L[cur].map((x, k) => itemRow(cur, x, k)).join('') || '<div class="empty1">Nothing on it.</div>'}</div></div>
+    <div class="right">${houseSec()}${notesSec()}</div></div></div>`;
+}
+
+// ---------- the ways in ----------
+function barHTML() {
+  const t = (k, lbl) => `<button class="tab" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ''}>${UI[k === 'rest' ? 'upcoming' : k]}${lbl}</button>`;
+  return `<nav class="bar">${t('rest', 'Upcoming')}${t('month', 'Month')}${t('lists', 'Lists')}<span class="sp"></span>
+    <button class="ib" data-gear aria-label="Settings">${UI.gear}</button><button class="plusb" data-plus aria-label="Add"><span>${UI.plus}</span></button></nav>`;
+}
+function cornerHTML() {
+  const p = (k, lbl) => `<button class="pill" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ''}>${UI[k]}${lbl}</button>`;
+  return `<nav class="corner">${p('month', 'Month')}${p('lists', 'Lists')}<button class="plusb" data-plus aria-label="Add">${UI.plus}</button></nav>`;
+}
+function railHTML() {
+  const t = (k, lbl, ic) => `<button class="tab" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ''}><span class="ind">${UI[ic]}</span>${lbl}</button>`;
+  return `<nav class="rail">${t('rest', 'Upcoming', 'upcoming')}${t('month', 'Month', 'month')}${t('lists', 'Lists', 'lists')}<span class="sp"></span>
+    <button class="plusb" data-plus aria-label="Add"><span>${UI.plus}</span></button><button class="ib" data-gear aria-label="Settings">${UI.gear}</button></nav>`;
+}
+const KBD = `<div class="kbd" data-kbd><span class="cap">Stand-in for the tablet's keyboard</span>
+  ${['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].map((r, n) => `<div class="r">${n === 2 ? '<span class="k w2 dk">⇧</span>' : ''}${[...r].map(c => `<span class="k" data-key="${c}">${c}</span>`).join('')}${n === 0 ? '<span class="k w2 dk" data-key="⌫">⌫</span>' : n === 1 ? '<span class="k w2 dk" data-key="⏎">Enter</span>' : '<span class="k w2 dk">⇧</span>'}</div>`).join('')}
+  <div class="r"><span class="k w2 dk">?123</span><span class="k">,</span><span class="k w6" data-key=" ">space</span><span class="k">.</span><span class="k w2 dk" data-key="⌄">⌄ Hide</span></div></div>`;
+
+// ---------- fitting: never cut a row in half; short titles end on a whole word ----------
+function fit(root) {
+  for (const el of root.querySelectorAll('[data-shrink]')) {
+    const inner = el.firstElementChild, start = parseFloat(getComputedStyle(el).fontSize);
+    let size = start; const lines = () => inner.clientHeight / (size * 1.04), set = v => { size = v; el.style.fontSize = `${v}px`; };
+    while (lines() > 1.5 && size > 76) set(size - 4);
+    if (lines() > 1.5) { set(start); while (lines() > 2.5 && size > +el.dataset.shrink) set(size - 4); }
+  }
+  // Month titles: two lines when the day has room, else one; either way they end on a whole word.
+  const trim = mi => { const tx = mi.querySelector('.tx'), words = (tx.dataset.full ||= tx.textContent).split(' '); tx.textContent = words.join(' ');
+    const over = () => mi.classList.contains('one') ? mi.scrollWidth > mi.clientWidth + 1 : mi.scrollHeight > mi.clientHeight + 1;
+    while (over() && words.length > 1) { words.pop(); while (words.length > 1 && /^(at|to|the|and|with|of|for|a|an|on)$/i.test(words[words.length - 1])) words.pop(); tx.textContent = words.join(' ').replace(/[,:']$/, '') + '…'; } };
+  for (const box of root.querySelectorAll('.mc .items')) {
+    const items = [...box.children];
+    items.forEach(trim);
+    for (let k = items.length - 1; k >= 0 && box.scrollHeight > box.clientHeight + 1; k--) { items[k].classList.add('one'); trim(items[k]); }
+  }
+  for (const box of root.querySelectorAll('[data-fit]')) {
+    const rows = [...box.children].filter(el => (el.matches('.ev, .mi, .mb')) && !el.hasAttribute('data-keep'));
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1 && rows.length) {
+      rows.pop().remove(); hidden++;
+      if (!more.isConnected) box.appendChild(more);
+      more.textContent = `+${hidden} more`;
+    }
+  }
+}
+
+// ---------- state, echo, idle return ----------
+const S = { laterOpen: false, v: 'a', screen: 'rest', t: 'morning', d: 'fit', shot: false, kbd: false, sel: null, mpage: 0, list: null, from: null, echo: null };
+let echoTimer, idleTimer;
+function paintEcho() {
+  const el = document.getElementById('echo'); if (!el) return;
+  if (!S.echo) { el.classList.add('hide'); return; }
+  el.innerHTML = `<span class="txt">${S.echo.text}</span>${S.echo.undo ? '<button class="ub" data-undo>Undo</button>' : ''}`;
+  el.classList.remove('hide');
+}
+function say(text, undo) {
+  S.echo = { text, undo }; paintEcho(); clearTimeout(echoTimer);
+  echoTimer = setTimeout(() => { S.echo = null; paintEcho(); }, undo ? 10000 : 5000);
+}
+function poke() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (S.screen !== 'rest' || S.from != null) { Object.assign(S, { screen: 'rest', from: null, sel: null, kbd: false }); render(); } }, 60000);
+}
+function tick(sec, k) {
+  const arr = L[sec], x = arr && arr[k]; if (!x || x.done) return;
+  x.done = true; render();
+  say(`Ticked off “${esc(x.t)}”${sec.startsWith('Notes') ? '' : ` on ${sec}`}`, () => { x.done = false; if (!arr.includes(x)) arr.splice(Math.min(k, arr.length), 0, x); render(); });
+  setTimeout(() => { const j = arr.indexOf(x); if (x.done && j >= 0) { arr.splice(j, 1); render(); } }, 2500);
+}
+function houseDone(k) {
+  const x = L.House[k]; if (!x || x.done) return;
+  x.done = true; render();
+  say(`Marked done: ${esc(x.t)}`, () => { x.done = false; if (!L.House.includes(x)) L.House.splice(Math.min(k, L.House.length), 0, x); render(); });
+  setTimeout(() => { const j = L.House.indexOf(x); if (x.done && j >= 0) { L.House.splice(j, 1); render(); } }, 2500);
+}
+function addItem(sec, t) {
+  t = t.trim(); if (!t) return;
+  const x = { t, fresh: true }; L[sec].unshift(x);
+  render(); refocus(sec);
+  say(`Added “${esc(t)}” to ${sec.startsWith('Notes') ? 'today\'s notes' : sec}`, () => { const j = L[sec].indexOf(x); if (j >= 0) L[sec].splice(j, 1); render(); });
+  setTimeout(() => { x.fresh = false; const el = document.querySelector('.li.fresh'); if (el) el.classList.remove('fresh'); }, 2500);
+}
+function refocus(sec) { const inp = document.querySelector(`form[data-add="${sec}"] input`); if (inp) { inp.focus(); S.kbd = true; showKbd(); } }
+function showKbd() { const face = document.getElementById('face'); if (!face) return; let k = face.querySelector('[data-kbd]'); if (S.kbd && !k) face.insertAdjacentHTML('beforeend', KBD); if (!S.kbd && k) k.remove(); }
+
+// ---------- viewer ----------
+function readHash() {
+  const parts = (location.hash || '').replace('#', '').split('-');
+  Object.assign(S, { v: 'a', screen: 'rest', t: 'morning', d: 'fit', kbd: false, sel: null, list: null, from: null });
+  for (const p of parts) {
+    if (VARIANTS[p]) S.v = p; else if (SCREENS[p]) S.screen = p; else if (TIMES[p]) S.t = p; else if (DISTS[p]) S.d = p;
+    else if (p === 'kbd') S.kbd = true; else if (/^sel\d+$/.test(p)) S.sel = +p.slice(3); else if (/^from\d+$/.test(p)) S.from = +p.slice(4);
+    else if (p.startsWith('list')) S.list = p.slice(4);
+  }
+  S.shot = parts.includes('shot');
+}
+function writeHash() { const h = `#${S.v}-${S.screen}-${S.t}-${S.d}`; if (location.hash !== h) history.replaceState(null, '', h); }
+function layout() {
+  const frame = document.getElementById('frame'), face = frame.firstElementChild;
+  let w = 1200; if (!S.shot) w = S.d === 'fit' ? Math.min(1200, document.documentElement.clientWidth - 32) : DISTS[S.d].w;
+  const s = w / 1200;
+  frame.style.width = `${Math.round(1200 * s)}px`; frame.style.height = `${Math.round(800 * s)}px`; face.style.transform = `scale(${s})`;
+}
+function render() {
+  const frame = document.getElementById('frame');
+  const fa = document.activeElement && document.activeElement.closest && document.activeElement.closest('form[data-add]');
+  const keep = fa && { sec: fa.dataset.add, v: fa.querySelector('input').value };
+  const main = `<div class="main">${S.screen === 'month' ? monthHTML() : S.screen === 'lists' ? listsHTML() : restHTML()}</div>`;
+  const shell = S.v === 'a' ? main + barHTML() : S.v === 'b' ? main + cornerHTML() : railHTML() + main;
+  frame.innerHTML = `<div class="face v${S.v.toUpperCase()}" id="face">${shell}<div class="echo hide" id="echo"></div></div>`;
+  showKbd(); paintEcho();
+  document.getElementById('vname').textContent = VARIANTS[S.v].name;
+  document.getElementById('about').innerHTML = VARIANTS[S.v].about;
+  for (const [id, key] of [['screens', 'screen'], ['times', 't'], ['dists', 'd']])
+    for (const b of document.querySelectorAll(`#${id} button`)) b.setAttribute('aria-pressed', b.dataset.k === S[key]);
+  document.body.classList.toggle('shot', S.shot);
+  if (!S.shot) writeHash();
+  layout(); fit(frame);
+  if (keep) { const inp = document.querySelector(`form[data-add="${keep.sec}"] input`); if (inp) { inp.value = keep.v; inp.focus(); S.kbd = true; showKbd(); } }
+}
+
+// One listener for every tap inside the wall.
+document.getElementById('frame').addEventListener('click', e => {
+  const t = e.target, q = s => t.closest(s);
+  poke();
+  if (q('[data-kbd]')) return;
+  if (q('[data-undo]')) { const u = S.echo && S.echo.undo; S.echo = null; clearTimeout(echoTimer); if (u) u(); paintEcho(); return; }
+  // A's day panel: a tap outside it only closes it.
+  if (S.v === 'a' && S.screen === 'month' && S.sel != null && q('.MS')) { S.sel = null; render(); return; }
+  let b;
+  if ((b = q('[data-go]'))) { S.screen = b.dataset.go; S.sel = null; S.from = null; S.kbd = false; S.laterOpen = false; render(); return; }
+  if ((b = q('[data-cell]'))) {
+    const i = +b.dataset.cell;
+    if (S.v === 'c') { S.from = i; S.screen = 'rest'; } else S.sel = i;
+    render(); return;
+  }
+  if (q('[data-dclose]')) { S.sel = null; render(); return; }
+  if ((b = q('[data-mpage]'))) { S.mpage = Math.max(0, S.mpage + +b.dataset.mpage); S.sel = null; render(); return; }
+  if (q('[data-mtoday]')) { S.mpage = 0; S.sel = S.v === 'b' ? 0 : null; render(); return; }
+  if (q('[data-act="today"]')) { S.from = null; render(); return; }
+  if (q('[data-later]')) { S.screen = 'lists'; S.list = 'Notes'; S.laterOpen = true; render(); return; }
+  if (q('[data-lateropen]')) { S.laterOpen = true; render(); return; }
+  if ((b = q('[data-list]'))) { S.list = b.dataset.list; S.kbd = false; render(); return; }
+  if ((b = q('[data-tick]'))) { const [sec, k] = b.dataset.tick.split(':'); tick(sec, +k); return; }
+  if ((b = q('[data-hdone]'))) { houseDone(+b.dataset.hdone); return; }
+  if ((b = q('[data-plus]'))) { say('Adding opens here: its own question on the map, not drawn in this prototype.'); return; }
+  if (q('[data-gear]')) { say('Settings open here: their own question on the map, not drawn in this prototype.'); return; }
+  if (q('[data-ev]')) { say('The event\'s sheet opens here, as decided (a live panel beside it); not drawn in this prototype.'); return; }
+});
+document.getElementById('frame').addEventListener('submit', e => { e.preventDefault(); const f = e.target.closest('form[data-add]'); const inp = f.querySelector('input'); const v = inp.value; inp.value = ''; addItem(f.dataset.add, v); });
+document.getElementById('frame').addEventListener('focusin', e => { if (e.target.matches('.addbox input')) { S.kbd = true; showKbd(); } });
+document.getElementById('frame').addEventListener('focusout', e => { if (e.target.matches('.addbox input')) setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('.addbox input')) { S.kbd = false; showKbd(); } }, 0); });
+// The stand-in keyboard's keys type into the focused add box.
+document.getElementById('frame').addEventListener('pointerdown', e => {
+  poke();
+  const k = e.target.closest('[data-key]'); if (!k) { if (e.target.closest('[data-kbd]')) e.preventDefault(); return; }
+  e.preventDefault();
+  const inp = document.activeElement; if (!inp || !inp.matches('.addbox input')) return;
+  const key = k.dataset.key;
+  if (key === '⌫') inp.value = inp.value.slice(0, -1);
+  else if (key === '⏎') inp.form.requestSubmit();
+  else if (key === '⌄') inp.blur();
+  else inp.value += inp.value === '' ? key.toUpperCase() : key;
+});
+function buttons(id, obj, key) {
+  const box = document.getElementById(id);
+  box.innerHTML = Object.entries(obj).map(([k, o]) => `<button data-k="${k}" aria-pressed="false">${o.label}</button>`).join('');
+  box.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { S[key] = b.dataset.k; if (key === 'screen') { S.sel = null; S.from = null; } render(); poke(); } });
+}
+const keys = Object.keys(VARIANTS);
+const step = n => { S.v = keys[(keys.indexOf(S.v) + n + keys.length) % keys.length]; S.sel = null; S.from = null; render(); };
+buttons('screens', SCREENS, 'screen'); buttons('times', TIMES, 't'); buttons('dists', DISTS, 'd');
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
+});
+window.addEventListener('resize', layout);
+window.addEventListener('hashchange', () => { readHash(); render(); });
+readHash(); render(); poke();
+if (document.fonts) document.fonts.ready.then(render);
+</script>
+</html>
