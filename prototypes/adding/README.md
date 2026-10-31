@@ -17,7 +17,7 @@ Pictures: `round1-a.png` to `round1-d.png` as reviewed, `final-a.png` to `final-
 ## What every way shares (technical and basic calls; the owner can veto)
 
 **Getting there**
-- **Wall:** a round + at the bottom right of the resting face, and tapping any day's column or name. The + joins Month and Lists wherever [How do Month and Lists look on the wall, and how are they reached?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/79) puts them; this prototype doesn't place those.
+- **Wall:** tapping any day's column or name. *(Corrected 2026-10-31: the prototype also drew a round + at the bottom right; [How do Month and Lists look on the wall, and how are they reached?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/79#issuecomment-6548787708) removed it, since adding starts where the thing lands, and put Tell Clover, a spoken line for anything, on the wall's rail.)*
 - **Phones:** the + at the bottom right ([decided](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/50#issuecomment-6543417361)); it adds to the day picked in the strip, if one is. Each day's heading in the list has a small + too (C's at first; every way's since the pick).
 - A tapped or picked day is the default, said in a chip ("Adding to Mon, Nov 2, unless you say another day"); a day in the line wins.
 
@@ -99,7 +99,7 @@ Two blind reviewers (Sonnet, high effort) drove the page in a browser without se
 So adding works like this:
 - **A's flow and echo, everywhere.** One line goes to Clover, which files it at once; the new thing lights up where it landed (a phone scrolls to it); the echo says what landed where, the weekday and date, and what was guessed, with the one-tap fix ("Make it 6:00 am"), Change and Undo, for 10 seconds. On the wall the echo sits at the top, on a phone at the bottom. Nothing is ever asked.
 - **Tap the day, like a whiteboard.** On the wall, tapping a day (its name, which carries a small +, or any empty part of its column) adds to that day; on a phone, each day's heading in the list has a small +, besides the + at the bottom right. The tapped day is the default, said in a chip; a day said in the line wins.
-- **On the wall you speak; on a phone you type.** On the wall, + or a day listens for the line instead of opening a keyboard; the words go to Clover as a typed line does, and the echo is the same. Typing stays at the wall only as a fallback. Phones keep the typed box (the iPhone keyboard's own dictation key works there too). How the wall can hear is [How can the wall tablet hear a spoken line when someone taps + or a day?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/83): the board is served to the wall over plain http, and browsers give a page the microphone only over https.
+- **On the wall you speak; on a phone you type.** On the wall, tapping a day listens for the line instead of opening a keyboard (one tap, then speak, is non-negotiable, owner); the words go to Clover as a typed line does, and the echo is the same. Typing stays at the wall only as a fallback. Phones keep the typed box (the iPhone keyboard's own dictation key works there too). It works as the wall is served today: [the research](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/83#issuecomment-6548719340) and [a test on the wall](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/85#issuecomment-6550433680) had the plain-http board page listen through the browser's own speech recognition inside Fully, which needs Fully's microphone switch on.
 
 What was put to the owner, kept for the record:
 
@@ -114,6 +114,6 @@ What was put to the owner, kept for the record:
 
 **Calls made with the pick (technical and basic; the owner can veto):**
 - **The listening state at the wall** follows A's box: a panel at the top, "Listening… say it the way you'd say it", the words showing as they're heard, stopping by itself after a pause (or on Done), then "Clover is filing it…" and the echo. "Type instead" opens the keyboard. A day tapped shows its chip there too. The research may change how it listens, not what it shows.
-- **The + beside each day** on the wall is a small gray cue; the whole day is the target, as before. Calm at rest: four small marks, no labels.
+- **The + beside each day** on the wall is a small gray cue; the whole day is the target, as before. Calm at rest: four small marks, no labels. Wall controls follow the map's later rule (close-up detail: 56 px buttons, 80 px only for ticks and Undo), not this prototype's 64 to 84 px.
 - **Whose an add is** stays as decided: everything added goes to Us ([Where do shared events live?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/41)); names said stay in the title. Both blind reviewers distrusted "Added Dentist to Us" for one person's appointment; it's noted on the map in case the owner wants to reopen it.
 
