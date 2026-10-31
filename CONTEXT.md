@@ -51,8 +51,12 @@ Anything getting onto the board, from wherever it came up: voice, a phone, a sha
 _Avoid_: input, entry, data entry
 
 **Echo**:
-Clover's answer after a capture: what landed, where, and what was guessed, with a way to undo it.
+Clover's answer after a capture or a change: what landed or changed, where, and what was guessed, with a way to undo it.
 _Avoid_: confirmation, toast, receipt
+
+**Event sheet**:
+The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), Delete from the calendar, and Hide from the board last. It saves when it closes, and the echo offers Undo (owner, 2026-10-31).
+_Avoid_: popup, modal, dialog, edit form, details
 
 **Copy**:
 One browser storage at one address, belonging to whoever last signed in on it; what Family Hub's code calls a "device". One phone can hold several (the owner's iPhone has one for home and one for Home Assistant Cloud), and a user's view settings and theme follow them between their copies, while each copy keeps its own name.

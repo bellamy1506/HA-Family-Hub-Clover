@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Event Sheet Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "What does an event's sheet look like for changing and
+  deleting?" (HA-Family-Hub-Clover #45). Three event sheets over a stand-in board: the
+  resting face (layout D) on the 1200x800 wall tablet, and a plain day list at 390x844 for
+  an iPhone. Switch with the bar or the address's #hash: #<variant>-<device>-<scenario>,
+  e.g. #a-wall-move or #c-phone-delete; add -shot to draw the screen alone at real size.
+  Owner's pick (2026-10-31): A, the live panel with arrows; the page opens on it.
+  Made-up data only. Nothing is saved anywhere: "Saved" lines under the screen show what
+  the board would write to the calendar, and when.
+-->
+<style>
+:root { --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2;
+  --ui: Roboto, Inter, system-ui, -apple-system, "Segoe UI", sans-serif }
+@media (prefers-color-scheme: dark) { :root { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; color-scheme: dark } }
+html, body { background: var(--page); color: var(--ink); font-family: var(--ui); margin: 0 }
+body { padding: 14px max(14px, env(safe-area-inset-right, 0px)) 210px max(14px, env(safe-area-inset-left, 0px)) }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700 }
+.intro { margin: 0 0 10px; color: var(--soft); max-width: 72ch; line-height: 1.45 }
+.task { max-width: 72ch; margin: 0 auto 10px; padding: 10px 14px; border-radius: 12px; background: #FFF0C7; color: #16191B; font-weight: 500; line-height: 1.4 }
+.task:empty { display: none }
+.stage { display: flex; justify-content: center }
+.frame { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(0,0,0,.12); flex: none }
+.frame > .face { position: absolute; top: 0; left: 0; transform-origin: 0 0 }
+.meta { max-width: 72ch; margin: 10px auto 0; color: var(--soft); font-size: 14px; line-height: 1.5 }
+.meta b { color: var(--ink) }
+.meta ol { margin: 4px 0 0; padding-left: 20px }
+.about { max-width: 72ch; margin: 10px auto 0; color: var(--soft); line-height: 1.45 }
+.about b { color: var(--ink) }
+
+/* The switcher: not part of the design being judged. */
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: min(820px, calc(100vw - 20px)); box-sizing: border-box;
+  background: var(--bar); color: var(--bar-ink); padding: 8px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35) }
+.switcher .grp { display: flex; align-items: center; gap: 3px; background: rgba(127,127,127,.2); border-radius: 12px; padding: 3px }
+.switcher button, .switcher select { font: 600 14px var(--ui); color: inherit; background: transparent; border: 0; border-radius: 9px; padding: 7px 10px; cursor: pointer; min-height: 36px }
+.switcher select { max-width: 250px }
+.switcher select option { color: #16191B; background: #fff }
+.switcher button[aria-pressed="true"] { background: var(--bar-ink); color: var(--bar) }
+.switcher button:disabled { opacity: .35; cursor: default }
+.switcher .name { min-width: 168px; text-align: center; font: 700 14px var(--ui) }
+body.shot { padding: 0; background: #F4F5F2 }
+body.shot h1, body.shot .intro, body.shot .about, body.shot .switcher, body.shot .meta, body.shot .task { display: none }
+body.shot .frame { border-radius: 0; box-shadow: none }
+
+/* ================= The screen: a fixed light look, as on the resting face ================= */
+.face { position: relative; overflow: hidden; box-sizing: border-box; background: #F4F5F2; color: #16191B;
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none }
+.face * { box-sizing: border-box }
+.face.wall { width: 1200px; height: 800px }
+.face.phone { width: 390px; height: 844px }
+.face button { font-family: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation }
+.face input { font-family: inherit; user-select: text; -webkit-user-select: text }
+.face .clamp1, .face .clamp2 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden }
+.face .clamp1 { -webkit-line-clamp: 1 } .face .clamp2 { -webkit-line-clamp: 2 }
+.face small.ap { font-size: .62em; font-weight: 500; margin-left: .06em }
+.face .who { font-size: .8em; font-weight: 500; color: #464C50; margin-left: .4em; white-space: nowrap }
+.face .pip { display: inline-block; width: .55em; height: .55em; border-radius: 50%; background: var(--c); vertical-align: .06em; margin-right: .3em }
+.face .newdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #16191B; margin-left: 8px; vertical-align: .15em }
+.face .ovl { display: inline-block; vertical-align: -.12em; margin-left: 6px }
+
+/* ----- wall board: layout D, slightly calmer, as the backdrop ----- */
+.wb { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; padding: 24px 32px 22px }
+.wb .band { display: grid; grid-template-columns: 14px 1fr auto; column-gap: 20px; align-items: start; border: 0; background: none; text-align: left; padding: 0 }
+.wb .band .barc { background: var(--c); border-radius: 7px; align-self: stretch }
+.wb .band .lab { font-size: 26px; font-weight: 700; color: #464C50 }
+.wb .band .line { font-size: 68px; font-weight: 700; line-height: 1.04 }
+.wb .band .line .tm { margin-right: .24em }
+.wb .side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px }
+.wb .clock { font-size: 52px; font-weight: 700; line-height: 1 }
+.wb .date { font-size: 26px; font-weight: 500; color: #464C50 }
+.wb .needs { display: flex; align-items: center; gap: 14px; background: #FFF0C7; border: 0; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px;
+  padding: 8px 20px; font-size: 32px; font-weight: 500; line-height: 1.15; text-align: left; min-height: 62px }
+.wb .cols { flex: 1; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); min-height: 0 }
+.wb .col { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3 }
+.wb .col:first-child { border-left: 0; padding-left: 0 }
+.wb .col .dn { font-size: 30px; font-weight: 700 }
+.wb .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: hidden }
+.wb .ev { display: grid; grid-template-columns: 9px 1fr; column-gap: 12px; border: 0; background: none; text-align: left; padding: 4px 6px 4px 0; border-radius: 10px;
+  transition: transform 200ms ease-out, opacity 200ms ease-out }
+.wb .ev.sel { background: #E2E7E0; box-shadow: 0 0 0 3px #16191B inset }
+.wb .ev.flash, .pb .ev.flash { background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00 inset }
+.wb .more { font-size: 20px; font-weight: 500; color: #464C50; padding: 2px 0 }
+.wb .ev .barc { background: var(--c); border-radius: 5px }
+.wb .ev.block .barc { background: repeating-linear-gradient(135deg, var(--c) 0 6px, color-mix(in srgb, var(--c) 45%, #F4F5F2) 6px 12px) }
+.wb .ev .tm { font-size: 21px; font-weight: 500; color: #464C50 }
+.wb .ev .tt { font-size: 26px; font-weight: 500; line-height: 1.15 }
+.wb .col:first-child .ev .tm { font-size: 24px } .wb .col:first-child .ev .tt { font-size: 31px }
+.wb .allday { display: block; width: 100%; text-align: left; border: 0; background: color-mix(in srgb, var(--c) 18%, #F4F5F2); border-left: 8px solid var(--c);
+  border-radius: 4px 10px 10px 4px; padding: 4px 10px; font-size: 21px; font-weight: 500 }
+.wb .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 6px; font-size: 24px; font-weight: 500; line-height: 1.15 }
+.wb .dinner .lab { display: block; font-size: 18px; font-weight: 700; color: #464C50 }
+.wb .guestmark { position: absolute; left: 32px; bottom: 4px; font-size: 18px; font-weight: 700; color: #464C50 }
+
+/* ----- phone stand-in: a plain day list (the phones' own design is another ticket) ----- */
+.pb { position: absolute; inset: 0; overflow-y: auto; padding: 54px 16px 120px; -webkit-overflow-scrolling: touch }
+.pb .hdr { font-size: 28px; font-weight: 700; margin: 0 0 2px }
+.pb .sub { font-size: 15px; color: #464C50; margin: 0 0 10px }
+.pb .needs { display: block; width: 100%; text-align: left; background: #FFF0C7; border: 0; border-left: 8px solid #E69F00; border-radius: 4px 10px 10px 4px; padding: 8px 12px; font-size: 16px; font-weight: 500; line-height: 1.3; margin: 0 0 8px }
+.pb .day { font-size: 17px; font-weight: 700; margin: 16px 0 6px; color: #16191B }
+.pb .day span { font-weight: 500; color: #464C50 }
+.pb .ev { display: grid; grid-template-columns: 6px 66px 1fr; column-gap: 10px; width: 100%; border: 0; background: #fff; border-radius: 12px; padding: 10px 12px 10px 0; text-align: left;
+  margin: 0 0 6px; box-shadow: 0 0 0 1px #E1E5DF; align-items: start; min-height: 48px; transition: transform 200ms ease-out }
+.pb .ev.sel { box-shadow: 0 0 0 3px #16191B }
+.pb .ev .barc { background: var(--c); border-radius: 0 3px 3px 0; align-self: stretch }
+.pb .ev.block .barc { background: repeating-linear-gradient(135deg, var(--c) 0 4px, color-mix(in srgb, var(--c) 45%, #fff) 4px 8px) }
+.pb .ev .tm { font-size: 15px; font-weight: 500; color: #464C50; padding-top: 2px }
+.pb .ev .tt { font-size: 17px; font-weight: 500; line-height: 1.25 }
+.pb .allday { display: block; width: 100%; text-align: left; border: 0; background: color-mix(in srgb, var(--c) 18%, #F4F5F2); border-left: 6px solid var(--c); border-radius: 4px 10px 10px 4px; padding: 7px 10px; font-size: 16px; font-weight: 500; margin: 0 0 6px; min-height: 40px }
+.pb .empty { font-size: 15px; color: #464C50; margin: 0 0 6px }
+.pb .standin { position: absolute; top: 14px; left: 16px; right: 16px; font-size: 12px; color: #6A7175 }
+
+/* ================= Shared sheet pieces ================= */
+.sheet { position: absolute; z-index: 5; background: #FFFFFF; color: #16191B; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.06);
+  transition: transform 280ms cubic-bezier(.2,.8,.2,1), opacity 280ms cubic-bezier(.2,.8,.2,1) }
+.sheet.leaving { transition-duration: 200ms; transition-timing-function: cubic-bezier(.4,0,1,1) }
+.scrim { position: absolute; inset: 0; z-index: 4; background: rgba(22,25,27,.38); opacity: 0; transition: opacity 280ms ease-out }
+.scrim.on { opacity: 1 }
+.sheet .body { flex: 1; overflow-y: auto; min-height: 0 }
+.face .btn { border: 0; border-radius: 14px; background: #ECEFEA; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: .4em; text-align: center }
+.face .btn:active { background: #DCE1DA }
+.face .btn.dark { background: #16191B; color: #F4F5F2 }
+.face .btn.dark:active { background: #2C3236 }
+.face .btn.danger { background: #FBE9E5; color: #A3260F }
+.face .btn.plain { background: none; color: #464C50; text-decoration: underline; text-underline-offset: .2em; font-weight: 400 }
+.face .btn.on { background: #16191B; color: #F4F5F2 }
+.face .ro { background: #EEF1F4; border-radius: 14px; color: #2A3034; line-height: 1.35 }
+.face .ro b { font-weight: 700 }
+.face .clashln { display: flex; gap: .5em; align-items: flex-start; border: 0; background: #FFF6DD; border-radius: 12px; text-align: left; line-height: 1.3; width: 100% }
+.face .addedln { color: #5A6064; line-height: 1.3 }
+.face .ask { background: #FFF6DD; border-radius: 14px; display: flex; flex-direction: column }
+.face .ask .q { font-weight: 500; line-height: 1.3 }
+.face .ask .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.face .ask .opts .btn { flex-direction: column; gap: 0; line-height: 1.2 }
+.face .ask .opts .btn small { font-weight: 400; font-size: .78em; color: inherit; opacity: .8 }
+.face .sw { display: inline-block; position: relative; border-radius: 999px; background: #C9CFC7; transition: background 150ms }
+.face .sw::after { content: ""; position: absolute; top: 3px; left: 3px; border-radius: 50%; background: #fff; transition: transform 150ms; box-shadow: 0 1px 3px rgba(0,0,0,.25) }
+.face .sw.on { background: #16191B }
+
+/* grids (shared by all three sheets) */
+.grid .gh { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.grid .gt { font-weight: 700 }
+.grid .cells { display: grid; gap: 8px }
+.grid .cell { border: 0; border-radius: 12px; background: #ECEFEA; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1 }
+.grid .cell small { font-weight: 400; color: #464C50; font-size: .7em }
+.grid .cell.cur { box-shadow: 0 0 0 3px #16191B inset }
+.grid .cell.pick { background: #16191B; color: #F4F5F2 }
+.grid .cell.pick small { color: #C9CED1 }
+.grid .cell:disabled { opacity: .35 }
+
+/* wall sizing: targets about 2 cm (80 px) for standing use */
+.face.wall { --tap: 80px }
+.face.wall .btn { min-height: var(--tap); font-size: 28px; padding: 0 22px }
+.face.wall .ro { padding: 18px 22px; font-size: 26px }
+.face.wall .clashln { padding: 14px 18px; font-size: 24px }
+.face.wall .addedln { font-size: 21px }
+.face.wall .ask { padding: 16px; gap: 12px } .face.wall .ask .q { font-size: 26px }
+.face.wall .sw { width: 76px; height: 44px } .face.wall .sw::after { width: 38px; height: 38px } .face.wall .sw.on::after { transform: translateX(32px) }
+.face.wall .grid .gt { font-size: 28px }
+.face.wall .grid .cell { min-height: 76px; font-size: 26px }
+/* phone sizing: 44 pt minimum */
+.face.phone { --tap: 50px }
+.face.phone .btn { min-height: var(--tap); font-size: 17px; padding: 0 14px }
+.face.phone .ro { padding: 12px 14px; font-size: 16px }
+.face.phone .clashln { padding: 10px 12px; font-size: 15px }
+.face.phone .addedln { font-size: 14px }
+.face.phone .ask { padding: 12px; gap: 10px } .face.phone .ask .q { font-size: 16px }
+.face.phone .sw { width: 52px; height: 32px } .face.phone .sw::after { width: 26px; height: 26px } .face.phone .sw.on::after { transform: translateX(20px) }
+.face.phone .grid .gt { font-size: 17px }
+.face.phone .grid .cell { min-height: 50px; font-size: 16px }
+
+/* ================= A: live side panel (arrows) ================= */
+.sheet.A.wall { top: 0; bottom: 0; right: 0; width: 500px; border-radius: 22px 0 0 22px }
+.sheet.A.wall.left { right: auto; left: 0; border-radius: 0 22px 22px 0 }
+.sheet.A.wall.hide { transform: translateX(104%) } .sheet.A.wall.left.hide { transform: translateX(-104%) }
+.sheet.A.phone { left: 0; right: 0; bottom: 0; max-height: 90%; border-radius: 22px 22px 0 0 }
+.sheet.A.phone.hide { transform: translateY(104%) }
+.A .top { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.A .person { font-weight: 700; color: #464C50; display: flex; align-items: center }
+.A .titlefld { width: 100%; border: 2px solid transparent; background: #ECEFEA; font-weight: 700; color: #16191B; padding: 8px 12px; outline: none; border-radius: 14px;
+  resize: none; overflow: hidden; line-height: 1.15; display: block; font-family: inherit }
+.A .titlefld:focus { border-color: #16191B; background: #fff }
+.A .row { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); gap: 10px; align-items: stretch }
+.A .row .arr { padding: 0; font-size: 1.5em; font-weight: 700 }
+.A .row .mid { flex-direction: column; gap: 0; line-height: 1.15; padding: 4px 8px }
+.A .row .mid small { font-weight: 400; color: #464C50; font-size: .72em }
+.A .rowlab { font-weight: 700; color: #464C50; text-transform: none }
+.A .opts2 { display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.A .opts2 .grow { flex: 1 }
+.A .hint { color: #5A6064 }
+.A .foot { display: flex; flex-direction: column; gap: 10px }
+.face.wall .A .wrap { padding: 18px 26px 14px; display: flex; flex-direction: column; gap: 9px }
+.face.wall .A .top .btn { min-height: 64px }
+.face.wall .A .opts2 .btn.grow { min-height: 64px }
+.face.wall .A .foot .btn.plain { min-height: 56px }
+.face.wall .A .person { font-size: 24px } .face.wall .A .titlefld { font-size: 32px } .face.wall .A .rowlab { font-size: 19px; margin-bottom: -6px }
+.face.wall .A .row .mid { font-size: 30px } .face.wall .A .hint { font-size: 20px }
+.face.phone .A .wrap { padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px }
+.face.phone .A .grab { width: 40px; height: 5px; border-radius: 3px; background: #C9CFC7; margin: 0 auto 2px }
+.face.phone .A .person { font-size: 15px } .face.phone .A .titlefld { font-size: 23px } .face.phone .A .rowlab { font-size: 13px; margin-bottom: -4px }
+.face.phone .A .row .mid { font-size: 18px } .face.phone .A .hint { font-size: 13px }
+
+/* ================= B: quick picks (chips), anchored to the event ================= */
+.sheet.B.wall { width: 540px; max-height: 780px; border-radius: 22px }
+.sheet.B.wall .body { max-height: 780px; overflow-y: auto; border-radius: 22px }
+.sheet.B.wall.hide { opacity: 0; transform: scale(.96) }
+.sheet.B.phone { left: 0; right: 0; bottom: 0; max-height: 90%; border-radius: 22px 22px 0 0 }
+.sheet.B.phone.hide { transform: translateY(104%) }
+.B .tip { position: absolute; width: 22px; height: 22px; background: #fff; transform: rotate(45deg); box-shadow: -1px 1px 0 rgba(0,0,0,.06) }
+.B .hd { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start }
+.B .ttl { font-weight: 700; line-height: 1.12 }
+.B .when { color: #2A3034; font-weight: 500 }
+.B .who2 { color: #464C50; font-weight: 500; display: flex; align-items: center }
+.B .lab { font-weight: 700; color: #464C50 }
+.B .chips { display: flex; flex-wrap: wrap; gap: 10px }
+.B .chips .btn { flex: 0 0 auto }
+.B .acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.B .x { border: 0; background: #ECEFEA; border-radius: 50%; flex: none; font-weight: 700; padding: 0 }
+.B .renamer { display: flex; gap: 10px }
+.B .renamer input { flex: 1; min-width: 0; border: 2px solid #16191B; border-radius: 12px; padding: 0 12px; font-weight: 500 }
+.face.wall .B .wrap { padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 12px }
+.face.wall .B .ttl { font-size: 34px } .face.wall .B .when { font-size: 26px } .face.wall .B .who2 { font-size: 22px } .face.wall .B .lab { font-size: 20px; margin-bottom: -4px }
+.face.wall .B .x { width: 64px; height: 64px; font-size: 30px } .face.wall .B .chips .btn { min-width: 110px }
+.face.wall .B .renamer input { font-size: 28px; min-height: 80px }
+.face.phone .B .wrap { padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px }
+.face.phone .B .ttl { font-size: 22px } .face.phone .B .when { font-size: 16px } .face.phone .B .who2 { font-size: 14px } .face.phone .B .lab { font-size: 13px; margin-bottom: -3px }
+.face.phone .B .x { width: 44px; height: 44px; font-size: 20px } .face.phone .B .chips .btn { min-width: 64px }
+.face.phone .B .renamer input { font-size: 17px; min-height: 50px }
+
+/* ================= C: read, then Edit and Save (a form) ================= */
+.sheet.C.wall { left: 50%; top: 50%; width: 760px; max-height: 740px; border-radius: 24px; transform: translate(-50%, -50%) }
+.sheet.C.wall.hide { opacity: 0; transform: translate(-50%, -46%) }
+.sheet.C.phone { inset: 0; border-radius: 0 }
+.sheet.C.phone.hide { transform: translateY(100%) }
+.C .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1px solid #E1E5DF }
+.C .bar .bt { font-weight: 700 }
+.C .ttl { font-weight: 700; line-height: 1.12 }
+.C .kv { display: grid; grid-template-columns: auto 1fr; column-gap: 18px; row-gap: 8px; align-items: baseline }
+.C .kv .k { color: #464C50; font-weight: 500 }
+.C .kv .v { font-weight: 500 }
+.C .acts { display: flex; gap: 12px; flex-wrap: wrap }
+.C .acts .btn { flex: 1 }
+.C .form { display: flex; flex-direction: column; gap: 12px }
+.C .fld { display: flex; flex-direction: column; gap: 4px }
+.C .fld .k { color: #464C50; font-weight: 700 }
+.C .fld input { border: 2px solid #B9C0B7; border-radius: 12px; padding: 0 14px; font-weight: 500; background: #fff }
+.C .fld input:focus { border-color: #16191B; outline: none }
+.C .fld .pick { justify-content: space-between; background: #fff; box-shadow: 0 0 0 2px #B9C0B7 inset; padding: 0 16px }
+.C .fld .pick::after { content: "\203A"; font-size: 1.3em; color: #464C50 }
+.C .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.C .swrow { display: flex; justify-content: space-between; align-items: center }
+.face.wall .C .bar { padding: 14px 18px 14px 28px } .face.wall .C .bar .bt { font-size: 24px; color: #464C50 }
+.face.wall .C .wrap { padding: 22px 28px 26px; display: flex; flex-direction: column; gap: 16px }
+.face.wall .C .ttl { font-size: 42px } .face.wall .C .kv { font-size: 26px } .face.wall .C .fld .k { font-size: 20px }
+.face.wall .C .fld input { font-size: 28px; min-height: 76px } .face.wall .C .swrow { font-size: 26px; font-weight: 500 }
+.face.phone .C .bar { padding: 50px 8px 8px 16px } .face.phone .C .bar .bt { font-size: 17px }
+.face.phone .C .wrap { padding: 16px 16px 30px; display: flex; flex-direction: column; gap: 12px }
+.face.phone .C .ttl { font-size: 26px } .face.phone .C .kv { font-size: 16px } .face.phone .C .fld .k { font-size: 13px }
+.face.phone .C .fld input { font-size: 17px; min-height: 50px } .face.phone .C .swrow { font-size: 17px; font-weight: 500 }
+
+/* ================= The echo (with Undo) ================= */
+.echo { position: absolute; z-index: 8; left: 50%; display: flex; align-items: center; background: #16191B; color: #F4F5F2; border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.3); transform: translate(-50%, 0); opacity: 1; transition: transform 180ms ease-out, opacity 180ms ease-out }
+.echo.hide { opacity: 0; transform: translate(-50%, 16px); pointer-events: none }
+.echo .txt { line-height: 1.25 }
+.echo .ub { border: 0; background: #F4F5F2; color: #16191B; border-radius: 12px; font-weight: 700; flex: none }
+.echo .ub.alt { background: transparent; color: #F4F5F2; box-shadow: 0 0 0 2px #F4F5F2 inset }
+.face.wall .echo { bottom: 22px; width: max-content; max-width: 1040px; gap: 16px; padding: 10px 10px 10px 24px; font-size: 25px }
+.face.wall .echo .ub { min-height: 64px; padding: 0 22px; font-size: 25px }
+.face.phone .echo { bottom: 24px; width: calc(100% - 20px); gap: 10px; padding: 8px 8px 8px 14px; font-size: 15px }
+.face.phone .echo .ub { min-height: 46px; padding: 0 12px; font-size: 15px }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .sheet.leaving { transition: opacity 150ms linear !important }
+  .sheet.A.wall.hide, .sheet.A.wall.left.hide, .sheet.A.phone.hide, .sheet.B.phone.hide, .sheet.B.wall.hide { transform: none; opacity: 0 }
+  .sheet.C.wall.hide { transform: translate(-50%, -50%); opacity: 0 } .sheet.C.phone.hide { transform: none; opacity: 0 }
+  .echo, .wb .ev, .pb .ev { transition: opacity 150ms linear !important }
+}
+</style>
+</head>
+<body>
+<h1>Event sheet, three ways</h1>
+<p class="intro">What opens when you tap an event, and how you change its day, time or title, delete it, or undo a mistake. Made-up events; it's Saturday, Oct 31, 1:10 pm. Tap any event. The bar switches the sheet (A, B, C), the screen (wall or phone) and a task to try.</p>
+<div class="task" id="task"></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="meta" id="meta"></div>
+<p class="about" id="about"></p>
+<nav class="switcher" aria-label="Prototype controls">
+  <div class="grp"><button id="prev" aria-label="Previous sheet">&#8249;</button><span class="name" id="vname"></span><button id="next" aria-label="Next sheet">&#8250;</button></div>
+  <div class="grp" id="devs"></div>
+  <div class="grp"><select id="scen" aria-label="Task"></select></div>
+  <div class="grp"><button id="guest" aria-pressed="false">Guest mode</button><button id="reset">Reset</button></div>
+</nav>
+<script>
+// ---------- made-up household: Saturday, Oct 31, 1:10 pm ----------
+const NOW = 13 * 60 + 10;
+const P = { will: { name: 'Will', c: '#0072B2' }, jenn: { name: 'Jenn', c: '#D55E00' }, us: { name: 'Us', c: '#009E73' } };
+const hm = (h, m = 0) => h * 60 + m;
+// k: 'edit' = the board can change it (iCloud through the house write path); 'google' = Jenn's Google, read only;
+// 'invite' = an iCloud invitation (the write path refuses them); 'block' = a calendar shown as a labeled block.
+const SEED = () => [
+  { id: 'oil', p: 'will', d: 0, s: hm(9), e: hm(10), t: 'Oil change', k: 'edit' },
+  { id: 'hallo', p: 'us', d: 0, allDay: true, thru: 0, t: 'Halloween: candy bowl by the door', k: 'edit' },
+  { id: 'hair', p: 'jenn', d: 0, s: hm(17, 30), e: hm(18, 30), t: 'Haircut', k: 'google' },
+  { id: 'date', p: 'us', d: 0, s: hm(19), e: hm(21, 30), t: 'Date night: dinner and a movie', k: 'edit', by: 'Added by Will on his phone, Mon Oct 26' },
+  { id: 'friends', p: 'jenn', d: 0, s: hm(19), e: hm(21), t: 'Dinner with friends', k: 'google' },
+  { id: 'clocks', p: 'us', d: 1, allDay: true, thru: 1, t: 'Clocks fall back an hour', k: 'edit' },
+  { id: 'trash', p: 'us', d: 1, s: hm(19, 30), e: hm(19, 45), t: 'Trash night: bins to the curb', k: 'edit', rep: 'Sunday' },
+  { id: 'gym', p: 'will', d: 2, s: hm(6, 15), e: hm(7, 15), t: 'Gym', k: 'edit' },
+  { id: 'shift', p: 'jenn', d: 2, s: hm(7), e: hm(15, 30), t: 'Work shift', k: 'google' },
+  { id: 'work2', p: 'will', d: 2, s: hm(8, 30), e: hm(16, 30), t: 'At work', k: 'block', work: true },
+  { id: 'pkg', p: 'us', d: 2, s: hm(17), e: hm(17, 30), t: 'Package pickup at the post office', k: 'edit' },
+  { id: 'party', p: 'will', d: 2, s: hm(18, 30), e: hm(20, 30), t: "Kim's retirement party", k: 'invite', from: 'Kim Alvarez' },
+  { id: 'work3', p: 'will', d: 3, s: hm(8, 30), e: hm(14, 30), t: 'At work', k: 'block', work: true },
+  { id: 'call', p: 'jenn', d: 3, s: hm(10), e: hm(10, 45), t: 'Team call', k: 'google' },
+  { id: 'dup', p: 'us', d: 3, s: hm(15), e: hm(16), t: 'Dentist', k: 'edit', isNew: true, by: 'Added at the wall today, 12:40 pm' },
+  { id: 'dentist', p: 'will', d: 3, s: hm(15, 30), e: hm(16, 30), t: 'Dentist', k: 'edit', by: 'Added by Will on the board, Thu Oct 29' },
+  { id: 'vet', p: 'us', d: 3, s: hm(17), e: hm(18), t: 'Vet: both cats, checkup and shots', k: 'edit' },
+];
+const DINNER = ['Out for date night', 'Pizza night', 'Lasagna', 'Tacos', 'Leftovers', 'Chili', 'Salmon and rice'];
+const SCEN = {
+  free: { label: 'Free play', task: '' },
+  move: { label: '1 · Move the dentist to 4:00', task: 'Task: Will’s dentist on Tuesday moved from 3:30 to 4:00. Change it on the board.' },
+  del: { label: '2 · Delete the extra dentist', task: 'Task: someone added a second “Dentist” on Tuesday at 3:00 by mistake. Get rid of it.' },
+  rep: { label: '3 · Trash night, this week only', task: 'Task: trash pickup is a day late this week only. Move this Sunday’s trash night to Monday, same time.' },
+  ro: { label: '4 · Jenn’s team call moved', task: 'Task: Jenn’s Tuesday team call moved to 11:00. Try to change it on the board.' },
+  inv: { label: '5 · An invitation', task: 'Task: Kim’s retirement party on Monday starts at 7:00 now. Try to change it on the board.' },
+  clash: { label: '6 · Tonight’s clash', task: 'Task: the board says something clashes tonight. Find out what, and move Date night to 9:00.' },
+  title: { label: '7 · Rename the vet visit', task: 'Task: only Franklin needs the vet on Tuesday. Change the title to “Vet: Franklin, shots”.' },
+};
+const VARIANTS = {
+  a: { name: 'A · Live panel, arrows', about: '<b>A. Live panel with arrows.</b> A panel slides in beside the event, on the side away from it, so you watch the event move. The day and time each have ‹ › arrows (a day, or 15 minutes keeping the length, per tap); tap the day or time itself for a grid of big buttons. Tap the title to retype it. No Save button: changes save when the panel closes, and the echo at the bottom offers Undo. A repeating event asks “This one or All?” right where you tapped, once.' },
+  b: { name: 'B · Quick picks, chips', about: '<b>B. Quick picks.</b> A small card next to the event offers the likely moves as buttons that name the result (“4:00 pm”, “Wed”, “Next Tue”); one tap moves it and closes the card, with Undo in the echo. “Other day…” and “Other time…” open the same big-button grids. A repeating event changes this one; the echo offers “All Sundays too”.' },
+  c: { name: 'C · Edit, then Save', about: '<b>C. Edit, then Save.</b> The familiar form, as on an iPhone or a Skylight: a card shows the event with Change and Delete buttons; Change opens a form (title, day, starts, ends, all day) with Cancel and Save, the end moving with the start. Nothing changes on the board until Save. A repeating event asks “This one or All?” on Save.' },
+};
+const DEVS = { wall: { label: 'Wall', w: 1200, h: 800 }, phone: { label: 'Phone', w: 390, h: 844 } };
+
+// ---------- helpers ----------
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], DOWL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateOf = d => new Date(2026, 9, 31 + d);
+const dayName = d => { const x = dateOf(d); return `${DOW[x.getDay()]}, ${MON[x.getMonth()]} ${x.getDate()}`; };
+const rel = d => d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1 ? 'Yesterday' : '';
+const dayNice = d => rel(d) ? `${rel(d).toLowerCase()} (${dayName(d)})` : dayName(d);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const ap = m => (Math.floor(m / 60) % 24) < 12 ? 'am' : 'pm';
+const hh = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}`; };
+const tm = m => `${hh(m)} ${ap(m)}`;
+const tmS = m => `${hh(m)}<small class="ap">${ap(m)}</small>`;
+const range = e => ap(e.s) === ap(e.e) ? `${hh(e.s)} to ${hh(e.e)} ${ap(e.e)}` : `${tm(e.s)} to ${tm(e.e)}`;
+const lenTxt = n => n < 60 ? `${n} min` : `${Math.floor(n / 60)}${n % 60 === 30 ? '½' : n % 60 ? `:${String(n % 60).padStart(2, '0')}` : ''} hr`;
+const whenTxt = e => e.allDay ? (e.thru > e.d ? `${dayName(e.d)} through ${dayName(e.thru)}` : `${dayName(e.d)}, all day`) : `${dayName(e.d)}, ${range(e)}`;
+const c = p => `--c:${P[p].c}`;
+const clone = x => JSON.parse(JSON.stringify(x));
+const OVL = px => `<svg class="ovl" width="${px}" height="${px}" viewBox="0 0 24 24" aria-label="overlaps"><circle cx="9" cy="12" r="6.5" fill="none" stroke="#5A6064" stroke-width="2.4"/><circle cx="15" cy="12" r="6.5" fill="none" stroke="#5A6064" stroke-width="2.4"/></svg>`;
+
+// ---------- state ----------
+const S = { v: 'a', dev: 'wall', scen: 'free', guest: false, shot: false, events: SEED(), taps: 0, log: [],
+  ui: null,   // the open sheet: { id, before, snap, grid, gridHour, gridPage, ask, scope, mode, draft, editing, renaming, other }
+  echo: null,  // { text, before, extra: { label, act } }
+  flash: null }; // the event just changed: highlighted, and never dropped from a full column, while the echo shows
+let echoTimer = null;
+const ev = id => S.events.find(e => e.id === id);
+const visible = e => !e.hidden && !(S.guest && S.dev === 'wall' && e.work);
+const editable = e => e.k === 'edit' && !(S.guest && S.dev === 'wall');
+// Clash (decided 2026-10-30): a shared plan over someone's own timed event, or one person booked twice
+// (work excluded); overlaps of 15 minutes or less don't count; all-day events never clash.
+function clashesOf(a) {
+  if (a.allDay || !visible(a)) return [];
+  return S.events.filter(b => b !== a && visible(b) && !b.allDay && b.d === a.d &&
+    Math.min(a.e, b.e) - Math.max(a.s, b.s) > 15 &&
+    ((a.p === 'us') !== (b.p === 'us') || (a.p === b.p && a.p !== 'us' && !a.work && !b.work)));
+}
+const guestBlock = e => S.guest && S.dev === 'wall' && e.p !== 'us';
+const titleOf = e => guestBlock(e) ? `${P[e.p].name}, ${range(e).replace(/ (am|pm)/g, '')}` : e.k === 'block' ? `At work ${hh(e.s).replace(':00', '')} to ${hh(e.e).replace(':00', '')}` : e.t;
+
+// ---------- the board behind the sheet ----------
+function evRow(e, first) {
+  const cl = clashesOf(e).length ? OVL(first ? 24 : 20) : '';
+  const dot = e.isNew ? '<span class="newdot" aria-label="new"></span>' : '';
+  const sel = S.ui && S.ui.id === e.id ? ' sel' : S.flash === e.id ? ' flash' : '';
+  return `<button class="ev${e.k === 'block' || guestBlock(e) ? ' block' : ''}${sel}" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}"><span class="barc"></span>
+    <span><span class="tm">${tmS(e.s)}${cl}<span class="who">${P[e.p].name}</span>${dot}</span><span class="tt clamp2">${esc(titleOf(e))}</span></span></button>`;
+}
+function wallBoard() {
+  const vis = S.events.filter(visible);
+  const today = vis.filter(e => e.d === 0 && !e.allDay && e.e > NOW).sort((a, b) => a.s - b.s);
+  const next = today.find(e => e.s > NOW);
+  const band = next
+    ? `<button class="band" data-act="open" data-arg="${next.id}" style="${c(next.p)}"><span class="barc"></span><span><span class="lab">Next<span class="who" style="font-size:.85em"><span class="pip" style="${c(next.p)}"></span>${P[next.p].name}</span></span>
+       <span class="line clamp2" style="display:-webkit-box"><span class="tm">${tmS(next.s)}</span>${esc(titleOf(next))}</span></span>
+       <span class="side"><span class="clock">${tmS(NOW)}</span><span class="date">Sat, Oct 31</span></span></button>`
+    : `<div class="band"><span></span><span class="line">Nothing else today</span><span class="side"><span class="clock">${tmS(NOW)}</span></span></div>`;
+  const tc = today.map(e => [e, clashesOf(e)]).find(([, x]) => x.length);
+  const needs = tc && !S.guest
+    ? `<button class="needs" data-act="open" data-arg="${tc[0].p === 'us' ? tc[0].id : tc[1][0].id}">${needsText(tc[0], tc[1][0])}</button>` : '';
+  const cols = [0, 1, 2, 3].map(d => {
+    const allDay = vis.filter(e => e.allDay && e.d <= d && (e.thru ?? e.d) >= d)
+      .map(e => `<button class="allday clamp2" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}">${esc(titleOf(e))}</button>`).join('');
+    const rows = vis.filter(e => !e.allDay && e.d === d && (d > 0 || e.e > NOW)).sort((a, b) => a.s - b.s).map(e => evRow(e, d === 0)).join('');
+    return `<div class="col"><div class="dn">${d === 0 ? 'Today' : `${DOW[dateOf(d).getDay()]} ${dateOf(d).getDate()}`}</div>${allDay}<div class="list">${rows}</div>
+      <div class="dinner"><span class="lab">Dinner</span><span class="clamp1">${DINNER[d]}</span></div></div>`;
+  }).join('');
+  return `<div class="wb">${band}${needs}<div class="cols">${cols}</div>${S.guest ? '<div class="guestmark">Guest mode</div>' : ''}</div>`;
+}
+function needsText(a, b) {
+  const us = a.p === 'us' ? a : b, other = us === a ? b : a;
+  return `Tonight ${hh(us.s)}: ${esc(us.t)} (Us) overlaps ${P[other.p].name}’s ${esc(other.t)}`;
+}
+function phoneBoard() {
+  const vis = S.events.filter(visible);
+  const days = [0, 1, 2, 3, 4, 5, 6].map(d => {
+    const allDay = vis.filter(e => e.allDay && e.d <= d && (e.thru ?? e.d) >= d)
+      .map(e => `<button class="allday" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}">${esc(titleOf(e))}</button>`).join('');
+    const rows = vis.filter(e => !e.allDay && e.d === d && (d > 0 || e.e > NOW)).sort((a, b) => a.s - b.s).map(e => {
+      const cl = clashesOf(e).length ? OVL(16) : '';
+      const dot = e.isNew ? '<span class="newdot" style="width:8px;height:8px"></span>' : '';
+      return `<button class="ev${e.k === 'block' ? ' block' : ''}${S.ui && S.ui.id === e.id ? ' sel' : S.flash === e.id ? ' flash' : ''}" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}"><span class="barc"></span>
+        <span class="tm">${hh(e.s)} ${ap(e.s)}${cl}</span><span class="tt">${esc(titleOf(e))}<span class="who">${P[e.p].name}</span>${dot}</span></button>`;
+    }).join('');
+    return `<div class="day">${d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : DOWL[dateOf(d).getDay()]} <span>${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</span></div>${allDay}${rows || (allDay ? '' : '<div class="empty">Nothing yet</div>')}`;
+  }).join('');
+  const today = vis.filter(e => e.d === 0 && !e.allDay && e.e > NOW);
+  const tc = today.map(e => [e, clashesOf(e)]).find(([, x]) => x.length);
+  const needs = tc ? `<button class="needs" data-act="open" data-arg="${tc[0].p === 'us' ? tc[0].id : tc[1][0].id}">${needsText(tc[0], tc[1][0])}</button>` : '';
+  return `<div class="pb"><div class="standin">Stand-in list for this test; the phone board's design is its own ticket.</div><div class="hdr">This week</div><div class="sub">Saturday, Oct 31 · 1:10 pm</div>${needs}${days}</div>`;
+}
+
+// ---------- shared sheet pieces ----------
+function roLine(e) {
+  if (S.guest && S.dev === 'wall') return `<div class="ro"><b>Guest mode is on.</b> Changes are off at the wall. You can still add things and tick off notes.</div>`;
+  if (e.k === 'google') return `<div class="ro">This is on <b>Jenn’s Google calendar</b>, which the board can only read. Change it in Google Calendar on Jenn’s phone.</div>`;
+  if (e.k === 'invite') return `<div class="ro"><b>${esc(e.from)} invited Will.</b> Answer or change it in Calendar on Will’s iPhone, so ${esc(e.from.split(' ')[0])} hears about it.</div>`;
+  if (e.k === 'block') return `<div class="ro">Will shows work as a block. The details are on Will’s phone.</div>`;
+  return '';
+}
+function clashLines(e) {
+  if (S.guest && S.dev === 'wall') return '';
+  return clashesOf(e).map(o => `<button class="clashln" data-act="open" data-arg="${o.id}">${OVL(S.dev === 'wall' ? 26 : 18)}<span>Overlaps <b>${o.p === 'us' ? `${esc(o.t)} (Us)` : `${P[o.p].name}’s ${esc(o.k === 'block' ? 'work' : o.t)}`}</b>, ${range(o)}</span></button>`).join('');
+}
+const addedLine = e => e.by && !(S.guest && S.dev === 'wall') ? `<div class="addedln">${esc(e.by)}</div>` : '';
+const hideBtn = (e, act = 'hide') => (S.guest && S.dev === 'wall') || e.k === 'block' ? '' : `<button class="btn plain" data-act="${act}">Hide from the board</button>`;
+function swHTML(on, act) { return `<button class="btn" data-act="${act}" style="background:none;padding:0;min-height:var(--tap)" aria-pressed="${on}"><span class="sw${on ? ' on' : ''}"></span></button>`; }
+
+// grids: days (14 at a time), hours then quarter hours, lengths
+function gridHTML(kind, e, opts = {}) {
+  const wall = S.dev === 'wall';
+  const ui = S.ui;
+  if (kind === 'day' || kind === 'thru') {
+    const page = ui.gridPage || 0, start = page * 14, cur = kind === 'thru' ? e.thru : e.d;
+    const cells = Array.from({ length: 14 }, (_, i) => {
+      const d = start + i, x = dateOf(d);
+      const dis = kind === 'thru' && d < e.d;
+      return `<button class="cell${d === cur ? ' cur' : ''}" data-act="${opts.act || 'setDay'}" data-arg="${d}"${dis ? ' disabled' : ''}>${rel(d) && d >= 0 ? `<small>${rel(d)}</small>` : `<small>${DOW[x.getDay()]}</small>`}${MON[x.getMonth()]} ${x.getDate()}</button>`;
+    }).join('');
+    return `<div class="grid"><div class="gh"><span class="gt">${kind === 'thru' ? 'Through which day?' : 'Pick a day'}</span><button class="btn" data-act="gridBack">Back</button></div>
+      <div class="cells" style="grid-template-columns:repeat(${wall ? 4 : 4},1fr)">${cells}</div>
+      <div class="gh">${page > 0 ? '<button class="btn" data-act="gridPage" data-arg="-1">‹ Earlier</button>' : '<span></span>'}<button class="btn" data-act="gridPage" data-arg="1">Later ›</button></div></div>`;
+  }
+  if (kind === 'time' || kind === 'end') {
+    const isEnd = kind === 'end', cur = isEnd ? e.e : e.s, len = e.e - e.s;
+    const hours = Array.from({ length: 18 }, (_, i) => i + 6);
+    const pickH = ui.gridHour ?? Math.floor(cur / 60);
+    const hcells = hours.map(h => `<button class="cell${h === pickH ? ' pick' : ''}" data-act="gridHour" data-arg="${h}"${isEnd && (h + 1) * 60 <= e.s ? ' disabled' : ''}>${h % 12 || 12}<small>${h < 12 ? 'am' : 'pm'}</small></button>`).join('');
+    const qcells = [0, 15, 30, 45].map(q => { const m = pickH * 60 + q; return `<button class="cell${m === cur ? ' cur' : ''}" data-act="${opts.act || (isEnd ? 'setEnd' : 'setTime')}" data-arg="${m}"${isEnd && m <= e.s ? ' disabled' : ''}>${hh(m)}<small>${ap(m)}</small></button>`; }).join('');
+    return `<div class="grid"><div class="gh"><span class="gt">${isEnd ? 'Ends at' : `Starts at${opts.keep === false ? '' : ` <span style="font-weight:400;font-size:.75em;color:#464C50">(keeps ${lenTxt(len)})</span>`}`}</span><button class="btn" data-act="gridBack">Back</button></div>
+      <div class="cells" style="grid-template-columns:repeat(6,1fr)">${hcells}</div>
+      <div class="gt" style="font-size:${wall ? 20 : 13}px;color:#464C50;margin-top:4px">Then the minutes for ${pickH % 12 || 12} ${pickH < 12 ? 'am' : 'pm'}</div>
+      <div class="cells" style="grid-template-columns:repeat(4,1fr)">${qcells}</div></div>`;
+  }
+  if (kind === 'len') {
+    const cur = e.e - e.s;
+    const cells = [15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480].map(n => `<button class="cell${n === cur ? ' cur' : ''}" data-act="setLen" data-arg="${n}">${lenTxt(n)}</button>`).join('');
+    return `<div class="grid"><div class="gh"><span class="gt">How long?</span><button class="btn" data-act="gridBack">Back</button></div><div class="cells" style="grid-template-columns:repeat(4,1fr)">${cells}</div></div>`;
+  }
+  return '';
+}
+const askHTML = (q, one, all) => `<div class="ask"><div class="q">${q}</div><div class="opts">
+  <button class="btn dark" data-act="scope" data-arg="one">This one<small>this week only</small></button>
+  <button class="btn dark" data-act="scope" data-arg="all">All<small>${all}</small></button></div>
+  <button class="btn plain" data-act="askCancel" style="min-height:${S.dev === 'wall' ? 56 : 40}px">Never mind</button></div>`;
+
+// ---------- A: live panel with arrows ----------
+function sheetA(e) {
+  const ui = S.ui, wall = S.dev === 'wall';
+  const repTxt = e.rep ? (ui.scope === 'one' ? ` · this ${e.rep} only` : ui.scope === 'all' ? ` · every ${e.rep}, all of them` : ` · every ${e.rep}`) : '';
+  const top = `${wall ? '' : '<div class="grab"></div>'}<div class="top"><span class="person"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${repTxt}`}</span><button class="btn dark" data-act="close" style="min-width:${wall ? 150 : 84}px">Done</button></div>`;
+  if (ui.grid) return `<div class="wrap">${top}${gridHTML(ui.grid, e, { keep: true })}</div>`;
+  if (!editable(e)) {
+    return `<div class="wrap">${top}<div class="ttl" style="font-size:${wall ? 38 : 23}px;font-weight:700;line-height:1.12">${esc(titleOf(e))}</div>
+      <div style="font-size:${wall ? 28 : 17}px;font-weight:500">${whenTxt(e)}</div>${clashLines(e)}${roLine(e)}${addedLine(e)}<div class="foot">${hideBtn(e)}</div></div>`;
+  }
+  const askFor = what => ui.ask && ui.ask.row === what ? askHTML(ui.ask.q, `${dayName(e.d)}`, `every ${e.rep}`) : null;
+  const title = askFor('title') || `<div class="rowlab">Title</div><textarea class="titlefld" id="titlefld" rows="1" aria-label="Title" enterkeyhint="done" data-focus="title">${esc(e.t)}</textarea>`;
+  const dayRow = askFor('day') || (e.allDay
+    ? `<div class="rowlab">From</div><div class="row"><button class="btn arr" data-act="dayStep" data-arg="-1" data-repeat aria-label="A day earlier">‹</button><button class="btn mid" data-act="grid" data-arg="day">${dayName(e.d)}${rel(e.d) ? `<small>${rel(e.d)}</small>` : ''}</button><button class="btn arr" data-act="dayStep" data-arg="1" data-repeat aria-label="A day later">›</button></div>
+       <div class="rowlab">Through</div><div class="row"><button class="btn arr" data-act="thruStep" data-arg="-1" aria-label="End a day earlier"${e.thru <= e.d ? ' disabled' : ''}>‹</button><button class="btn mid" data-act="grid" data-arg="thru">${dayName(e.thru)}${e.thru === e.d ? '<small>one day</small>' : `<small>${e.thru - e.d + 1} days</small>`}</button><button class="btn arr" data-act="thruStep" data-arg="1" aria-label="End a day later">›</button></div>`
+    : `<div class="rowlab">Day</div><div class="row"><button class="btn arr" data-act="dayStep" data-arg="-1" data-repeat aria-label="A day earlier">‹</button><button class="btn mid" data-act="grid" data-arg="day">${dayName(e.d)}${rel(e.d) ? `<small>${rel(e.d)}</small>` : ''}</button><button class="btn arr" data-act="dayStep" data-arg="1" data-repeat aria-label="A day later">›</button></div>`);
+  const timeRow = e.allDay ? '' : (askFor('time') || `<div class="rowlab">Time</div><div class="row"><button class="btn arr" data-act="timeStep" data-arg="-15" data-repeat aria-label="15 minutes earlier">‹</button><button class="btn mid" data-act="grid" data-arg="time">${range(e)}<small>‹ › move it 15 min</small></button><button class="btn arr" data-act="timeStep" data-arg="15" data-repeat aria-label="15 minutes later">›</button></div>`);
+  const extras = askFor('len') || `<div class="opts2">${e.allDay ? '' : `<button class="btn grow" data-act="grid" data-arg="len">Length: ${lenTxt(e.e - e.s)}</button>`}<span class="opts2" style="gap:8px;${e.allDay ? 'flex:1' : ''}"><span style="font-size:${wall ? 24 : 15}px;font-weight:500">All day</span>${swHTML(!!e.allDay, 'allDay')}</span></div>`;
+  const foot = askFor('del') || askFor('hide') || `<div class="foot"><button class="btn danger" data-act="del">Delete from the calendar</button>${hideBtn(e)}</div>`;
+  return `<div class="wrap">${top}${title}${dayRow}${timeRow}${extras}${clashLines(e)}${addedLine(e)}${foot}</div>`;
+}
+
+// ---------- B: quick picks ----------
+function sheetB(e) {
+  const ui = S.ui, wall = S.dev === 'wall';
+  const hd = `<div class="hd"><div><div class="who2"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${e.rep ? ` · every ${e.rep}` : ''}`}</div>
+    <div class="ttl">${esc(titleOf(e))}</div><div class="when">${whenTxt(e)}</div></div><button class="x" data-act="close" aria-label="Close">✕</button></div>`;
+  if (!editable(e)) return `<div class="wrap">${hd}${clashLines(e)}${roLine(e)}${addedLine(e)}<div class="acts">${hideBtn(e)}</div></div>`;
+  if (ui.grid) return `<div class="wrap">${hd}${gridHTML(ui.grid, e, { act: ui.grid === 'day' ? 'pickDay' : ui.grid === 'thru' ? 'setThru' : 'pickTime', keep: true })}
+      ${ui.grid === 'time' ? `<div class="acts" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn" data-act="grid" data-arg="len">Length: ${lenTxt(e.e - e.s)}</button><button class="btn" data-act="allDayB">Make it all day</button></div>` : ''}</div>`;
+  if (ui.renaming) return `<div class="wrap">${hd}<div class="lab">New title</div><div class="renamer"><input id="titlefld" value="${esc(e.t)}" enterkeyhint="done" aria-label="New title"><button class="btn dark" data-act="renameDone">Save</button></div><button class="btn plain" data-act="renameCancel">Cancel</button></div>`;
+  const tchips = e.allDay ? '' : [e.s - 30, e.s + 30, e.s + 60].filter(m => m >= 0 && m + (e.e - e.s) <= 24 * 60).map(m => `<button class="btn" data-act="quickTime" data-arg="${m}">${tm(m)}</button>`).join('');
+  const dchips = [1, 2, 7].map(n => { const d = e.d + n; return `<button class="btn" data-act="quickDay" data-arg="${d}">${n === 7 ? `Next ${DOW[dateOf(d).getDay()]}` : rel(d) || DOW[dateOf(d).getDay()]}</button>`; }).join('');
+  return `<div class="wrap">${hd}${clashLines(e)}${addedLine(e)}
+    <div class="lab">Move to</div>${tchips ? `<div class="chips">${tchips}</div>` : ''}<div class="chips">${dchips}</div>
+    <div class="acts" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn" data-act="grid" data-arg="day">Other day…</button>${e.allDay ? '<button class="btn" data-act="grid" data-arg="thru">Last day…</button>' : '<button class="btn" data-act="grid" data-arg="time">Other time…</button>'}</div>
+    <div class="acts" style="display:grid;grid-template-columns:1fr 2fr"><button class="btn" data-act="rename">Rename</button><button class="btn danger" data-act="delB">Delete from the calendar</button></div>${hideBtn(e, 'hideB')}</div>`;
+}
+
+// ---------- C: read, then Edit and Save ----------
+function sheetC(e) {
+  const ui = S.ui, wall = S.dev === 'wall';
+  if (ui.mode !== 'edit') {
+    const bar = `<div class="bar"><span class="bt"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${e.rep ? ` · every ${e.rep}` : ''}`}</span><button class="btn" data-act="close">Close</button></div>`;
+    const kv = `<div class="kv"><span class="k">When</span><span class="v">${whenTxt(e)}</span>${e.rep ? `<span class="k">Repeats</span><span class="v">Every ${e.rep}</span>` : ''}</div>`;
+    const acts = !editable(e) ? roLine(e) : (ui.ask ? askHTML(ui.ask.q, dayName(e.d), `every ${e.rep}`) : `<div class="acts"><button class="btn dark" data-act="edit">Change</button><button class="btn danger" data-act="delC">Delete</button></div>`);
+    return `${bar}<div class="body"><div class="wrap"><div class="ttl">${esc(titleOf(e))}</div>${kv}${clashLines(e)}${addedLine(e)}${acts}${!editable(e) || ui.ask ? (editable(e) ? '' : hideBtn(e, 'hideC')) : hideBtn(e, 'hideC')}</div></div>`;
+  }
+  const d = ui.draft;
+  const bar = `<div class="bar"><button class="btn" data-act="cancel">Cancel</button><span class="bt">Change event</span><button class="btn dark" data-act="save">Save</button></div>`;
+  if (ui.grid) return `${bar}<div class="body"><div class="wrap">${gridHTML(ui.grid, d, { act: ui.grid === 'day' ? 'dSetDay' : ui.grid === 'thru' ? 'dSetThru' : ui.grid === 'end' ? 'dSetEnd' : 'dSetTime', keep: false })}</div></div>`;
+  if (ui.ask) return `${bar}<div class="body"><div class="wrap">${askHTML(ui.ask.q, dayName(e.d), `every ${e.rep}`)}</div></div>`;
+  const times = d.allDay
+    ? `<div class="two"><div class="fld"><span class="k">Starts</span><button class="btn pick" data-act="grid" data-arg="day">${dayName(d.d)}</button></div><div class="fld"><span class="k">Through</span><button class="btn pick" data-act="grid" data-arg="thru">${dayName(d.thru)}</button></div></div>`
+    : `<div class="fld"><span class="k">Day</span><button class="btn pick" data-act="grid" data-arg="day">${dayName(d.d)}</button></div>
+       <div class="two"><div class="fld"><span class="k">Starts</span><button class="btn pick" data-act="grid" data-arg="time">${tm(d.s)}</button></div><div class="fld"><span class="k">Ends</span><button class="btn pick" data-act="grid" data-arg="end">${tm(d.e)}</button></div></div>`;
+  return `${bar}<div class="body"><div class="wrap"><div class="form">
+    <div class="fld"><span class="k">Title</span><input id="titlefld" value="${esc(d.t)}" aria-label="Title" data-focus="draft"></div>
+    ${times}<div class="swrow"><span>All day</span>${swHTML(!!d.allDay, 'dAllDay')}</div></div></div></div>`;
+}
+
+// ---------- rendering ----------
+const SHEETS = { a: sheetA, b: sheetB, c: sheetC };
+function boardHTML() { return S.dev === 'wall' ? wallBoard() : phoneBoard(); }
+function renderAll() {
+  const frame = document.getElementById('frame');
+  const scroll = frame.querySelector('.pb')?.scrollTop || 0;
+  frame.innerHTML = `<div class="face ${S.dev}" id="face"><div id="board">${boardHTML()}</div><div id="layer"></div><div class="echo hide" id="echo"></div></div>`;
+  const pb = frame.querySelector('.pb'); if (pb) pb.scrollTop = scroll;
+  fitColumns(frame);
+  if (S.ui) mountSheet(false);
+  renderEcho(false);
+  layout(); renderMeta();
+}
+function renderBoard(reveal) {
+  const b = document.getElementById('board'); if (!b) return;
+  const pb = b.querySelector('.pb'), scroll = pb ? pb.scrollTop : 0;
+  b.innerHTML = boardHTML();
+  const pb2 = b.querySelector('.pb'); if (pb2) pb2.scrollTop = scroll;
+  fitColumns(b);
+  // On the phone, bring the event just changed into view.
+  if (reveal && pb2 && S.flash) { const r = pb2.querySelector(`[data-id="${S.flash}"]`); if (r) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+// A full day column never cuts a row: rows drop from the end and "+N more" counts them;
+// the open event and the one just changed are never dropped.
+function fitColumns(root) {
+  for (const box of root.querySelectorAll('.wb .list')) {
+    const rows = [...box.children].filter(el => el.classList.contains('ev'));
+    const keep = el => el.dataset.id === S.flash || (S.ui && el.dataset.id === S.ui.id);
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1) {
+      const i = rows.findLastIndex(el => !keep(el)); if (i < 0) break;
+      rows.splice(i, 1)[0].remove(); hidden++;
+      if (!more.isConnected) box.appendChild(more);
+      more.textContent = `+${hidden} more`;
+    }
+  }
+}
+// A's panel opens on the side away from the event, so the event stays in view while it moves.
+function sheetClasses() { return `sheet ${S.v.toUpperCase()} ${S.dev}${S.v === 'a' && S.dev === 'wall' && S.ui.side === 'left' ? ' left' : ''}`; }
+function mountSheet(animate) {
+  const layer = document.getElementById('layer');
+  const scrim = S.v === 'c' ? '<div class="scrim" data-act="closeOutside"></div>' : '<div class="scrim" style="background:transparent" data-act="closeOutside"></div>';
+  layer.innerHTML = `${scrim}<div class="${sheetClasses()}${animate ? ' hide' : ''}" id="sheet" role="dialog"><div class="body" id="sbody"></div></div>`;
+  fillSheet();
+  if (S.v === 'b' && S.dev === 'wall') placePopover();
+  const sh = document.getElementById('sheet');
+  if (S.dev === 'phone' && S.v !== 'c') sh.style.minHeight = `${sh.offsetHeight}px`;
+  if (animate) requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.getElementById('sheet')?.classList.remove('hide');
+    layer.querySelector('.scrim')?.classList.add('on');
+  })); else layer.querySelector('.scrim')?.classList.add('on');
+}
+function fillSheet() {
+  const e = ev(S.ui.id), sheet = document.getElementById('sheet'); if (!sheet || !e) return;
+  if (S.v === 'c') sheet.innerHTML = sheetC(e);
+  else sheet.querySelector('#sbody').innerHTML = SHEETS[S.v](e);
+  if (S.v === 'b' && S.dev === 'wall') placePopover();
+  const f = document.getElementById('titlefld');
+  if (f && f.tagName === 'TEXTAREA') { f.style.height = 'auto'; f.style.height = `${f.scrollHeight + 4}px`; }
+  if (f && S.ui.focusTitle) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); S.ui.focusTitle = false; }
+}
+function placePopover() {
+  const sheet = document.getElementById('sheet'), face = document.getElementById('face');
+  const row = face.querySelector(`#board [data-id="${S.ui.id}"]`) || face.querySelector('#board .needs');
+  if (!sheet) return;
+  let tip = sheet.querySelector('.tip');
+  if (!row) { sheet.style.left = '330px'; sheet.style.top = '120px'; if (tip) tip.remove(); return; }
+  const fr = face.getBoundingClientRect(), r = row.getBoundingClientRect(), s = fr.width / 1200;
+  const x0 = (r.left - fr.left) / s, x1 = (r.right - fr.left) / s, y0 = (r.top - fr.top) / s, y1 = (r.bottom - fr.top) / s;
+  const w = 540, h = sheet.offsetHeight || 420;
+  let left = x1 + 18 + w <= 1190 ? x1 + 18 : x0 - 18 - w; let side = left > x0 ? 'right' : 'left';
+  if (left < 10) { left = Math.max(10, Math.min(1190 - w, x0)); side = 'below'; }
+  let top = (y0 + y1) / 2 - h / 2; top = Math.max(10, Math.min(790 - h, top));
+  if (side === 'below') top = Math.min(790 - h, y1 + 14);
+  sheet.style.left = `${left}px`; sheet.style.top = `${top}px`;
+  if (!tip) { tip = document.createElement('span'); tip.className = 'tip'; sheet.prepend(tip); sheet.style.overflow = 'visible'; }
+  if (side === 'below') { tip.style.display = 'none'; return; }
+  tip.style.display = '';
+  const ty = Math.max(24, Math.min(h - 46, (y0 + y1) / 2 - top - 11));
+  tip.style.top = `${ty}px`; tip.style.left = side === 'right' ? '-10px' : ''; tip.style.right = side === 'left' ? '-10px' : '';
+}
+function unmountSheet(then) {
+  const sheet = document.getElementById('sheet'), layer = document.getElementById('layer');
+  if (!sheet) { then && then(); return; }
+  sheet.classList.add('leaving', 'hide'); layer.querySelector('.scrim')?.classList.remove('on');
+  setTimeout(() => { if (layer) layer.innerHTML = ''; then && then(); }, 200);
+}
+function renderEcho(animate = true) {
+  const el = document.getElementById('echo'); if (!el) return;
+  if (!S.echo) { el.classList.add('hide'); return; }
+  el.innerHTML = `<span class="txt">${S.echo.text}</span>${S.echo.extra ? `<button class="ub alt" data-act="${S.echo.extra.act}">${S.echo.extra.label}</button>` : ''}${S.echo.before ? '<button class="ub" data-act="undo">Undo</button>' : ''}`;
+  if (animate) { el.classList.add('hide'); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('hide'))); } else el.classList.remove('hide');
+}
+function say(text, before, extra) {
+  S.echo = { text, before, extra }; renderEcho(true);
+  clearTimeout(echoTimer); echoTimer = setTimeout(() => { S.echo = null; S.flash = null; renderEcho(); renderBoard(); }, 10000);
+}
+function writeLog(line) { S.log.unshift(line); S.log = S.log.slice(0, 5); renderMeta(); }
+function renderMeta() {
+  const m = document.getElementById('meta');
+  m.innerHTML = `<b>Touches so far: ${S.taps}</b>${S.scen !== 'free' ? ' (since the task started)' : ''}. ${S.log.length ? 'What the board would write to the calendar, newest first:' : 'Nothing written to the calendar yet.'}${S.log.length ? `<ol>${S.log.map(l => `<li>${l}</li>`).join('')}</ol>` : ''}`;
+}
+
+// ---------- what changed, in plain words ----------
+function describe(before, after, scope) {
+  if (!before || !after) return '';
+  const bits = [];
+  if (before.t !== after.t) bits.push(`renamed “${esc(after.t)}”`);
+  const q = `“${esc(before.t)}”`;
+  const moved = before.d !== after.d || before.s !== after.s || before.allDay !== after.allDay || before.thru !== after.thru;
+  const lenOnly = before.d === after.d && before.s === after.s && before.e !== after.e && !after.allDay && !before.allDay;
+  if (lenOnly) bits.push(`now ${range(after)}`);
+  else if (moved || before.e !== after.e) bits.push(after.allDay ? `now ${whenTxt(after)}` : `moved to ${tm(after.s)}, ${dayName(after.d)}`);
+  if (!bits.length) return '';
+  const pre = after.rep ? (scope === 'all' ? `Every ${before.rep}’s ${q}` : `This ${before.rep}’s ${q}`) : q;
+  return `${pre} ${bits.join(', ')}`;
+}
+function logWrite(before, after, scope) {
+  const where = `${P[after.p].name}${after.p === 'us' ? '' : '’s'} calendar`;
+  const text = describe(before, after, scope);
+  if (text) writeLog(`Saved on close to ${after.p === 'us' ? 'the Us calendar' : where}: ${text}${after.rep ? (scope === 'all' ? ' (the whole series)' : ' (this one only)') : ''}.`);
+  return text;
+}
+
+// ---------- actions ----------
+const A = {};
+function openSheet(id, side) {
+  const e = ev(id); if (!e) return;
+  const go = () => {
+    S.ui = { id, before: clone(S.events), snap: clone(e), grid: null, gridHour: null, gridPage: 0, ask: null, scope: null, mode: 'view',
+      side: side || (e.d >= 2 && e.d <= 3 ? 'left' : 'right') };
+    renderBoard(); mountSheet(true);
+  };
+  if (S.ui) closeSheet(go); else go();
+}
+function closeSheet(then) {
+  const ui = S.ui; if (!ui) { then && then(); return; }
+  const e = ev(ui.id);
+  syncTitle();
+  let text = '';
+  if (e && S.v !== 'c') text = logWrite(ui.snap, e, ui.scope);
+  S.ui = null;
+  if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before); then && then(); });
+}
+function syncTitle() {
+  const f = document.getElementById('titlefld'); if (!f || !S.ui) return;
+  const t = f.value.trim(); if (!t) return;
+  if (f.dataset.focus === 'title') { const e = ev(S.ui.id); if (e && e.t !== t) e.t = t; }
+  if (f.dataset.focus === 'draft' && S.ui.draft) S.ui.draft.t = t;
+}
+// A repeating event asks once per sheet, where it was tapped (variant A) or on Save (C).
+function needScope(row, act, arg) {
+  const e = ev(S.ui.id);
+  if (!e.rep || S.ui.scope) return false;
+  const q = { del: `Delete just this ${e.rep}, or every ${e.rep}?`, hide: `Hide just this ${e.rep}, or every ${e.rep}?` }[row] || `Change just this ${e.rep}, or every ${e.rep}?`;
+  S.ui.ask = { row, act, arg, q }; fillSheet(); return true;
+}
+A.open = id => openSheet(id);
+A.close = () => closeSheet();
+A.closeOutside = () => closeSheet();
+A.scope = arg => {
+  const ask = S.ui.ask; S.ui.scope = arg; S.ui.ask = null;
+  if (ask && ask.row === 'title') S.ui.focusTitle = true;
+  if (ask && ask.act) A[ask.act](ask.arg, true); else fillSheet();
+};
+A.askCancel = () => { S.ui.ask = null; fillSheet(); };
+function live() { renderBoard(); fillSheet(); }
+A.dayStep = (n, ok) => { if (!ok && needScope('day', 'dayStep', n)) return; const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d += +n; if (e.allDay) e.thru = e.d + span; live(); };
+A.thruStep = (n, ok) => { if (!ok && needScope('day', 'thruStep', n)) return; const e = ev(S.ui.id); e.thru = Math.max(e.d, e.thru + +n); live(); };
+A.timeStep = (n, ok) => { if (!ok && needScope('time', 'timeStep', n)) return; const e = ev(S.ui.id); const len = e.e - e.s; e.s = Math.max(0, Math.min(24 * 60 - len, e.s + +n)); e.e = e.s + len; live(); };
+A.grid = (k, ok) => {
+  if (S.v === 'a' && !ok && needScope(k === 'time' || k === 'len' ? 'time' : 'day', 'grid', k)) return;
+  S.ui.grid = k; S.ui.gridHour = null; S.ui.gridPage = 0; fillSheet();
+};
+A.gridBack = () => { S.ui.grid = null; fillSheet(); };
+A.gridPage = n => { S.ui.gridPage = Math.max(0, (S.ui.gridPage || 0) + +n); fillSheet(); };
+A.gridHour = h => { S.ui.gridHour = +h; fillSheet(); };
+A.setDay = d => { const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d = +d; if (e.allDay) e.thru = e.d + span; S.ui.grid = null; live(); };
+A.setThru = d => { const e = ev(S.ui.id); e.thru = Math.max(e.d, +d); S.ui.grid = null; if (S.v === 'b') return quickDone(); live(); };
+A.setTime = m => { const e = ev(S.ui.id); const len = e.e - e.s; e.s = +m; e.e = Math.min(24 * 60, e.s + len); S.ui.grid = null; live(); };
+A.setLen = n => { const e = ev(S.ui.id); e.e = Math.min(24 * 60, e.s + +n); S.ui.grid = null; if (S.v === 'b') return quickDone(); live(); };
+A.allDay = (_, ok) => {
+  if (!ok && needScope('len', 'allDay', null)) return;
+  const e = ev(S.ui.id);
+  if (e.allDay) { e.allDay = false; e.s = e.oldS ?? hm(9); e.e = e.oldE ?? hm(10); delete e.thru; }
+  else { e.oldS = e.s; e.oldE = e.e; e.allDay = true; e.thru = e.d; }
+  live();
+};
+A.del = (_, ok) => {
+  if (!ok && needScope('del', 'del', null)) return;
+  const e = ev(S.ui.id), ui = S.ui, scope = ui.scope;
+  S.events = S.events.filter(x => x !== e);
+  writeLog(`Deleted from ${e.p === 'us' ? 'the Us calendar' : `${P[e.p].name}’s calendar`}: ${esc(e.t)}, ${whenTxt(e)}${e.rep ? (scope === 'all' ? ' (the whole series)' : ' (this one only)') : ''}.`);
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? (scope === 'all' ? `, every ${e.rep}` : `, this ${e.rep} only`) : `, ${dayName(e.d)}, ${tm(e.s)}`}.`, ui.before); });
+};
+A.hide = (_, ok) => {
+  if (!ok && ev(S.ui.id).k === 'edit' && needScope('hide', 'hide', null)) return;
+  const e = ev(S.ui.id), ui = S.ui;
+  e.hidden = true;
+  writeLog(`Hidden from the board for everyone; the calendar is unchanged: ${esc(e.t)}${e.rep ? (ui.scope === 'all' ? ' (every one)' : ' (this one)') : ''}.`);
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Hid “${esc(e.t)}” from the board. It’s still on the calendar; Settings, Hidden by you, brings it back.`, ui.before); });
+};
+A.undo = () => {
+  if (!S.echo || !S.echo.before) return;
+  S.events = S.echo.before; S.echo = null; clearTimeout(echoTimer);
+  writeLog('Undone: the calendar is put back exactly as it was.');
+  if (!S.events.some(x => x.id === S.flash && !x.hidden)) S.flash = null;
+  renderBoard(true); say('Put back.', null);
+};
+// B: chips apply and close at once
+function quickDone(alsoAll) {
+  const ui = S.ui, e = ev(ui.id);
+  const text = logWrite(ui.snap, e, 'one');
+  S.ui = null; if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before, e.rep ? { label: `All ${e.rep}s too`, act: 'allToo' } : null); });
+}
+A.quickTime = m => { const e = ev(S.ui.id); const len = e.e - e.s; e.s = +m; e.e = e.s + len; quickDone(); };
+A.quickDay = d => { const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d = +d; if (e.allDay) e.thru = e.d + span; quickDone(); };
+A.pickDay = d => { const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d = +d; if (e.allDay) e.thru = e.d + span; quickDone(); };
+A.pickTime = m => { const e = ev(S.ui.id); const len = e.e - e.s; e.s = +m; e.e = Math.min(24 * 60, e.s + len); quickDone(); };
+A.allDayB = () => { A.allDay(null, true); quickDone(); };
+A.rename = () => { S.ui.renaming = true; S.ui.focusTitle = true; fillSheet(); };
+A.renameCancel = () => { S.ui.renaming = false; fillSheet(); };
+A.renameDone = () => { const f = document.getElementById('titlefld'); const t = f && f.value.trim(); if (t) ev(S.ui.id).t = t; quickDone(); };
+A.delB = () => {
+  const e = ev(S.ui.id), ui = S.ui;
+  S.events = S.events.filter(x => x !== e);
+  writeLog(`Deleted from ${e.p === 'us' ? 'the Us calendar' : `${P[e.p].name}’s calendar`}: ${esc(e.t)}, ${whenTxt(e)}${e.rep ? ' (this one only)' : ''}.`);
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? `, this ${e.rep} only` : `, ${dayName(e.d)}, ${tm(e.s)}`}.`, ui.before, e.rep ? { label: `Every ${e.rep}`, act: 'allToo' } : null); });
+};
+A.hideB = () => { S.ui.scope = 'one'; A.hide(null, true); };
+A.allToo = () => {
+  const e = S.events.find(x => x.rep);
+  writeLog(`Saved to the Us calendar: the same change for every ${e ? e.rep : 'one'} (the whole series).`);
+  say(`Done for every one in the series.`, S.echo && S.echo.before);
+};
+// C: edit with a draft, Save writes
+A.edit = () => { const e = ev(S.ui.id); S.ui.mode = 'edit'; S.ui.draft = clone(e); fillSheet(); };
+A.cancel = () => { S.ui.mode = 'view'; S.ui.draft = null; S.ui.grid = null; S.ui.ask = null; fillSheet(); };
+A.dSetDay = d => { syncTitle(); const x = S.ui.draft; const span = (x.thru ?? x.d) - x.d; x.d = +d; if (x.allDay) x.thru = x.d + span; S.ui.grid = null; fillSheet(); };
+A.dSetThru = d => { syncTitle(); S.ui.draft.thru = Math.max(S.ui.draft.d, +d); S.ui.grid = null; fillSheet(); };
+A.dSetTime = m => { syncTitle(); const x = S.ui.draft; const len = x.e - x.s; x.s = +m; x.e = Math.min(24 * 60, x.s + len); S.ui.grid = null; fillSheet(); };
+A.dSetEnd = m => { syncTitle(); S.ui.draft.e = +m; S.ui.grid = null; fillSheet(); };
+A.dAllDay = () => { syncTitle(); const x = S.ui.draft; if (x.allDay) { x.allDay = false; x.s = x.oldS ?? hm(9); x.e = x.oldE ?? hm(10); delete x.thru; } else { x.oldS = x.s; x.oldE = x.e; x.allDay = true; x.thru = x.d; } fillSheet(); };
+A.save = (_, ok) => {
+  syncTitle();
+  const e = ev(S.ui.id), ui = S.ui;
+  if (e.rep && !ok && !ui.scope) { ui.ask = { row: 'save', act: 'save', arg: null, q: `Save this change for just this ${e.rep}, or every ${e.rep}?` }; fillSheet(); return; }
+  Object.assign(e, ui.draft);
+  if (!e.allDay) delete e.thru;
+  const text = logWrite(ui.snap, e, ui.scope);
+  S.ui = null; if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before); });
+};
+A.delC = (_, ok) => {
+  const e = ev(S.ui.id);
+  if (e.rep && !ok && !S.ui.scope) { S.ui.ask = { row: 'del', act: 'delC', arg: null, q: `Delete just this ${e.rep}, or every ${e.rep}?` }; fillSheet(); return; }
+  A.del(null, true);
+};
+A.hideC = () => { const e = ev(S.ui.id); if (e.rep && e.k === 'edit' && !S.ui.scope) { S.ui.ask = { row: 'hide', act: 'hide', arg: null, q: `Hide just this ${e.rep}, or every ${e.rep}?` }; fillSheet(); return; } A.hide(null, true); };
+
+// ---------- input ----------
+let repeatT = null, repeatI = null, repeated = false;
+function onDown(ev0) {
+  const face = document.getElementById('face'); if (!face || !face.contains(ev0.target)) return;
+  S.taps++; renderMeta();
+  const b = ev0.target.closest('[data-repeat]');
+  if (b) {
+    repeated = false;
+    repeatT = setTimeout(() => { repeatI = setInterval(() => { repeated = true; A[b.dataset.act](b.dataset.arg); }, 180); }, 500);
+  }
+}
+function stopRepeat() { clearTimeout(repeatT); clearInterval(repeatI); }
+document.addEventListener('pointerdown', onDown);
+document.addEventListener('pointerup', stopRepeat); document.addEventListener('pointercancel', stopRepeat);
+document.getElementById('frame').addEventListener('click', e0 => {
+  const t = e0.target.closest('[data-act]'); if (!t || t.disabled) return;
+  if (repeated && t.hasAttribute('data-repeat')) { repeated = false; return; }
+  const act = t.dataset.act, arg = t.dataset.arg;
+  if (act === 'open' && S.ui && S.ui.id === arg) return;
+  if (act === 'open') return openSheet(arg);
+  if (act === 'closeOutside') return closeSheet(); // a tap outside only closes, never opens another event by accident
+  A[act] && A[act](arg);
+});
+document.getElementById('frame').addEventListener('input', e0 => {
+  if (e0.target.id !== 'titlefld' || !S.ui) return;
+  if (e0.target.dataset.focus === 'title') {
+    const e = ev(S.ui.id);
+    if (e.rep && !S.ui.scope) { e0.target.value = e.t; return needScope('title', null, null); }
+    const v = e0.target.value.trim(); if (v) { e.t = v; renderBoard(); }
+    e0.target.style.height = 'auto'; e0.target.style.height = `${e0.target.scrollHeight + 4}px`;
+  }
+});
+document.getElementById('frame').addEventListener('keydown', e0 => {
+  if (e0.key !== 'Enter' || e0.target.id !== 'titlefld') return;
+  e0.preventDefault(); if (S.v === 'b') A.renameDone(); else e0.target.blur();
+});
+document.getElementById('frame').addEventListener('focusin', e0 => {
+  if (e0.target.id === 'titlefld' && e0.target.dataset.focus === 'title' && S.ui && ev(S.ui.id).rep && !S.ui.scope) { e0.target.blur(); needScope('title', null, null); }
+});
+
+// ---------- viewer ----------
+function readHash() {
+  const parts = (location.hash || '').replace('#', '').split('-');
+  if (VARIANTS[parts[0]]) S.v = parts[0];
+  if (DEVS[parts[1]]) S.dev = parts[1];
+  if (SCEN[parts[2]]) S.scen = parts[2];
+  S.shot = parts.includes('shot');
+  S.guest = parts.includes('guest');
+}
+function writeHash() { const h = `#${S.v}-${S.dev}-${S.scen}${S.guest ? '-guest' : ''}${S.shot ? '-shot' : ''}`; if (location.hash !== h) history.replaceState(null, '', h); }
+function layout() {
+  const frame = document.getElementById('frame'), face = document.getElementById('face'); if (!face) return;
+  const D = DEVS[S.dev];
+  const avail = Math.max(280, Math.min(document.documentElement.clientWidth - 28, D.w));
+  const s = S.shot ? 1 : avail / D.w;
+  frame.style.width = `${Math.round(D.w * s)}px`; frame.style.height = `${Math.round(D.h * s)}px`;
+  face.style.transform = `scale(${s})`;
+}
+function resetAll() {
+  clearTimeout(echoTimer); S.events = SEED(); S.ui = null; S.echo = null; S.taps = 0; S.log = [];
+  document.getElementById('task').textContent = SCEN[S.scen].task;
+  document.getElementById('vname').textContent = VARIANTS[S.v].name;
+  document.getElementById('about').innerHTML = VARIANTS[S.v].about;
+  for (const b of document.querySelectorAll('#devs button')) b.setAttribute('aria-pressed', b.dataset.k === S.dev);
+  document.getElementById('scen').value = S.scen;
+  const g = document.getElementById('guest'); g.setAttribute('aria-pressed', S.guest); g.disabled = S.dev !== 'wall';
+  document.body.classList.toggle('shot', S.shot);
+  writeHash(); renderAll();
+}
+document.getElementById('devs').innerHTML = Object.entries(DEVS).map(([k, o]) => `<button data-k="${k}" aria-pressed="false">${o.label}</button>`).join('');
+document.getElementById('devs').addEventListener('click', e0 => { const b = e0.target.closest('button'); if (b) { S.dev = b.dataset.k; if (S.dev !== 'wall') S.guest = false; resetAll(); } });
+document.getElementById('scen').innerHTML = Object.entries(SCEN).map(([k, o]) => `<option value="${k}">${o.label}</option>`).join('');
+document.getElementById('scen').addEventListener('change', e0 => { S.scen = e0.target.value; resetAll(); });
+document.getElementById('guest').onclick = () => { S.guest = !S.guest; resetAll(); };
+document.getElementById('reset').onclick = () => resetAll();
+const keys = Object.keys(VARIANTS);
+const step = n => { S.v = keys[(keys.indexOf(S.v) + n + keys.length) % keys.length]; resetAll(); };
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+document.addEventListener('keydown', e0 => {
+  if (e0.target.closest('input, textarea, select, [contenteditable]')) return;
+  if (e0.key === 'ArrowLeft') step(-1); if (e0.key === 'ArrowRight') step(1);
+});
+window.addEventListener('resize', () => { layout(); if (S.ui && S.v === 'b' && S.dev === 'wall') placePopover(); });
+window.addEventListener('hashchange', () => { readHash(); resetAll(); });
+// For screenshots: #...-open=<id> opens that event's sheet at load.
+const openAtLoad = (location.hash.match(/open=(\w+)/) || [])[1];
+if (!location.hash && document.documentElement.clientWidth < 700) S.dev = 'phone'; // on a phone, start on the phone screen
+readHash(); resetAll();
+if (openAtLoad) openSheet(openAtLoad);
+</script>
+</body>
+</html>
