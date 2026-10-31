@@ -443,7 +443,7 @@ const newNotes = () => NOTES.map((n, k) => ({ ...n, k })).filter(n => n.fresh &&
 function needsHTML(M) {
   if (!M.needs) return '';
   return M.needs.rem
-    ? `<div class="needs rem"><span>${esc(M.needs.t)}</span><button class="ndone" data-needs-done>Done</button></div>`
+    ? `<div class="needs rem"><span>${esc(M.needs.t)}</span><button class="ndone" data-needs-done>Mark done</button></div>`
     : `<div class="needs">${esc(M.needs.t)}</div>`;
 }
 function newLine() {
@@ -538,11 +538,11 @@ function renderB(M) {
   const sel = S.sel ?? M.focus, start = Math.floor(sel / 7) * 7, d = dateOf(sel);
   const title = sel === 0 ? `Today, ${MO[d.getMonth()]} ${d.getDate()}` : sel === 1 ? `Tomorrow, ${WD[d.getDay()]}` : dFull(sel);
   const prev = sel - 1, next = sel + 1;
-  return `<div class="B"><div class="stripwrap">${stripHTML(start, sel, 'sel')}</div>
+  return `<div class="B A"><div class="stripwrap">${stripHTML(start, sel, 'sel')}</div>
     <div class="page" data-swipe>
       <div class="hd"><div class="date1">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
       ${sel === 0 && M.T.rain ? `<div class="rain">${SVG.rain}${M.T.rain}</div>` : ''}
-      ${sel === M.focus ? needsHTML(M) + newLine() : ''}
+      ${sel === M.focus ? needsHTML(M) + newLine() + nextCard(M, 'nextcard') : ''}
       ${dayList(sel, M)}
       <div class="pager">${prev >= 0 ? `<button data-sel="${prev}">‹ ${prev === 0 ? 'Today' : WD[dateOf(prev).getDay()]}</button>` : '<span style="flex:1"></span>'}<button data-sel="${next}">${next === 1 ? 'Tomorrow' : WD[dateOf(next).getDay()]} ›</button></div>
     </div></div>`;
@@ -618,7 +618,7 @@ function newSheet() {
 const addSheet = () => sheet(`<div class="sh"><h2>Add</h2><button class="done" data-close>Cancel</button></div><div class="field">What? For example "dentist tue 3"</div>
     <div class="pnote">Prototype: how adding feels is its own question on the map. This only shows where the button sits.</div>`);
 const settingsSheet = () => sheet(`<div class="sh"><h2>Settings</h2><button class="done" data-close>Done</button></div>
-    <div class="srow"><span>Your own calendars show</span><span class="soft">Titles</span></div>
+    <div class="srow"><span>How much of your calendars shows</span><span class="soft">Full titles</span></div>
     <div class="srow"><span>Your work calendar shows</span><span class="soft">"At work" and the hours</span></div>
     <div class="srow"><span>Events hidden by you</span><span class="soft">1 ›</span></div>
     <div class="srow"><span>Guest mode</span><span class="soft">Off</span></div>
@@ -674,7 +674,8 @@ function onScroll() {
 function jump(i) {
   i = Math.max(0, Math.min(LAST, i));
   const view = $('#view'), h = $('#estrip').offsetHeight;
-  view.scrollTo({ top: i === 0 ? 0 : anchorTop(i) - h, behavior: 'smooth' });
+  view.scrollTop = i === 0 ? 0 : anchorTop(i) - h; // instant: a long smooth scroll is slow, and the strip must land on the day tapped
+  onScroll(); // update the strip now, so quick repeated taps count from the right day
 }
 function render() {
   $('#phone').innerHTML = frame();
@@ -718,7 +719,7 @@ document.addEventListener('click', e => {
   if ('earlier' in d) { S.earlierOpen = !S.earlierOpen; renderView(); return; }
   if ('add' in d) return addSheet();
   if ('settings' in d) return settingsSheet();
-  if (t.id === 'todaychip') { $('#view').scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (t.id === 'todaychip') { $('#view').scrollTop = 0; return; }
 });
 // Swipes: B's page and the month's day panel move a day; a strip moves a week. Every swipe has a button too.
 let sx = null, sy = null;
