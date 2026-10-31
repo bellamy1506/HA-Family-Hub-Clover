@@ -87,6 +87,8 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .wb .ev { display: grid; grid-template-columns: 9px 1fr; column-gap: 12px; border: 0; background: none; text-align: left; padding: 4px 6px 4px 0; border-radius: 10px;
   transition: transform 200ms ease-out, opacity 200ms ease-out }
 .wb .ev.sel { background: #E2E7E0; box-shadow: 0 0 0 3px #16191B inset }
+.wb .ev.flash, .pb .ev.flash { background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00 inset }
+.wb .more { font-size: 20px; font-weight: 500; color: #464C50; padding: 2px 0 }
 .wb .ev .barc { background: var(--c); border-radius: 5px }
 .wb .ev.block .barc { background: repeating-linear-gradient(135deg, var(--c) 0 6px, color-mix(in srgb, var(--c) 45%, #F4F5F2) 6px 12px) }
 .wb .ev .tm { font-size: 21px; font-weight: 500; color: #464C50 }
@@ -184,8 +186,9 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .sheet.A.phone.hide { transform: translateY(104%) }
 .A .top { display: flex; align-items: center; justify-content: space-between; gap: 12px }
 .A .person { font-weight: 700; color: #464C50; display: flex; align-items: center }
-.A .titlefld { width: 100%; border: 0; border-bottom: 2px dashed #B9C0B7; background: none; font-weight: 700; color: #16191B; padding: 2px 0 6px; outline: none; border-radius: 0 }
-.A .titlefld:focus { border-bottom: 2px solid #16191B }
+.A .titlefld { width: 100%; border: 2px solid transparent; background: #ECEFEA; font-weight: 700; color: #16191B; padding: 8px 12px; outline: none; border-radius: 14px;
+  resize: none; overflow: hidden; line-height: 1.15; display: block; font-family: inherit }
+.A .titlefld:focus { border-color: #16191B; background: #fff }
 .A .row { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); gap: 10px; align-items: stretch }
 .A .row .arr { padding: 0; font-size: 1.5em; font-weight: 700 }
 .A .row .mid { flex-direction: column; gap: 0; line-height: 1.15; padding: 4px 8px }
@@ -195,11 +198,11 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .A .opts2 .grow { flex: 1 }
 .A .hint { color: #5A6064 }
 .A .foot { display: flex; flex-direction: column; gap: 10px }
-.face.wall .A .wrap { padding: 20px 26px 16px; display: flex; flex-direction: column; gap: 10px }
+.face.wall .A .wrap { padding: 18px 26px 14px; display: flex; flex-direction: column; gap: 9px }
 .face.wall .A .top .btn { min-height: 64px }
 .face.wall .A .opts2 .btn.grow { min-height: 64px }
 .face.wall .A .foot .btn.plain { min-height: 56px }
-.face.wall .A .person { font-size: 24px } .face.wall .A .titlefld { font-size: 36px } .face.wall .A .rowlab { font-size: 19px; margin-bottom: -6px }
+.face.wall .A .person { font-size: 24px } .face.wall .A .titlefld { font-size: 32px } .face.wall .A .rowlab { font-size: 19px; margin-bottom: -6px }
 .face.wall .A .row .mid { font-size: 30px } .face.wall .A .hint { font-size: 20px }
 .face.phone .A .wrap { padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px }
 .face.phone .A .grab { width: 40px; height: 5px; border-radius: 3px; background: #C9CFC7; margin: 0 auto 2px }
@@ -336,7 +339,7 @@ const SCEN = {
 };
 const VARIANTS = {
   a: { name: 'A · Live panel, arrows', about: '<b>A. Live panel with arrows.</b> A panel slides in beside the event, on the side away from it, so you watch the event move. The day and time each have ‹ › arrows (a day, or 15 minutes keeping the length, per tap); tap the day or time itself for a grid of big buttons. Tap the title to retype it. No Save button: changes save when the panel closes, and the echo at the bottom offers Undo. A repeating event asks “This one or All?” right where you tapped, once.' },
-  b: { name: 'B · Quick picks, chips', about: '<b>B. Quick picks.</b> A small card next to the event offers the likely moves as buttons that name the result (“4:00”, “Wed”, “Next Tue”); one tap moves it and closes the card, with Undo in the echo. “Other day or time…” opens the same big-button grids. A repeating event changes this one; the echo offers “All Sundays too”.' },
+  b: { name: 'B · Quick picks, chips', about: '<b>B. Quick picks.</b> A small card next to the event offers the likely moves as buttons that name the result (“4:00 pm”, “Wed”, “Next Tue”); one tap moves it and closes the card, with Undo in the echo. “Other day…” and “Other time…” open the same big-button grids. A repeating event changes this one; the echo offers “All Sundays too”.' },
   c: { name: 'C · Edit, then Save', about: '<b>C. Edit, then Save.</b> The familiar form, as on an iPhone or a Skylight: a card shows the event with Change and Delete buttons; Change opens a form (title, day, starts, ends, all day) with Cancel and Save, the end moving with the start. Nothing changes on the board until Save. A repeating event asks “This one or All?” on Save.' },
 };
 const DEVS = { wall: { label: 'Wall', w: 1200, h: 800 }, phone: { label: 'Phone', w: 390, h: 844 } };
@@ -363,7 +366,8 @@ const OVL = px => `<svg class="ovl" width="${px}" height="${px}" viewBox="0 0 24
 // ---------- state ----------
 const S = { v: 'a', dev: 'wall', scen: 'free', guest: false, shot: false, events: SEED(), taps: 0, log: [],
   ui: null,   // the open sheet: { id, before, snap, grid, gridHour, gridPage, ask, scope, mode, draft, editing, renaming, other }
-  echo: null }; // { text, before, extra: { label, act } }
+  echo: null,  // { text, before, extra: { label, act } }
+  flash: null }; // the event just changed: highlighted, and never dropped from a full column, while the echo shows
 let echoTimer = null;
 const ev = id => S.events.find(e => e.id === id);
 const visible = e => !e.hidden && !(S.guest && S.dev === 'wall' && e.work);
@@ -383,7 +387,7 @@ const titleOf = e => guestBlock(e) ? `${P[e.p].name}, ${range(e).replace(/ (am|p
 function evRow(e, first) {
   const cl = clashesOf(e).length ? OVL(first ? 24 : 20) : '';
   const dot = e.isNew ? '<span class="newdot" aria-label="new"></span>' : '';
-  const sel = S.ui && S.ui.id === e.id ? ' sel' : '';
+  const sel = S.ui && S.ui.id === e.id ? ' sel' : S.flash === e.id ? ' flash' : '';
   return `<button class="ev${e.k === 'block' || guestBlock(e) ? ' block' : ''}${sel}" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}"><span class="barc"></span>
     <span><span class="tm">${tmS(e.s)}${cl}<span class="who">${P[e.p].name}</span>${dot}</span><span class="tt clamp2">${esc(titleOf(e))}</span></span></button>`;
 }
@@ -420,7 +424,7 @@ function phoneBoard() {
     const rows = vis.filter(e => !e.allDay && e.d === d && (d > 0 || e.e > NOW)).sort((a, b) => a.s - b.s).map(e => {
       const cl = clashesOf(e).length ? OVL(16) : '';
       const dot = e.isNew ? '<span class="newdot" style="width:8px;height:8px"></span>' : '';
-      return `<button class="ev${e.k === 'block' ? ' block' : ''}${S.ui && S.ui.id === e.id ? ' sel' : ''}" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}"><span class="barc"></span>
+      return `<button class="ev${e.k === 'block' ? ' block' : ''}${S.ui && S.ui.id === e.id ? ' sel' : S.flash === e.id ? ' flash' : ''}" data-act="open" data-arg="${e.id}" data-id="${e.id}" style="${c(e.p)}"><span class="barc"></span>
         <span class="tm">${hh(e.s)} ${ap(e.s)}${cl}</span><span class="tt">${esc(titleOf(e))}<span class="who">${P[e.p].name}</span>${dot}</span></button>`;
     }).join('');
     return `<div class="day">${d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : DOWL[dateOf(d).getDay()]} <span>${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</span></div>${allDay}${rows || (allDay ? '' : '<div class="empty">Nothing yet</div>')}`;
@@ -470,7 +474,7 @@ function gridHTML(kind, e, opts = {}) {
     const qcells = [0, 15, 30, 45].map(q => { const m = pickH * 60 + q; return `<button class="cell${m === cur ? ' cur' : ''}" data-act="${opts.act || (isEnd ? 'setEnd' : 'setTime')}" data-arg="${m}"${isEnd && m <= e.s ? ' disabled' : ''}>${hh(m)}<small>${ap(m)}</small></button>`; }).join('');
     return `<div class="grid"><div class="gh"><span class="gt">${isEnd ? 'Ends at' : `Starts at${opts.keep === false ? '' : ` <span style="font-weight:400;font-size:.75em;color:#464C50">(keeps ${lenTxt(len)})</span>`}`}</span><button class="btn" data-act="gridBack">Back</button></div>
       <div class="cells" style="grid-template-columns:repeat(6,1fr)">${hcells}</div>
-      <div class="gt" style="font-size:${wall ? 20 : 13}px;color:#464C50;margin-top:4px">Then the minutes</div>
+      <div class="gt" style="font-size:${wall ? 20 : 13}px;color:#464C50;margin-top:4px">Then the minutes for ${pickH % 12 || 12} ${pickH < 12 ? 'am' : 'pm'}</div>
       <div class="cells" style="grid-template-columns:repeat(4,1fr)">${qcells}</div></div>`;
   }
   if (kind === 'len') {
@@ -481,26 +485,27 @@ function gridHTML(kind, e, opts = {}) {
   return '';
 }
 const askHTML = (q, one, all) => `<div class="ask"><div class="q">${q}</div><div class="opts">
-  <button class="btn dark" data-act="scope" data-arg="one">This one<small>${one}</small></button>
+  <button class="btn dark" data-act="scope" data-arg="one">This one<small>this week only</small></button>
   <button class="btn dark" data-act="scope" data-arg="all">All<small>${all}</small></button></div>
   <button class="btn plain" data-act="askCancel" style="min-height:${S.dev === 'wall' ? 56 : 40}px">Never mind</button></div>`;
 
 // ---------- A: live panel with arrows ----------
 function sheetA(e) {
   const ui = S.ui, wall = S.dev === 'wall';
-  const top = `${wall ? '' : '<div class="grab"></div>'}<div class="top"><span class="person"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${e.rep ? ` · every ${e.rep}` : ''}`}</span><button class="btn dark" data-act="close" style="min-width:${wall ? 150 : 84}px">Done</button></div>`;
+  const repTxt = e.rep ? (ui.scope === 'one' ? ` · this ${e.rep} only` : ui.scope === 'all' ? ` · every ${e.rep}, all of them` : ` · every ${e.rep}`) : '';
+  const top = `${wall ? '' : '<div class="grab"></div>'}<div class="top"><span class="person"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${repTxt}`}</span><button class="btn dark" data-act="close" style="min-width:${wall ? 150 : 84}px">Done</button></div>`;
   if (ui.grid) return `<div class="wrap">${top}${gridHTML(ui.grid, e, { keep: true })}</div>`;
   if (!editable(e)) {
     return `<div class="wrap">${top}<div class="ttl" style="font-size:${wall ? 38 : 23}px;font-weight:700;line-height:1.12">${esc(titleOf(e))}</div>
       <div style="font-size:${wall ? 28 : 17}px;font-weight:500">${whenTxt(e)}</div>${clashLines(e)}${roLine(e)}${addedLine(e)}<div class="foot">${hideBtn(e)}</div></div>`;
   }
   const askFor = what => ui.ask && ui.ask.row === what ? askHTML(ui.ask.q, `${dayName(e.d)}`, `every ${e.rep}`) : null;
-  const title = askFor('title') || `<input class="titlefld" id="titlefld" value="${esc(e.t)}" aria-label="Title" enterkeyhint="done" data-focus="title">`;
+  const title = askFor('title') || `<div class="rowlab">Title</div><textarea class="titlefld" id="titlefld" rows="1" aria-label="Title" enterkeyhint="done" data-focus="title">${esc(e.t)}</textarea>`;
   const dayRow = askFor('day') || (e.allDay
     ? `<div class="rowlab">From</div><div class="row"><button class="btn arr" data-act="dayStep" data-arg="-1" data-repeat aria-label="A day earlier">‹</button><button class="btn mid" data-act="grid" data-arg="day">${dayName(e.d)}${rel(e.d) ? `<small>${rel(e.d)}</small>` : ''}</button><button class="btn arr" data-act="dayStep" data-arg="1" data-repeat aria-label="A day later">›</button></div>
        <div class="rowlab">Through</div><div class="row"><button class="btn arr" data-act="thruStep" data-arg="-1" aria-label="End a day earlier"${e.thru <= e.d ? ' disabled' : ''}>‹</button><button class="btn mid" data-act="grid" data-arg="thru">${dayName(e.thru)}${e.thru === e.d ? '<small>one day</small>' : `<small>${e.thru - e.d + 1} days</small>`}</button><button class="btn arr" data-act="thruStep" data-arg="1" aria-label="End a day later">›</button></div>`
     : `<div class="rowlab">Day</div><div class="row"><button class="btn arr" data-act="dayStep" data-arg="-1" data-repeat aria-label="A day earlier">‹</button><button class="btn mid" data-act="grid" data-arg="day">${dayName(e.d)}${rel(e.d) ? `<small>${rel(e.d)}</small>` : ''}</button><button class="btn arr" data-act="dayStep" data-arg="1" data-repeat aria-label="A day later">›</button></div>`);
-  const timeRow = e.allDay ? '' : (askFor('time') || `<div class="rowlab">Time</div><div class="row"><button class="btn arr" data-act="timeStep" data-arg="-15" data-repeat aria-label="15 minutes earlier">‹</button><button class="btn mid" data-act="grid" data-arg="time">${range(e)}<small>15 min per tap, keeps ${lenTxt(e.e - e.s)}</small></button><button class="btn arr" data-act="timeStep" data-arg="15" data-repeat aria-label="15 minutes later">›</button></div>`);
+  const timeRow = e.allDay ? '' : (askFor('time') || `<div class="rowlab">Time</div><div class="row"><button class="btn arr" data-act="timeStep" data-arg="-15" data-repeat aria-label="15 minutes earlier">‹</button><button class="btn mid" data-act="grid" data-arg="time">${range(e)}<small>‹ › move it 15 min</small></button><button class="btn arr" data-act="timeStep" data-arg="15" data-repeat aria-label="15 minutes later">›</button></div>`);
   const extras = askFor('len') || `<div class="opts2">${e.allDay ? '' : `<button class="btn grow" data-act="grid" data-arg="len">Length: ${lenTxt(e.e - e.s)}</button>`}<span class="opts2" style="gap:8px;${e.allDay ? 'flex:1' : ''}"><span style="font-size:${wall ? 24 : 15}px;font-weight:500">All day</span>${swHTML(!!e.allDay, 'allDay')}</span></div>`;
   const foot = askFor('del') || askFor('hide') || `<div class="foot"><button class="btn danger" data-act="del">Delete from the calendar</button>${hideBtn(e)}</div>`;
   return `<div class="wrap">${top}${title}${dayRow}${timeRow}${extras}${clashLines(e)}${addedLine(e)}${foot}</div>`;
@@ -512,18 +517,15 @@ function sheetB(e) {
   const hd = `<div class="hd"><div><div class="who2"><span class="pip" style="${c(e.p)}"></span>${guestBlock(e) ? P[e.p].name : `${P[e.p].name}${e.rep ? ` · every ${e.rep}` : ''}`}</div>
     <div class="ttl">${esc(titleOf(e))}</div><div class="when">${whenTxt(e)}</div></div><button class="x" data-act="close" aria-label="Close">✕</button></div>`;
   if (!editable(e)) return `<div class="wrap">${hd}${clashLines(e)}${roLine(e)}${addedLine(e)}<div class="acts">${hideBtn(e)}</div></div>`;
-  if (ui.grid) return `<div class="wrap">${hd}${gridHTML(ui.grid, e, { act: ui.grid === 'day' ? 'pickDay' : ui.grid === 'thru' ? 'setThru' : 'pickTime', keep: true })}</div>`;
-  if (ui.other) return `<div class="wrap">${hd}<div class="lab">Change to another…</div><div class="acts" style="display:grid;grid-template-columns:1fr 1fr">
-      <button class="btn" data-act="grid" data-arg="day">Day</button>${e.allDay ? '<button class="btn" data-act="grid" data-arg="thru">Last day</button>' : '<button class="btn" data-act="grid" data-arg="time">Time</button>'}
-      ${e.allDay ? '' : '<button class="btn" data-act="grid" data-arg="len">Length</button>'}<button class="btn" data-act="allDayB">${e.allDay ? 'Not all day' : 'All day'}</button></div>
-      <button class="btn plain" data-act="otherBack">Back</button></div>`;
+  if (ui.grid) return `<div class="wrap">${hd}${gridHTML(ui.grid, e, { act: ui.grid === 'day' ? 'pickDay' : ui.grid === 'thru' ? 'setThru' : 'pickTime', keep: true })}
+      ${ui.grid === 'time' ? `<div class="acts" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn" data-act="grid" data-arg="len">Length: ${lenTxt(e.e - e.s)}</button><button class="btn" data-act="allDayB">Make it all day</button></div>` : ''}</div>`;
   if (ui.renaming) return `<div class="wrap">${hd}<div class="lab">New title</div><div class="renamer"><input id="titlefld" value="${esc(e.t)}" enterkeyhint="done" aria-label="New title"><button class="btn dark" data-act="renameDone">Save</button></div><button class="btn plain" data-act="renameCancel">Cancel</button></div>`;
   const tchips = e.allDay ? '' : [e.s - 30, e.s + 30, e.s + 60].filter(m => m >= 0 && m + (e.e - e.s) <= 24 * 60).map(m => `<button class="btn" data-act="quickTime" data-arg="${m}">${tm(m)}</button>`).join('');
   const dchips = [1, 2, 7].map(n => { const d = e.d + n; return `<button class="btn" data-act="quickDay" data-arg="${d}">${n === 7 ? `Next ${DOW[dateOf(d).getDay()]}` : rel(d) || DOW[dateOf(d).getDay()]}</button>`; }).join('');
   return `<div class="wrap">${hd}${clashLines(e)}${addedLine(e)}
     <div class="lab">Move to</div>${tchips ? `<div class="chips">${tchips}</div>` : ''}<div class="chips">${dchips}</div>
-    <div class="acts" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn" data-act="other">Other day or time…</button><button class="btn" data-act="rename">Rename</button></div>
-    <div class="acts"><button class="btn danger" data-act="delB">Delete from the calendar</button>${hideBtn(e, 'hideB')}</div></div>`;
+    <div class="acts" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn" data-act="grid" data-arg="day">Other day…</button>${e.allDay ? '<button class="btn" data-act="grid" data-arg="thru">Last day…</button>' : '<button class="btn" data-act="grid" data-arg="time">Other time…</button>'}</div>
+    <div class="acts" style="display:grid;grid-template-columns:1fr 2fr"><button class="btn" data-act="rename">Rename</button><button class="btn danger" data-act="delB">Delete from the calendar</button></div>${hideBtn(e, 'hideB')}</div>`;
 }
 
 // ---------- C: read, then Edit and Save ----------
@@ -556,15 +558,34 @@ function renderAll() {
   const scroll = frame.querySelector('.pb')?.scrollTop || 0;
   frame.innerHTML = `<div class="face ${S.dev}" id="face"><div id="board">${boardHTML()}</div><div id="layer"></div><div class="echo hide" id="echo"></div></div>`;
   const pb = frame.querySelector('.pb'); if (pb) pb.scrollTop = scroll;
+  fitColumns(frame);
   if (S.ui) mountSheet(false);
   renderEcho(false);
   layout(); renderMeta();
 }
-function renderBoard() {
+function renderBoard(reveal) {
   const b = document.getElementById('board'); if (!b) return;
   const pb = b.querySelector('.pb'), scroll = pb ? pb.scrollTop : 0;
   b.innerHTML = boardHTML();
   const pb2 = b.querySelector('.pb'); if (pb2) pb2.scrollTop = scroll;
+  fitColumns(b);
+  // On the phone, bring the event just changed into view.
+  if (reveal && pb2 && S.flash) { const r = pb2.querySelector(`[data-id="${S.flash}"]`); if (r) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+// A full day column never cuts a row: rows drop from the end and "+N more" counts them;
+// the open event and the one just changed are never dropped.
+function fitColumns(root) {
+  for (const box of root.querySelectorAll('.wb .list')) {
+    const rows = [...box.children].filter(el => el.classList.contains('ev'));
+    const keep = el => el.dataset.id === S.flash || (S.ui && el.dataset.id === S.ui.id);
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1) {
+      const i = rows.findLastIndex(el => !keep(el)); if (i < 0) break;
+      rows.splice(i, 1)[0].remove(); hidden++;
+      if (!more.isConnected) box.appendChild(more);
+      more.textContent = `+${hidden} more`;
+    }
+  }
 }
 // A's panel opens on the side away from the event, so the event stays in view while it moves.
 function sheetClasses() { return `sheet ${S.v.toUpperCase()} ${S.dev}${S.v === 'a' && S.dev === 'wall' && S.ui.side === 'left' ? ' left' : ''}`; }
@@ -574,6 +595,8 @@ function mountSheet(animate) {
   layer.innerHTML = `${scrim}<div class="${sheetClasses()}${animate ? ' hide' : ''}" id="sheet" role="dialog"><div class="body" id="sbody"></div></div>`;
   fillSheet();
   if (S.v === 'b' && S.dev === 'wall') placePopover();
+  const sh = document.getElementById('sheet');
+  if (S.dev === 'phone' && S.v !== 'c') sh.style.minHeight = `${sh.offsetHeight}px`;
   if (animate) requestAnimationFrame(() => requestAnimationFrame(() => {
     document.getElementById('sheet')?.classList.remove('hide');
     layer.querySelector('.scrim')?.classList.add('on');
@@ -585,6 +608,7 @@ function fillSheet() {
   else sheet.querySelector('#sbody').innerHTML = SHEETS[S.v](e);
   if (S.v === 'b' && S.dev === 'wall') placePopover();
   const f = document.getElementById('titlefld');
+  if (f && f.tagName === 'TEXTAREA') { f.style.height = 'auto'; f.style.height = `${f.scrollHeight + 4}px`; }
   if (f && S.ui.focusTitle) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); S.ui.focusTitle = false; }
 }
 function placePopover() {
@@ -621,7 +645,7 @@ function renderEcho(animate = true) {
 }
 function say(text, before, extra) {
   S.echo = { text, before, extra }; renderEcho(true);
-  clearTimeout(echoTimer); echoTimer = setTimeout(() => { S.echo = null; renderEcho(); }, 10000);
+  clearTimeout(echoTimer); echoTimer = setTimeout(() => { S.echo = null; S.flash = null; renderEcho(); renderBoard(); }, 10000);
 }
 function writeLog(line) { S.log.unshift(line); S.log = S.log.slice(0, 5); renderMeta(); }
 function renderMeta() {
@@ -657,7 +681,6 @@ function openSheet(id, side) {
   const go = () => {
     S.ui = { id, before: clone(S.events), snap: clone(e), grid: null, gridHour: null, gridPage: 0, ask: null, scope: null, mode: 'view',
       side: side || (e.d >= 2 && e.d <= 3 ? 'left' : 'right') };
-    if (e.isNew) e.isNew = false;
     renderBoard(); mountSheet(true);
   };
   if (S.ui) closeSheet(go); else go();
@@ -669,7 +692,8 @@ function closeSheet(then) {
   let text = '';
   if (e && S.v !== 'c') text = logWrite(ui.snap, e, ui.scope);
   S.ui = null;
-  unmountSheet(() => { renderBoard(); if (text) say(`${text}.`, ui.before); then && then(); });
+  if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before); then && then(); });
 }
 function syncTitle() {
   const f = document.getElementById('titlefld'); if (!f || !S.ui) return;
@@ -720,37 +744,36 @@ A.del = (_, ok) => {
   const e = ev(S.ui.id), ui = S.ui, scope = ui.scope;
   S.events = S.events.filter(x => x !== e);
   writeLog(`Deleted from ${e.p === 'us' ? 'the Us calendar' : `${P[e.p].name}’s calendar`}: ${esc(e.t)}, ${whenTxt(e)}${e.rep ? (scope === 'all' ? ' (the whole series)' : ' (this one only)') : ''}.`);
-  S.ui = null;
-  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? (scope === 'all' ? `, every ${e.rep}` : `, this ${e.rep} only`) : `, ${dayName(e.d)}`}.`, ui.before); });
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? (scope === 'all' ? `, every ${e.rep}` : `, this ${e.rep} only`) : `, ${dayName(e.d)}, ${tm(e.s)}`}.`, ui.before); });
 };
 A.hide = (_, ok) => {
   if (!ok && ev(S.ui.id).k === 'edit' && needScope('hide', 'hide', null)) return;
   const e = ev(S.ui.id), ui = S.ui;
   e.hidden = true;
   writeLog(`Hidden from the board for everyone; the calendar is unchanged: ${esc(e.t)}${e.rep ? (ui.scope === 'all' ? ' (every one)' : ' (this one)') : ''}.`);
-  S.ui = null;
-  unmountSheet(() => { renderBoard(); say(`Hidden from the board. It’s still on the calendar.`, ui.before); });
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Hid “${esc(e.t)}” from the board. It’s still on the calendar; Settings, Hidden by you, brings it back.`, ui.before); });
 };
 A.undo = () => {
   if (!S.echo || !S.echo.before) return;
   S.events = S.echo.before; S.echo = null; clearTimeout(echoTimer);
   writeLog('Undone: the calendar is put back exactly as it was.');
-  renderBoard(); say('Put back.', null);
+  if (!S.events.some(x => x.id === S.flash && !x.hidden)) S.flash = null;
+  renderBoard(true); say('Put back.', null);
 };
 // B: chips apply and close at once
 function quickDone(alsoAll) {
   const ui = S.ui, e = ev(ui.id);
   const text = logWrite(ui.snap, e, 'one');
-  S.ui = null;
-  unmountSheet(() => { renderBoard(); if (text) say(`${text}.`, ui.before, e.rep ? { label: `All ${e.rep}s too`, act: 'allToo' } : null); });
+  S.ui = null; if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before, e.rep ? { label: `All ${e.rep}s too`, act: 'allToo' } : null); });
 }
 A.quickTime = m => { const e = ev(S.ui.id); const len = e.e - e.s; e.s = +m; e.e = e.s + len; quickDone(); };
 A.quickDay = d => { const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d = +d; if (e.allDay) e.thru = e.d + span; quickDone(); };
 A.pickDay = d => { const e = ev(S.ui.id); const span = (e.thru ?? e.d) - e.d; e.d = +d; if (e.allDay) e.thru = e.d + span; quickDone(); };
 A.pickTime = m => { const e = ev(S.ui.id); const len = e.e - e.s; e.s = +m; e.e = Math.min(24 * 60, e.s + len); quickDone(); };
 A.allDayB = () => { A.allDay(null, true); quickDone(); };
-A.other = () => { S.ui.other = true; fillSheet(); };
-A.otherBack = () => { S.ui.other = false; fillSheet(); };
 A.rename = () => { S.ui.renaming = true; S.ui.focusTitle = true; fillSheet(); };
 A.renameCancel = () => { S.ui.renaming = false; fillSheet(); };
 A.renameDone = () => { const f = document.getElementById('titlefld'); const t = f && f.value.trim(); if (t) ev(S.ui.id).t = t; quickDone(); };
@@ -758,8 +781,8 @@ A.delB = () => {
   const e = ev(S.ui.id), ui = S.ui;
   S.events = S.events.filter(x => x !== e);
   writeLog(`Deleted from ${e.p === 'us' ? 'the Us calendar' : `${P[e.p].name}’s calendar`}: ${esc(e.t)}, ${whenTxt(e)}${e.rep ? ' (this one only)' : ''}.`);
-  S.ui = null;
-  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? `, this ${e.rep} only` : `, ${dayName(e.d)}`}.`, ui.before, e.rep ? { label: `Every ${e.rep}`, act: 'allToo' } : null); });
+  S.ui = null; S.flash = e.id;
+  unmountSheet(() => { renderBoard(); say(`Deleted “${esc(e.t)}”${e.rep ? `, this ${e.rep} only` : `, ${dayName(e.d)}, ${tm(e.s)}`}.`, ui.before, e.rep ? { label: `Every ${e.rep}`, act: 'allToo' } : null); });
 };
 A.hideB = () => { S.ui.scope = 'one'; A.hide(null, true); };
 A.allToo = () => {
@@ -782,8 +805,8 @@ A.save = (_, ok) => {
   Object.assign(e, ui.draft);
   if (!e.allDay) delete e.thru;
   const text = logWrite(ui.snap, e, ui.scope);
-  S.ui = null;
-  unmountSheet(() => { renderBoard(); if (text) say(`${text}.`, ui.before); });
+  S.ui = null; if (text) S.flash = ui.id;
+  unmountSheet(() => { renderBoard(!!text); if (text) say(`${text}.`, ui.before); });
 };
 A.delC = (_, ok) => {
   const e = ev(S.ui.id);
@@ -812,12 +835,7 @@ document.getElementById('frame').addEventListener('click', e0 => {
   const act = t.dataset.act, arg = t.dataset.arg;
   if (act === 'open' && S.ui && S.ui.id === arg) return;
   if (act === 'open') return openSheet(arg);
-  if (act === 'closeOutside') {
-    // a tap outside the sheet: on an event, open that one; anywhere else, close
-    const under = document.elementsFromPoint(e0.clientX, e0.clientY).find(el => el.closest && el.closest('#board [data-act="open"]'));
-    if (under) { const o = under.closest('[data-act="open"]'); if (o.dataset.arg !== S.ui.id) return openSheet(o.dataset.arg); }
-    return closeSheet();
-  }
+  if (act === 'closeOutside') return closeSheet(); // a tap outside only closes, never opens another event by accident
   A[act] && A[act](arg);
 });
 document.getElementById('frame').addEventListener('input', e0 => {
@@ -826,6 +844,7 @@ document.getElementById('frame').addEventListener('input', e0 => {
     const e = ev(S.ui.id);
     if (e.rep && !S.ui.scope) { e0.target.value = e.t; return needScope('title', null, null); }
     const v = e0.target.value.trim(); if (v) { e.t = v; renderBoard(); }
+    e0.target.style.height = 'auto'; e0.target.style.height = `${e0.target.scrollHeight + 4}px`;
   }
 });
 document.getElementById('frame').addEventListener('keydown', e0 => {
