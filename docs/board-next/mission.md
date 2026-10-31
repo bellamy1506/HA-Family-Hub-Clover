@@ -1,6 +1,6 @@
 # Board next: mission
 
-Branch `house/board-next`, started 2026-10-29. This file is the anchor for every session and loop that works on this branch. Read it first, and keep it short enough to reread. Decisions still live in the house repo's [J008](https://github.com/bellamy1506/House-Modeling/blob/main/records/projects/J008-family-hub.md); this file holds the direction those decisions serve.
+Branch `house/board-next`, started 2026-10-29. This file is the anchor for every session and loop that works on this branch. Read it first, and keep it short enough to reread. Decisions still live in the house repo's [J008](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J008-family-hub.md); this file holds the direction those decisions serve.
 
 ## What the owner asked (2026-10-29)
 
