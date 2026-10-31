@@ -12,7 +12,7 @@
   The bar switches the variant, the screen, the time of day and the distance; the address's #hash holds the
   state (#a-month-morning-fit), and "shot" anywhere in it draws the wall alone at 1200x800 for screenshots;
   "kbd" shows the keyboard stand-in, "sel4" picks a day in Month, "from11" opens C's columns at a day,
-  "listCostco" picks a list in B and C. Made-up data only. Nothing here talks to Home Assistant or AnyList.
+  "listCostco" picks a list in B and C, "later" opens the Later notes. Made-up data only. Nothing here talks to Home Assistant or AnyList.
 -->
 <style>
 /* The page is a plain viewer; the wall is the subject and keeps one fixed light look. */
@@ -53,7 +53,7 @@ body.shot .face * { animation: none !important; transition: none !important }
 .face small.ap { font-size: .5em; font-weight: 600; margin-left: .08em; letter-spacing: .02em }
 .face .wx { display: flex; align-items: center; gap: 12px; font-weight: 700 }
 .face .wx svg { flex: none } .face .lo { color: #464C50; font-weight: 600 }
-.face .needs { display: flex; align-items: center; background: #FFF0C7; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px; padding: 6px 24px; font-weight: 600 }
+.face .needs { width: 100%; text-align: left; display: flex; align-items: center; background: #FFF0C7; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px; padding: 6px 24px; font-weight: 600 }
 
 /* Event rows, the marks pick E: a pale block in the person's color, one green for Us and shared plans. Sizes in em. */
 .face .ev { display: grid; grid-template-columns: .3em minmax(0, 1fr) auto; column-gap: .42em; align-items: start; border-radius: .25em; padding: .03em .3em .05em 0;
@@ -220,9 +220,10 @@ body.shot .face * { animation: none !important; transition: none !important }
 .addbox { flex: none; height: 80px; border-radius: 14px; background: #FFFFFF; box-shadow: inset 0 0 0 2px #9EA5A0; display: flex; align-items: center; padding: 0 16px; gap: 10px; font-size: 24px; margin-bottom: 4px }
 .addbox:focus-within { box-shadow: inset 0 0 0 3px #16191B }
 .addbox input { flex: 1; border: 0; outline: 0; font: inherit; font-weight: 600; background: transparent; min-width: 0; color: #16191B; height: 100% }
-.addbox input::placeholder { color: #565D62; font-weight: 500 }
+.addbox input::placeholder { color: #4A5054; font-weight: 500 }
 .addbox svg { width: 30px; height: 30px; fill: #3D4347; flex: none }
 .its { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start }
+.its.scrolls { -webkit-mask-image: linear-gradient(#000 calc(100% - 70px), transparent); mask-image: linear-gradient(#000 calc(100% - 70px), transparent) }
 .its.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px }
 .li { display: flex; align-items: center; gap: 16px; min-height: 80px; border-bottom: 2px solid #E1E4DF; font-size: 24px; font-weight: 600; width: 100%; padding: 6px 4px; line-height: 1.2 }
 .li .ring { flex: none; width: 34px; height: 34px; border: 3px solid #3D4347; border-radius: 50%; display: grid; place-items: center }
@@ -236,7 +237,7 @@ body.shot .face * { animation: none !important; transition: none !important }
 .sub { font-size: 19px; font-weight: 700; color: #3D4347; padding: 14px 4px 2px; grid-column: 1 / -1 }
 .empty1 { font-size: 22px; font-weight: 600; color: #464C50; padding: 18px 4px }
 .hj { display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 4px; border-bottom: 2px solid #E1E4DF; padding: 10px 4px; font-size: 24px; font-weight: 600 }
-.hj .tx { flex: 1 0 100%; min-width: 0; line-height: 1.2 } .hj .due { flex: 1; font-size: 20px; color: #3D4347 } .hj .due.over { color: #8A4B00 }
+.hj .tx { flex: 1 0 100%; min-width: 0; line-height: 1.2 } .hj .due { flex: 1; font-size: 20px; color: #3D4347 } .hj .due.over { color: #743F00 }
 .hj.done .tx { text-decoration: line-through; color: #5A6166 }
 .hj .btn { height: 80px; font-size: 20px; padding: 0 18px }
 .lnote { font-size: 18px; font-weight: 500; color: #3D4347; padding: 8px 4px; line-height: 1.35 }
@@ -428,10 +429,10 @@ function restHTML() {
     const ms = mealsOf(d).map(([lbl, v]) => `<div class="dinner"><span class="lab">${lbl}</span><span class="clamp2">${esc(v)}</span></div>`).join('');
     const title = isFocus ? (M.tf ? 'Tomorrow' : 'Today') : (d.i === 0 ? 'Today' : `${d.short} ${d.num}`);
     return `<div class="col"><div class="hd"><span class="dn">${title}</span><span class="hl">${d.wx ? `${d.wx[1]}° ${d.wx[2]}°` : ''}</span></div>
-      ${notes}<div class="list" data-fit>${d.allDay.map(adRow).join('')}${rows.join('') || (first ? '<div class="more">Nothing on the calendar</div>' : '')}</div>${ms}</div>`;
+      ${notes}<div class="list" data-fit>${d.allDay.map(adRow).join('')}${rows.join('') || (first && !d.allDay.length ? '<div class="more">Nothing on the calendar</div>' : '')}</div>${ms}</div>`;
   }).join('');
   const strip = browsing ? `<div class="browse"><span>${dShort(S.from)} to ${dShort(S.from + 3)}</span><span class="sp"></span><button class="btn" data-act="today">Back to today</button></div>`
-    : M.T.needs ? `<div class="needs"><span class="clamp2">${esc(M.T.needs)}</span></div>` : '';
+    : M.T.needs ? `<button class="needs"${/^Furnace/.test(M.T.needs) ? ' data-needs-house' : ''}><span class="clamp2">${esc(M.T.needs)}</span></button>` : '';
   return `<div class="D">${band}${strip}<div class="cols">${cols}</div></div>`;
 }
 
@@ -441,7 +442,7 @@ function monthHead(extra) {
   const first = -dateOf(0).getDay() + S.mpage * 35, m1 = dateOf(first).getMonth(), m2 = dateOf(first + 34).getMonth();
   const label = m1 === m2 ? MO[m1] : `${MO[m1]} – ${MO[m2]}`;
   return `<div class="mh"><span class="t">${label}</span>${keyHTML()}<span class="sp"></span>
-    <button class="btn" data-mtoday ${S.mpage === 0 ? 'disabled' : ''}>Today</button>
+    <button class="btn" data-mtoday ${S.mpage === 0 ? 'style="visibility:hidden"' : ''}>Today</button>
     <button class="btn ar" data-mpage="-1" aria-label="Earlier weeks" ${S.mpage <= 0 ? 'disabled' : ''}>‹</button><button class="btn ar" data-mpage="1" aria-label="Later weeks">›</button>${extra || ''}</div>`;
 }
 const closeGear = () => `<button class="btn ar" data-gear aria-label="Settings" style="font-size:22px">${UI.gear}</button><button class="btn" data-go="rest">${UI.close}Close</button>`;
@@ -488,7 +489,7 @@ const ring = `<span class="ring">${UI.check}</span>`;
 const itemRow = (sec, x, k) => `<button class="li${x.done ? ' done' : ''}${x.fresh ? ' fresh' : ''}" data-tick="${sec}:${k}">${ring}<span class="tx">${esc(x.t)}</span>${x.isNew ? '<span class="dot" aria-label="new"></span>' : ''}</button>`;
 const addBox = (sec, ph) => `<form class="addbox" data-add="${sec}">${UI.plus}<input name="t" placeholder="${ph}" autocomplete="off" enterkeyhint="done"></form>`;
 const shopSec = (name, cls = '') => `<div class="sec">
-    <h3>${name} <span class="c">${L[name].filter(x => !x.done).length} · AnyList</span></h3>${addBox(name, `Add to ${name}`)}
+    <h3>${name} <span class="c">${L[name].filter(x => !x.done).length}</span></h3>${addBox(name, `Add to ${name}`)}
     <div class="its ${cls}">${L[name].map((x, k) => itemRow(name, x, k)).join('') || '<div class="empty1">Nothing on it.</div>'}</div></div>`;
 function notesItems() {
   // Later folds into one row, as on the face and the phones, and opens in place.
@@ -500,8 +501,7 @@ function notesItems() {
 const notesCount = () => ['Notes.today', 'Notes.d2', 'Notes.later'].reduce((a, s) => a + L[s].filter(x => !x.done).length, 0);
 const notesSec = () => `<div class="sec"><h3>Notes <span class="c">${notesCount()}</span></h3>${addBox('Notes.today', 'Add a note')}<div class="its">${notesItems()}</div></div>`;
 const houseItems = () => L.House.map((x, k) => `<div class="hj${x.done ? ' done' : ''}"><span class="tx">${esc(x.t)}</span><span class="due${x.over ? ' over' : ''}">${x.done ? 'Done' : x.due}</span>${x.done ? '' : `<button class="btn" data-hdone="${k}">Mark done</button>`}</div>`).join('') || '<div class="empty1">Nothing due.</div>';
-const houseSec = () => `<div class="sec"><h3>House <span class="c">${L.House.filter(x => !x.done).length} due</span></h3><div class="its">${houseItems()}
-  <div class="lnote">House jobs come from the house records; to add one, tell the house assistant.</div></div></div>`;
+const houseSec = () => `<div class="sec"><h3>House jobs <span class="c">${L.House.filter(x => !x.done).length} due</span></h3><div class="its">${houseItems()}</div></div>`;
 function listsHTML() {
   if (S.v === 'a') return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LA">${SHOPPING.map(n => shopSec(n)).join('')}${notesSec()}${houseSec()}</div></div>`;
   if (S.v === 'b') {
@@ -513,7 +513,7 @@ function listsHTML() {
   }
   const cur = SHOPPING.includes(S.list) ? S.list : 'Groceries';
   return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LC"><div class="sec">
-      <h3>Shopping <span class="src">from AnyList</span></h3>
+      <h3>Shopping</h3>
       <div class="chips">${SHOPPING.map(n => `<button class="chip" data-list="${n}" ${n === cur ? 'aria-current="true"' : ''}>${n} <span class="c">${L[n].filter(x => !x.done).length}</span></button>`).join('')}</div>
       ${addBox(cur, `Add to ${cur}`)}<div class="its two">${L[cur].map((x, k) => itemRow(cur, x, k)).join('') || '<div class="empty1">Nothing on it.</div>'}</div></div>
     <div class="right">${houseSec()}${notesSec()}</div></div></div>`;
@@ -558,8 +558,10 @@ function fit(root) {
   for (const box of root.querySelectorAll('[data-fit]')) {
     const rows = [...box.children].filter(el => (el.matches('.ev, .mi, .mb')) && !el.hasAttribute('data-keep'));
     let hidden = 0; const more = document.createElement('div'); more.className = 'more';
-    while (box.scrollHeight > box.clientHeight + 1 && rows.length) {
-      rows.pop().remove(); hidden++;
+    // Still too full (the rows the needs line names are never dropped): all-day rows go next, never half a row.
+    const ads = [...box.children].filter(el => el.matches('.ev.ad'));
+    for (const pool of [rows, ads]) while (box.scrollHeight > box.clientHeight + 1 && pool.length) {
+      pool.pop().remove(); hidden++;
       if (!more.isConnected) box.appendChild(more);
       more.textContent = `+${hidden} more`;
     }
@@ -608,10 +610,10 @@ function showKbd() { const face = document.getElementById('face'); if (!face) re
 // ---------- viewer ----------
 function readHash() {
   const parts = (location.hash || '').replace('#', '').split('-');
-  Object.assign(S, { v: 'a', screen: 'rest', t: 'morning', d: 'fit', kbd: false, sel: null, list: null, from: null });
+  Object.assign(S, { v: 'a', screen: 'rest', t: 'morning', d: 'fit', kbd: false, sel: null, list: null, from: null, laterOpen: false });
   for (const p of parts) {
     if (VARIANTS[p]) S.v = p; else if (SCREENS[p]) S.screen = p; else if (TIMES[p]) S.t = p; else if (DISTS[p]) S.d = p;
-    else if (p === 'kbd') S.kbd = true; else if (/^sel\d+$/.test(p)) S.sel = +p.slice(3); else if (/^from\d+$/.test(p)) S.from = +p.slice(4);
+    else if (p === 'kbd') S.kbd = true; else if (p === 'later') { S.laterOpen = true; S.list = 'Notes'; } else if (/^sel\d+$/.test(p)) S.sel = +p.slice(3); else if (/^from\d+$/.test(p)) S.from = +p.slice(4);
     else if (p.startsWith('list')) S.list = p.slice(4);
   }
   S.shot = parts.includes('shot');
@@ -638,6 +640,12 @@ function render() {
   document.body.classList.toggle('shot', S.shot);
   if (!S.shot) writeHash();
   layout(); fit(frame);
+  for (const el of frame.querySelectorAll('.its')) {
+    const mark = () => el.classList.toggle('scrolls', el.scrollTop + el.clientHeight < el.scrollHeight - 4);
+    mark(); el.addEventListener('scroll', mark, { passive: true });
+  }
+  if (S.laterOpen) { const sub = [...frame.querySelectorAll('.sub')].find(x => x.textContent === 'Later'), box = sub && sub.closest('.its');
+    if (box) { box.scrollTop = sub.offsetTop - box.offsetTop - 8; box.dispatchEvent(new Event('scroll')); } }
   if (keep) { const inp = document.querySelector(`form[data-add="${keep.sec}"] input`); if (inp) { inp.value = keep.v; inp.focus(); S.kbd = true; showKbd(); } }
 }
 
@@ -650,7 +658,7 @@ document.getElementById('frame').addEventListener('click', e => {
   // A's day panel: a tap outside it only closes it.
   if (S.v === 'a' && S.screen === 'month' && S.sel != null && q('.MS')) { S.sel = null; render(); return; }
   let b;
-  if ((b = q('[data-go]'))) { S.screen = b.dataset.go; S.sel = null; S.from = null; S.kbd = false; S.laterOpen = false; render(); return; }
+  if ((b = q('[data-go]'))) { S.screen = S.v === 'b' && b.dataset.go === S.screen ? 'rest' : b.dataset.go; S.sel = null; S.from = null; S.kbd = false; S.laterOpen = false; render(); return; }
   if ((b = q('[data-cell]'))) {
     const i = +b.dataset.cell;
     if (S.v === 'c') { S.from = i; S.screen = 'rest'; } else S.sel = i;
@@ -662,6 +670,7 @@ document.getElementById('frame').addEventListener('click', e => {
   if (q('[data-act="today"]')) { S.from = null; render(); return; }
   if (q('[data-later]')) { S.screen = 'lists'; S.list = 'Notes'; S.laterOpen = true; render(); return; }
   if (q('[data-lateropen]')) { S.laterOpen = true; render(); return; }
+  if (q('[data-needs-house]')) { S.screen = 'lists'; S.list = 'House'; render(); return; }
   if ((b = q('[data-list]'))) { S.list = b.dataset.list; S.kbd = false; render(); return; }
   if ((b = q('[data-tick]'))) { const [sec, k] = b.dataset.tick.split(':'); tick(sec, +k); return; }
   if ((b = q('[data-hdone]'))) { houseDone(+b.dataset.hdone); return; }
