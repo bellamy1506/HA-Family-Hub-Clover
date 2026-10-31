@@ -102,8 +102,16 @@ The quiet line under the notes that holds notes up more than 3 days and anything
 _Avoid_: someday list, backlog, archive, overdue
 
 **House reminders**:
-`todo.house_reminders`: maintenance reminders from the house repo's `records/dates.csv`, synced both ways; the repo stays the source.
+`todo.house_reminders`: the house jobs (maintenance and safety) from the house repo's `records/dates.csv`, synced both ways; the repo stays the source. Bills, taxes, insurance, warranties and project calls stay in the house's emails, off the board (owner, 2026-10-31).
 _Avoid_: chores, tasks
+
+**Shopping list**:
+The household's shared AnyList lists. The house board shows them and adds to them, and so does "tell the board" (owner, 2026-10-31); Home Assistant's own Shopping list is retired.
+_Avoid_: grocery list (one AnyList list's name), Grocy
+
+**Lists**:
+Where the shopping list, notes and house reminders gather: a tab on the phones, and on the wall one touch from the resting face (owner, 2026-10-31).
+_Avoid_: More, To-do, the house tab
 
 ## Whose it is, and what the board notices
 
