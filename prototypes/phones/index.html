@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone Board Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "What do the phones show?" (HA-Family-Hub-Clover #50).
+  Four ways the house board could open on an iPhone, inside the Home Assistant app, and how you
+  get around from there. Made-up data only: no real events or names.
+  The address's #hash holds the state, e.g. #a-morning-will-light-normal; add a tab (home, month,
+  lists) to open on it, and "shot" to draw the phone alone at 390x844 for screenshots.
+  Not house board code: build sessions rewrite the pick in custom_components/family_hub/house_board/.
+-->
+<style>
+:root { --ui: Roboto, -apple-system, system-ui, "Segoe UI", sans-serif; --page: #E9EBE7; --pink: #16191B; --pbar: #16191B; --pbar-ink: #F4F5F2 }
+@media (prefers-color-scheme: dark) { :root { --page: #0B0C0D; --pink: #E8EAE6 } }
+* { box-sizing: border-box }
+html, body { margin: 0; background: var(--page); color: var(--pink); font-family: var(--ui) }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit }
+
+/* ---------- prototype controls: not part of the design being judged ---------- */
+.proto { position: sticky; top: 0; z-index: 50; background: var(--pbar); color: var(--pbar-ink); padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+  border-bottom: 3px dashed #E69F00; font-size: 14px }
+.proto .grp { display: flex; align-items: center; gap: 2px; background: rgba(255,255,255,.12); border-radius: 10px; padding: 2px }
+.proto button { font-weight: 600; padding: 7px 9px; border-radius: 8px; min-height: 34px; white-space: nowrap }
+.proto button[aria-pressed="true"] { background: var(--pbar-ink); color: var(--pbar) }
+.proto .vname { font-weight: 700; min-width: 168px; text-align: center }
+.proto .tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #E69F00 }
+.proto .more { display: contents }
+#moreBtn { display: none }
+.narrow #moreBtn { display: inline-flex }
+.narrow .proto .more { display: none }
+.narrow .proto.open .more { display: contents }
+.proto .about { flex-basis: 100%; font-size: 13px; line-height: 1.4; color: #C9CED1; padding: 2px 6px 4px; max-width: 70ch; display: none }
+.narrow .proto.open .about { display: block }
+.stage { display: flex; justify-content: center; align-items: flex-start; gap: 28px; padding: 18px 16px 40px }
+.side { max-width: 34ch; line-height: 1.45; font-size: 15px; padding-top: 8px }
+.side h1 { font-size: 20px; margin: 0 0 8px }
+.side p { margin: 0 0 10px }
+.narrow .stage { padding: 0; display: block }
+.narrow .side { display: none }
+body.shot .proto, body.shot .side { display: none }
+body.shot .stage { padding: 0 }
+
+/* ---------- the phone ---------- */
+.phone { width: 390px; height: 844px; border-radius: 48px; overflow: hidden; position: relative; flex: none; box-shadow: 0 0 0 10px #1B1D1F, 0 18px 50px rgba(0,0,0,.35) }
+body.shot .phone { border-radius: 0; box-shadow: none }
+.narrow .phone { width: 100vw; height: var(--vh, 100dvh); border-radius: 0; box-shadow: none }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink) }
+.sb { height: 47px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 10px 44px; font: 600 16px -apple-system, var(--ui); background: var(--hab) }
+.sb .notch { position: absolute; left: 50%; top: 11px; width: 120px; height: 34px; margin-left: -60px; background: #000; border-radius: 20px }
+.hi { height: 34px; flex: none; display: flex; justify-content: center; align-items: center; background: var(--tabbg) }
+.hi::after { content: ""; width: 134px; height: 5px; border-radius: 3px; background: var(--ink); opacity: .85 }
+.narrow .sb, .narrow .hi { display: none }
+
+/* Everything Home Assistant draws is zoomed together by the app's Page Zoom (Large = 150%). */
+.app { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; font-size: 17px; line-height: 1.3; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased }
+.large .app { zoom: 1.5 }
+
+/* Light and dark follow the phone. Text colors are at least 7:1 on their background. */
+.screen { --bg: #F6F7F4; --surf: #FFFFFF; --ink: #16191B; --soft: #4A5054; --line: #DADDD8; --hab: #FFFFFF; --tabbg: #FFFFFF; --chip: #E7EAE5;
+  --will: #005A8C; --jenn: #D55E00; --us: #009E73; --needs-bg: #FFF0C7; --needs-edge: #E69F00; --needs-ink: #16191B; --dot: #16191B; --sel: #16191B; --sel-ink: #FFFFFF; --scrim: rgba(0,0,0,.32) }
+.screen.dark { --bg: #111315; --surf: #1B1E21; --ink: #ECEEEA; --soft: #AEB5B9; --line: #2D3337; --hab: #1B1E21; --tabbg: #16191B; --chip: #2A2F33;
+  --will: #56B4E9; --jenn: #F08A4B; --us: #3DBE97; --needs-bg: #3A2E0E; --needs-edge: #E69F00; --needs-ink: #FFE9B0; --dot: #ECEEEA; --sel: #ECEEEA; --sel-ink: #111315; --scrim: rgba(0,0,0,.55) }
+
+/* Home Assistant's own top bar, drawn for context (it stays on the phones). */
+.habar { height: 56px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 16px; background: var(--hab); border-bottom: 1px solid var(--line); font-size: 20px; font-weight: 500 }
+.habar .t { flex: 1 }
+.habar svg { width: 24px; height: 24px; fill: var(--soft) }
+
+.view { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; position: relative; -webkit-overflow-scrolling: touch }
+.pad { padding: 12px 16px 96px }
+
+/* Tab bar: in normal flow at the bottom (no fixed positioning inside the dashboard). */
+.tabs { flex: none; display: flex; background: var(--tabbg); border-top: 1px solid var(--line) }
+.tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0 6px; font-size: 12px; font-weight: 500; color: var(--soft); min-height: 52px }
+.tabs button svg { width: 26px; height: 26px; fill: currentColor }
+.tabs button[aria-current="page"] { color: var(--ink); font-weight: 700 }
+.fab { position: absolute; right: 16px; bottom: 68px; width: 58px; height: 58px; border-radius: 29px; background: var(--sel); color: var(--sel-ink); display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 5 }
+.fab svg { width: 30px; height: 30px; fill: currentColor }
+.todaychip { position: absolute; left: 50%; top: 66px; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; z-index: 6; background: var(--sel); color: var(--sel-ink); font-weight: 700; font-size: 15px; padding: 9px 18px; border-radius: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .2s, opacity .2s }
+.todaychip.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto }
+
+/* ---------- shared pieces ---------- */
+.hd { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.date1 { font-size: 24px; font-weight: 700; line-height: 1.15 }
+.soft { color: var(--soft) }
+.wx { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap }
+.wx .lo { color: var(--soft) }
+.wx svg { width: 1.3em; height: 1.3em; flex: none }
+.iconbtn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 22px; flex: none }
+.iconbtn svg { width: 24px; height: 24px; fill: var(--soft) }
+.rain { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; margin-top: 2px }
+.rain svg { width: 20px; height: 20px }
+.needs { margin: 12px 0 4px; background: var(--needs-bg); color: var(--needs-ink); border-left: 8px solid var(--needs-edge); border-radius: 4px 12px 12px 4px; padding: 10px 14px; font-weight: 600; font-size: 17px; line-height: 1.25 }
+.sect { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); margin: 16px 0 6px }
+
+.ev { display: grid; grid-template-columns: 5px 74px 1fr; column-gap: 10px; width: 100%; padding: 8px 0; min-height: 48px; align-items: start; border-top: 1px solid var(--line) }
+.ev:first-child, .sect + .ev, .ev.first { border-top: 0 }
+.ev .bar { align-self: stretch; border-radius: 3px; background: var(--c) }
+.ev.shared .bar { background: linear-gradient(var(--will) 50%, var(--jenn) 50%) }
+.ev .tm { font-size: 15px; font-weight: 600; line-height: 1.25; display: flex; flex-direction: column }
+.ev .tm .end { font-weight: 500; color: var(--soft); font-size: 13px }
+.ev .tt { font-size: 17px; font-weight: 600; line-height: 1.25; min-width: 0 }
+.ev .who { display: block; font-size: 13px; font-weight: 500; color: var(--soft); margin-top: 1px }
+.ev .marks { display: inline-flex; gap: 4px; align-items: center; vertical-align: .05em; margin-right: 4px }
+.newdot { display: inline-block; width: .5em; height: .5em; border-radius: 50%; background: var(--dot); flex: none }
+.clash { width: 1.05em; height: 1.05em; fill: none; stroke: var(--soft); stroke-width: 2.2; vertical-align: -.15em }
+.pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: var(--chip); color: var(--ink); margin-bottom: 2px; width: max-content }
+.pill.next { background: var(--sel); color: var(--sel-ink) }
+.ev.work { background: color-mix(in srgb, var(--will) 12%, transparent); border-radius: 4px 10px 10px 4px; border-top: 0; margin: 4px 0; padding: 6px 0; min-height: 0 }
+.ev.work + .ev { border-top: 0 }
+.ev.work .tt { font-weight: 500; font-size: 15px }
+.ev.past { opacity: .62 }
+.allday { display: flex; align-items: center; gap: 8px; width: 100%; background: color-mix(in srgb, var(--c) 16%, transparent); border-left: 5px solid var(--c); border-radius: 3px 10px 10px 3px; padding: 7px 10px; margin: 4px 0; font-weight: 600; font-size: 15px }
+.allday .who { font-weight: 500; color: var(--soft); font-size: 13px; margin-left: auto; white-space: nowrap }
+.meal { display: flex; gap: 10px; align-items: baseline; padding: 8px 0 2px; border-top: 1px solid var(--line); font-size: 15px }
+.meal .k { font-size: 13px; font-weight: 700; color: var(--soft); min-width: 79px; padding-left: 15px }
+.meal .v { font-weight: 600 }
+.note { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 4px 0; font-size: 17px; font-weight: 500 }
+.note .ring { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--soft); flex: none; display: grid; place-items: center }
+.note.done { opacity: .5; text-decoration: line-through }
+.note.done .ring { background: var(--soft) }
+.note .newdot { margin-left: -4px }
+.later { display: flex; align-items: center; gap: 6px; min-height: 40px; font-size: 15px; font-weight: 600; color: var(--soft) }
+.fold { display: flex; align-items: center; gap: 6px; min-height: 40px; font-size: 15px; font-weight: 600; color: var(--soft); width: 100% }
+.empty { color: var(--soft); font-size: 15px; padding: 8px 0 }
+.chev { font-size: 1.1em; line-height: 1 }
+
+/* ---------- A: Upcoming, one list ---------- */
+.A .top { padding-bottom: 4px }
+.A .nextcard { display: grid; grid-template-columns: 6px 1fr; column-gap: 12px; margin-top: 12px; width: 100% }
+.A .nextcard .bar { border-radius: 3px; background: var(--c) }
+.A .nextcard .lab { font-size: 14px; font-weight: 700; color: var(--soft) }
+.A .nextcard .line { font-size: 24px; font-weight: 700; line-height: 1.18 }
+.A .nextcard .line .t { margin-right: .3em }
+.A .nowline { font-size: 15px; color: var(--soft); margin-top: 8px; line-height: 1.35 }
+.A .nowline b { color: var(--ink); font-weight: 600 }
+.A .dayh { position: sticky; top: 0; z-index: 2; background: var(--bg); display: flex; justify-content: space-between; align-items: center; padding: 10px 0 6px; margin-top: 10px; border-bottom: 2px solid var(--ink); font-size: 18px; font-weight: 700 }
+.A .dayh .wx { font-size: 15px }
+.A .dayh.today { border-bottom-color: var(--ink) }
+.A .tail { display: block; text-align: center; padding: 18px 0; color: var(--soft); font-weight: 600; width: 100% }
+
+/* ---------- B: one day at a time ---------- */
+.B .stripwrap { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 10px 6px 8px; border-bottom: 1px solid var(--line) }
+.B .striphd { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 6px }
+.B .striphd .m { font-size: 20px; font-weight: 700 }
+.B .striphd .r { display: flex; align-items: center; gap: 4px }
+.todaybtn { font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 18px; background: var(--chip); min-height: 36px }
+.todaybtn[disabled] { opacity: .35; cursor: default }
+.B .strip { display: grid; grid-template-columns: 28px repeat(7, 1fr) 28px; align-items: stretch }
+.B .strip .arr { display: grid; place-items: center; font-size: 22px; color: var(--soft); font-weight: 700 }
+.B .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 6px; border-radius: 12px; min-height: 66px }
+.B .cell .w { font-size: 12px; font-weight: 700; color: var(--soft); text-transform: uppercase }
+.B .cell .n { font-size: 19px; font-weight: 700; width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center }
+.B .cell.today .n { box-shadow: inset 0 0 0 2px var(--ink) }
+.B .cell[aria-selected="true"] { background: var(--sel); color: var(--sel-ink) }
+.B .cell[aria-selected="true"] .w { color: inherit; opacity: .8 }
+.B .cell[aria-selected="true"] .n { box-shadow: none }
+.dots { display: flex; gap: 3px; height: 7px; align-items: center }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--c) }
+.B .cell[aria-selected="true"] .dots i { box-shadow: 0 0 0 1.5px var(--sel) , 0 0 0 2.5px var(--sel-ink) }
+.B .page { padding: 14px 16px 96px; touch-action: pan-y }
+.B .pager { display: flex; justify-content: space-between; margin: 18px 72px 0 0; gap: 10px }
+.B .pager button { flex: 1; min-height: 46px; border-radius: 12px; background: var(--chip); font-weight: 600; font-size: 15px; padding: 0 12px }
+.B .pager button:last-child { text-align: right }
+
+/* ---------- C: the wall, pocket-size ---------- */
+.C .topline { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 600; color: var(--soft); margin-bottom: 4px }
+.C .band { display: grid; grid-template-columns: 6px 1fr; column-gap: 12px; width: 100%; text-align: left }
+.C .band .bar { border-radius: 3px; background: var(--c) }
+.C .band .lab { font-size: 14px; font-weight: 700; color: var(--soft) }
+.C .band .line { font-size: 24px; font-weight: 700; line-height: 1.15 }
+.C .band .line .t { margin-right: .28em }
+.C .band .side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 15px }
+.C .band .side .d { font-weight: 600; color: var(--soft); white-space: nowrap }
+.C .card { background: var(--surf); border-radius: 16px; padding: 10px 12px; box-shadow: 0 0 0 1px var(--line); text-align: left; width: 100%; display: block }
+.C .today { margin-top: 12px; display: flex; flex-direction: column; gap: 6px }
+.C .today .r { display: grid; grid-template-columns: 4px 66px 1fr; column-gap: 8px; font-size: 15px; line-height: 1.25 }
+.C .today .r .bar { border-radius: 2px; background: var(--c) }
+.C .today .r.shared .bar { background: linear-gradient(var(--will) 50%, var(--jenn) 50%) }
+.C .today .r .t0 { font-weight: 600; font-size: 14px; padding-top: 1px }
+.C .today .r .t1 { font-weight: 600 }
+.C .today .r .who { display: inline; font-weight: 500; color: var(--soft); font-size: 13px; margin-left: 6px }
+.C .today .m { font-size: 13px; color: var(--soft); font-weight: 600; padding-left: 12px }
+.C .today .meal { padding-top: 6px }
+.C .card .chd { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; font-size: 17px; margin-bottom: 4px }
+.C .card .chd .wx { font-size: 14px }
+.C .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px }
+.C .mini { min-height: 136px; display: flex; flex-direction: column; gap: 4px }
+.C .mini .r { display: grid; grid-template-columns: 4px 1fr; column-gap: 7px; font-size: 14px; line-height: 1.2 }
+.C .mini .r .bar { border-radius: 2px; background: var(--c) }
+.C .mini .r.shared .bar { background: linear-gradient(var(--will) 50%, var(--jenn) 50%) }
+.C .mini .r .t1 { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.C .mini .r .t0 { font-size: 12px; font-weight: 600; color: var(--soft) }
+.C .mini .m { font-size: 13px; color: var(--soft); font-weight: 600 }
+.C .mini .din { margin-top: auto; font-size: 13px; border-top: 1px solid var(--line); padding-top: 5px }
+.C .mini .din b { display: block; font-size: 11px; color: var(--soft); letter-spacing: .04em; text-transform: uppercase }
+.C .more7 { display: block; text-align: center; padding: 14px 0 0; color: var(--soft); font-weight: 600; width: 100%; font-size: 15px }
+
+/* ---------- Month (D's home; a tab in A to C) ---------- */
+.M .mhd { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 4px 16px; position: sticky; top: 0; background: var(--bg); z-index: 3 }
+.M .mhd .m { font-size: 20px; font-weight: 700 }
+.M .mhd .r { display: flex; align-items: center; gap: 2px }
+.M .mhd .iconbtn { width: 40px; height: 40px; font-size: 24px; font-weight: 700; color: var(--soft) }
+.M .wk { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--soft); text-align: center; margin-bottom: 2px }
+.M .grid { display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 6px; border-bottom: 1px solid var(--line) }
+.M .c { min-height: 58px; padding: 4px 3px 5px; display: flex; flex-direction: column; align-items: center; gap: 2px; border-top: 1px solid var(--line); border-radius: 0 }
+.M .c .n { font-size: 15px; font-weight: 600; width: 28px; height: 28px; border-radius: 14px; display: grid; place-items: center }
+.M .c .n.mo { font-size: 11px; font-weight: 700; width: auto; padding: 0 3px }
+.M .c.past { opacity: .45 }
+.M .c.today .n { background: var(--sel); color: var(--sel-ink) }
+.M .c[aria-selected="true"] { background: var(--chip); border-radius: 10px }
+.M .c .bars { display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center }
+.M .c .bars i { display: block; width: 78%; height: 4px; border-radius: 2px; background: var(--c) }
+.M .c .bars i.shared { background: linear-gradient(90deg, var(--will) 50%, var(--jenn) 50%) }
+.M .c .bars i.ad { height: 6px; width: 92%; opacity: .55 }
+.M .c .plus { font-size: 11px; font-weight: 700; color: var(--soft); line-height: 1 }
+.M .day { padding: 12px 16px 96px; touch-action: pan-y }
+
+/* ---------- Lists ---------- */
+.L h2 { font-size: 24px; margin: 4px 0 2px }
+.L .card { background: var(--surf); border-radius: 16px; padding: 6px 14px 8px; box-shadow: 0 0 0 1px var(--line); margin-top: 12px }
+.L .card h3 { font-size: 17px; margin: 6px 0 2px; display: flex; justify-content: space-between; align-items: baseline }
+.L .card h3 .soft { font-size: 13px; font-weight: 600 }
+.L .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 16px; font-weight: 500 }
+.L .row:first-of-type { border-top: 0 }
+.L .link { display: block; padding: 10px 0 4px; font-weight: 600; color: var(--soft); width: 100% }
+.pnote { margin-top: 16px; font-size: 13px; line-height: 1.4; color: var(--soft); border: 1.5px dashed var(--line); border-radius: 12px; padding: 8px 12px }
+
+/* ---------- sheets (stubs for other tickets) ---------- */
+.scrim { position: absolute; inset: 0; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20 }
+.scrim.on { opacity: 1; pointer-events: auto }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 86%; overflow-y: auto; background: var(--surf); border-radius: 18px 18px 0 0; z-index: 21; padding: 8px 16px 28px;
+  transform: translateY(105%); transition: transform .28s cubic-bezier(.2,.8,.2,1) }
+.sheet.on { transform: translateY(0); transition-duration: .28s }
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 6px }
+.sheet .sh { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px }
+.sheet .sh h2 { font-size: 20px; margin: 0; line-height: 1.2 }
+.sheet .done { font-weight: 700; font-size: 17px; padding: 8px 14px; border-radius: 18px; background: var(--chip); min-height: 40px }
+.sheet .field { margin-top: 10px; border: 2px solid var(--line); border-radius: 12px; padding: 12px; font-size: 17px; color: var(--soft) }
+.sheet .srow { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 16px }
+.sheet .srow .soft { text-align: right }
+
+@media (prefers-reduced-motion: reduce) { .sheet, .scrim, .todaychip { transition: opacity .15s !important } .sheet { transform: none; opacity: 0; pointer-events: none } .sheet.on { opacity: 1; pointer-events: auto } }
+</style>
+</head>
+<body>
+<nav class="proto" id="proto" aria-label="Prototype controls">
+  <span class="tag">PROTOTYPE</span>
+  <span class="grp"><button id="prev" aria-label="Previous layout">&#8249;</button><span class="vname" id="vname"></span><button id="next" aria-label="Next layout">&#8250;</button></span>
+  <button id="moreBtn" class="grp" style="padding:7px 10px">More</button>
+  <span class="more">
+    <span class="grp" id="g-time"></span>
+    <span class="grp" id="g-phone"></span>
+    <span class="grp" id="g-look"></span>
+    <span class="grp" id="g-size"></span>
+  </span>
+  <div class="about" id="about2"></div>
+</nav>
+<div class="stage">
+  <div class="phone" id="phone"></div>
+  <aside class="side" id="side"></aside>
+</div>
+
+<script>
+// ---------- made-up household: Friday, October 30 is "today" ----------
+const PERSON = { will: 'Will', jenn: 'Jenn', us: 'Us' };
+const day0 = new Date(2026, 9, 30, 12);
+const dateOf = i => new Date(day0.getFullYear(), day0.getMonth(), day0.getDate() + i, 12);
+const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MO = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const hm = (h, m = 0) => h * 60 + m;
+let nid = 0;
+const EV = [];
+const add = (d, p, s, e, t, x = {}) => EV.push({ id: ++nid, d, p, s, e, t, ...x });
+const allDay = (d, p, t, x = {}) => EV.push({ id: ++nid, d, p, allDay: true, t, ...x });
+// Routine: Will's work hours (a work calendar, shown as a labeled block), Jenn's shifts, the gym, trash night.
+for (let i = -5; i <= 40; i++) {
+  const wd = dateOf(i).getDay();
+  const holiday = i === 28; // the day after Thanksgiving
+  if (wd >= 1 && wd <= 5 && !holiday && !(i >= 22 && i <= 23)) add(i, 'will', hm(8, 30), hm(16, 30), 'At work', { work: true });
+  if ([1, 3, 5].includes(wd) && !holiday) add(i, 'jenn', hm(7), hm(15, 30), 'Work shift');
+  if ([1, 4].includes(wd)) add(i, 'will', hm(6, 15), hm(7, 15), 'Gym');
+  if (wd === 0) add(i, 'us', hm(19, 30), hm(19, 45), 'Trash night: bins to the curb');
+}
+// Past days (dimmed on the month)
+add(-5, 'us', hm(13), hm(15), 'Brunch with the neighbors'); add(-3, 'jenn', hm(18), hm(19), 'Yoga'); add(-2, 'will', hm(17, 30), hm(18), 'Pick up prescription'); add(-1, 'us', hm(18, 30), hm(20), 'Pumpkin carving');
+// Today, Friday Oct 30
+add(0, 'will', hm(17, 15), hm(17, 45), 'Pick up dry cleaning and drop off the library books');
+add(0, 'jenn', hm(18), hm(19), 'Yoga');
+add(0, 'us', hm(19, 30), hm(20, 15), 'Plan holiday travel');
+// Sat Oct 31
+allDay(1, 'us', 'Halloween: candy bowl by the door');
+add(1, 'will', hm(9), hm(10), 'Oil change', { by: 'will', fresh: true });
+add(1, 'jenn', hm(17, 30), hm(18, 30), 'Haircut', { by: 'jenn', fresh: true });
+add(1, 'us', hm(19), hm(21, 30), 'Date night: dinner and a movie');
+add(1, 'jenn', hm(19), hm(21), 'Dinner with friends', { by: 'jenn', fresh: true });
+// Sun Nov 1
+allDay(2, 'us', 'Clocks fall back an hour');
+// Mon Nov 2
+add(3, 'us', hm(17), hm(17, 30), 'Package pickup at the post office');
+// Tue Nov 3
+add(4, 'jenn', hm(10), hm(10, 45), 'Team call');
+add(4, 'will', hm(15), hm(16), 'Dentist', { by: 'will', fresh: true });
+add(4, 'us', hm(16), hm(17), 'Vet: both cats, checkup and shots');
+// Wed Nov 4 onward
+add(5, 'jenn', hm(18, 30), hm(20), 'Book club', { by: 'jenn', fresh: true });
+add(6, 'us', hm(8), hm(10), 'Furnace tune-up (technician)');
+add(7, 'us', hm(19), hm(22), 'Game night at Sam and Alex\'s', { shared: true });
+add(8, 'jenn', hm(9), hm(11), 'Farmers market'); add(8, 'us', hm(13), hm(15), 'Rake the leaves');
+add(11, 'will', hm(12), hm(13), 'Lunch with Dan', { by: 'will', fresh: true });
+allDay(12, 'us', 'Veterans Day');
+add(14, 'jenn', hm(16), hm(17), 'Dentist');
+add(15, 'will', hm(10), hm(11), 'Car inspection');
+add(20, 'us', hm(18), hm(19, 30), 'Neighborhood meeting');
+allDay(22, 'us', 'Trip to Pittsburgh'); allDay(23, 'us', 'Trip to Pittsburgh');
+allDay(27, 'us', 'Thanksgiving at Mom\'s');
+add(31, 'jenn', hm(18), hm(19), 'Yoga'); add(33, 'us', hm(17), hm(19), 'Holiday lights downtown');
+
+const MEALS = { 0: { dinner: 'Salmon, rice and green beans' }, 1: { dinner: 'Out for date night' }, 2: { dinner: 'Pizza night' }, 3: { breakfast: 'Pancakes', dinner: 'Lasagna' },
+  4: { dinner: 'Tacos' }, 5: { dinner: 'Chicken soup' }, 6: { dinner: 'Leftovers' } };
+const WX = { 0: ['rain', 61, 44], 1: ['rain', 55, 40], 2: ['sun', 58, 39], 3: ['cloud', 63, 45], 4: ['sun', 60, 42], 5: ['cloud', 57, 41], 6: ['rain', 52, 38], 7: ['sun', 54, 36], 8: ['sun', 56, 37], 9: ['cloud', 53, 39] };
+const NOTES = [
+  { t: 'Package on the porch', by: 'jenn', fresh: true, age: 0 },
+  { t: 'Call the plumber about the slow kitchen drain', by: 'will', age: 2 },
+];
+const LATER = [{ t: 'Return the blue sweater', age: 5 }, { t: 'Look into new couch cushions', someday: true }];
+const SHOPPING = ['Milk', 'Eggs', 'Coffee beans', 'Cat litter'];
+const REMINDERS = [['Furnace filter: check it', 'today'], ['Smoke and CO detectors: test', 'in 12 days'], ['Gutters: clear the leaves', 'in 3 weeks']];
+const TIMES = {
+  morning: { label: '7:40 am', now: hm(7, 40), needs: 'Furnace filter: check it today', rain: 'Rain from 2 pm' },
+  afternoon: { label: '3:10 pm', now: hm(15, 10), needs: null, rain: 'Rain until 9 pm' },
+  evening: { label: '8:50 pm', now: hm(20, 50), needs: 'Tomorrow at 7: Date night and Jenn\'s Dinner with friends overlap', rain: null },
+};
+const VARIANTS = {
+  a: { name: 'A · Upcoming', tabs: ['home', 'month', 'lists'], home: 'Upcoming',
+    about: '<b>A. Upcoming, one list.</b> Opens on today: the wall\'s Next line, anything that needs you, today\'s notes and events. Keep scrolling and the next two weeks follow, one day after another, each day\'s name staying pinned while you read it. Month and Lists are tabs at the bottom; a Today button appears once you scroll away.' },
+  b: { name: 'B · One day at a time', tabs: ['home', 'month', 'lists'], home: 'Day',
+    about: '<b>B. One day at a time.</b> A strip of the next seven days across the top, with a dot per event so you can see which days are full. Tap a day, or swipe, to read it below. Opens on today, or on tomorrow once today is done in the evening.' },
+  c: { name: 'C · The wall, pocket-size', tabs: ['home', 'month', 'lists'], home: 'Board',
+    about: '<b>C. The wall, pocket-size.</b> The wall\'s Next line and needs-you band on top, today under it, then the next four days as small cards. Tap a card for the whole day. Nearly one screen, like the wall.' },
+  d: { name: 'D · Month, day below', tabs: ['month', 'home', 'lists'], home: 'Upcoming',
+    about: '<b>D. Month, with the day below.</b> What the phones open on today, done better: the month starts with this week, shows events as colored bars instead of cut-off words, and the day you tap is listed underneath. Opens on today.' },
+};
+
+// ---------- helpers ----------
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const tmS = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}${mm ? ':' + String(mm).padStart(2, '0') : ''}`; };
+const tm = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
+const col = p => `--c:var(--${p})`;
+const dayName = i => i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : WD[dateOf(i).getDay()];
+const dShort = i => { const d = dateOf(i); return `${WD[d.getDay()].slice(0, 3)} ${d.getDate()}`; };
+const dLong = i => { const d = dateOf(i); return `${WD[d.getDay()]}, ${MO[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
+const dFull = i => { const d = dateOf(i); return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`; };
+const SVG = {
+  sun: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g></svg>',
+  cloud: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="12" r="7" fill="#E69F00"/><path d="M14 38h22a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-1 18z" fill="#8A949A"/></svg>',
+  rain: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M13 30h23a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-2 18z" fill="#8A949A"/><g stroke="#3A8FD0" stroke-width="3.5" stroke-linecap="round"><path d="M16 35l-3 7M26 35l-3 7M36 35l-3 7"/></g></svg>',
+  menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><g>' + [0, 45, 90, 135, 180, 225, 270, 315].map(a => `<rect x="10.4" y="1.8" width="3.2" height="5" rx="1" transform="rotate(${a} 12 12)"/>`).join('') + '<circle cx="12" cy="12" r="7"/></g><circle cx="12" cy="12" r="2.8" fill="var(--bg)"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>',
+  tab_home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4zm0 4h10v2H4zm0 4h16v2H4zm0 4h10v2H4z"/></svg>',
+  tab_day: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zm-2 7v10h14V9zm2 2h6v2H7z"/></svg>',
+  tab_board: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v6H3zm0 8h8v8H3zm10 0h8v8h-8z"/></svg>',
+  tab_month: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zm-2 7v10h14V9zm2 2h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm-8 4h2v2H7zm4 0h2v2h-2z"/></svg>',
+  tab_lists: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8zm-4 6h2v2H4zm4 0h12v2H8z"/></svg>',
+};
+const wx = i => WX[i] ? `<span class="wx">${SVG[WX[i][0]]}${WX[i][1]}° <span class="lo">${WX[i][2]}°</span></span>` : '';
+const clashSvg = '<svg class="clash" viewBox="0 0 24 24" aria-label="overlaps"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>';
+
+// ---------- what the board knows ----------
+const evsOn = i => EV.filter(e => e.d === i && !e.allDay).sort((a, b) => a.s - b.s || (a.work ? -1 : 1));
+const allDayOn = i => EV.filter(e => e.d === i && e.allDay);
+// A clash: a shared plan over someone's own event, or one person booked twice (work doesn't count); overlaps of 15 minutes or less don't count.
+function clashes(i) {
+  const list = evsOn(i).filter(e => !e.work), out = new Set();
+  for (const a of list) for (const b of list) {
+    if (a.id >= b.id) continue;
+    const ov = Math.min(a.e, b.e) - Math.max(a.s, b.s);
+    if (ov <= 15) continue;
+    if (a.p === 'us' || b.p === 'us' || a.p === b.p) { out.add(a.id); out.add(b.id); }
+  }
+  return out;
+}
+function moment() {
+  const T = TIMES[S.time], now = T.now, today = evsOn(0);
+  const nowEv = today.filter(e => e.s <= now && now < e.e);
+  const ahead = today.filter(e => e.s > now);
+  const done = today.filter(e => e.e <= now);
+  const handoff = ahead.length === 0 && nowEv.filter(e => !e.work).length === 0 && now >= hm(18);
+  const next = handoff ? evsOn(1)[0] : ahead[0];
+  return { T, now, nowEv, ahead, done, handoff, next, focus: handoff ? 1 : 0 };
+}
+const isNew = e => e.fresh && e.by && e.by !== S.phone;
+
+// ---------- shared row renderers ----------
+function evRow(e, o = {}) {
+  const cl = o.clash && o.clash.has(e.id);
+  const marks = `${isNew(e) ? '<span class="newdot" aria-label="new"></span>' : ''}`;
+  if (e.work) return `<button class="ev work" data-ev="${e.id}" style="${col(e.p)}"><span class="bar"></span><span class="tm">${o.now ? '<span class="pill">Now</span>' : tm(e.s).replace(' ', '&nbsp;')}</span><span class="tt">At work until ${tmS(e.e)}<span class="who">${PERSON[e.p]}</span></span></button>`;
+  const tag = o.now ? `<span class="pill">Now</span>` : o.next ? `<span class="pill next">Next</span>` : '';
+  const end = o.now ? `until ${tmS(e.e)}` : `to ${tmS(e.e)}${Math.floor(e.s / 720) !== Math.floor(e.e / 720) ? (e.e >= 720 ? ' pm' : ' am') : ''}`;
+  return `<button class="ev${o.past ? ' past' : ''}${e.shared ? ' shared' : ''}" data-ev="${e.id}" style="${col(e.p)}"><span class="bar"></span>
+    <span class="tm">${tag}${o.now ? '' : `<span>${marks ? `<span class="marks">${marks}</span>` : ''}${tm(e.s).replace(' ', '&nbsp;')}</span>`}<span class="end">${end}</span></span>
+    <span class="tt">${esc(e.t)}<span class="who">${PERSON[e.p]}${e.shared ? ' and Jenn' : ''}${cl ? ` · ${clashSvg} overlaps` : ''}</span></span></button>`;
+}
+const allDayRow = e => `<button class="allday" data-ev="${e.id}" style="${col(e.p)}">${isNew(e) ? '<span class="newdot"></span>' : ''}${esc(e.t)}<span class="who">${PERSON[e.p]}</span></button>`;
+function mealsRows(i) {
+  const m = MEALS[i] || {}, out = [];
+  if (m.breakfast) out.push(['Breakfast', m.breakfast]);
+  if (m.lunch) out.push(['Lunch', m.lunch]);
+  out.push(['Dinner', m.dinner || '<span class="soft">Not planned</span>']);
+  return out.map(([k, v], n) => `<div class="meal"${n ? ' style="border-top:0;padding-top:2px"' : ''}><span class="k">${k}</span><span class="v">${v.startsWith('<') ? v : esc(v)}</span></div>`).join('');
+}
+function notesBlock() {
+  const rows = NOTES.map((n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${n.fresh && n.by !== S.phone ? '<span class="newdot"></span>' : ''}${esc(n.t)}</button>`).join('');
+  const later = S.laterOpen
+    ? LATER.map(n => `<div class="note" style="color:var(--soft)"><span class="ring"></span>${esc(n.t)}</div>`).join('') + `<button class="later" data-later>Hide Later <span class="chev">‹</span></button>`
+    : `<button class="later" data-later>Later (${LATER.length}) <span class="chev">›</span></button>`;
+  return `<div class="sect">Notes</div>${rows}${later}`;
+}
+// One day's full list: used by B's page, D's day panel, C's day sheet and A's sections.
+function dayList(i, M, o = {}) {
+  const cl = clashes(i);
+  let out = '';
+  const ad = allDayOn(i);
+  if (ad.length) out += ad.map(allDayRow).join('');
+  if (i === 0 && !o.noNotes) out += notesBlock();
+  let evs = evsOn(i);
+  if (i === 0) {
+    const past = M.done;
+    if (past.length) out += S.earlierOpen
+      ? `<button class="fold" data-earlier>Earlier today <span class="chev">‹</span></button>${past.map(e => evRow(e, { past: true, clash: cl })).join('')}`
+      : `<button class="fold" data-earlier>Earlier today (${past.length}) <span class="chev">›</span></button>`;
+    const nowIds = new Set(M.nowEv.map(e => e.id));
+    evs = evs.filter(e => e.e > M.now);
+    if (!evs.length) out += `<div class="empty">Nothing else today</div>`;
+    out += evs.map(e => evRow(e, { clash: cl, now: nowIds.has(e.id), next: !o.noNext && !M.handoff && M.next && e.id === M.next.id })).join('');
+  } else {
+    if (!evs.length && !ad.length) out += `<div class="empty">Nothing yet</div>`;
+    out += evs.map(e => evRow(e, { clash: cl, next: !o.noNext && M.handoff && i === 1 && M.next && e.id === M.next.id })).join('');
+  }
+  if (!(i === 0 && M.handoff)) out += mealsRows(i);
+  return out;
+}
+
+// ---------- A: Upcoming, one list ----------
+function renderA(M) {
+  const n = M.next;
+  const nextCard = n ? `<button class="nextcard" data-ev="${n.id}" style="${col(n.p)}"><span class="bar"></span><span>
+      <span class="lab">${M.handoff ? 'Tomorrow, ' + WD[dateOf(1).getDay()] : 'Next'} · ${PERSON[n.p]}</span>
+      <span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.work ? 'At work' : n.t)}</span></span></button>` : '';
+  let html = `<div class="A pad"><div class="top">
+    <div class="hd"><div class="date1">${dFull(0)}</div><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></div>
+    <div class="hd" style="justify-content:flex-start;gap:14px;font-size:15px">${wx(0)}${M.T.rain ? `<span class="rain">${M.T.rain}</span>` : ''}</div>
+    ${M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
+    ${nextCard}</div>`;
+  for (let i = 0; i < 14; i++) {
+    html += `<div class="dayh${i === 0 ? ' today' : ''}" data-day="${i}"><span>${i === 0 ? 'Today' : i === 1 ? 'Tomorrow · ' + dLong(1) : dLong(i)}</span>${i ? wx(i) : ''}</div>`;
+    html += dayList(i, M);
+  }
+  html += `<button class="tail" data-tab="month">Later dates are on the Month tab ›</button></div>`;
+  return html;
+}
+
+// ---------- B: one day at a time ----------
+function renderB(M) {
+  const sel = S.sel ?? M.focus, week = S.week;
+  const cells = Array.from({ length: 7 }, (_, k) => {
+    const i = week * 7 + k, evs = [...allDayOn(i), ...evsOn(i)].filter(e => !e.work);
+    const dots = evs.slice(0, 4).map(e => `<i style="${col(e.shared ? 'us' : e.p)}"></i>`).join('');
+    const d = dateOf(i);
+    return `<button class="cell${i === 0 ? ' today' : ''}" role="tab" aria-selected="${i === sel}" data-sel="${i}"><span class="w">${WD[d.getDay()].slice(0, 3)}</span><span class="n">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
+  }).join('');
+  const d = dateOf(sel), m1 = MO[dateOf(week * 7).getMonth()], m2 = MO[dateOf(week * 7 + 6).getMonth()];
+  const title = sel === 0 ? `Today, ${MO[d.getMonth()]} ${d.getDate()}` : sel === 1 ? `Tomorrow, ${WD[d.getDay()]}` : dFull(sel);
+  const prev = sel - 1, next = sel + 1;
+  return `<div class="B"><div class="stripwrap">
+      <div class="striphd"><span class="m">${m1 === m2 ? m1 : m1.slice(0, 3) + ' – ' + m2.slice(0, 3)}</span><span class="r"><button class="todaybtn" data-today ${sel === 0 ? 'disabled' : ''}>Today</button><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>
+      <div class="strip" role="tablist"><button class="arr" data-week="-1" aria-label="Earlier week" ${week <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button>${cells}<button class="arr" data-week="1" aria-label="Later week">›</button></div></div>
+    <div class="page" data-swipe>
+      <div class="hd"><div class="date1">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
+      ${sel === 0 && M.T.rain ? `<div class="rain">${SVG.rain}${M.T.rain}</div>` : ''}
+      ${sel === M.focus && M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
+      ${dayList(sel, M)}
+      <div class="pager">${prev >= 0 ? `<button data-sel="${prev}">‹ ${prev === 0 ? 'Today' : WD[dateOf(prev).getDay()]}</button>` : '<span style="flex:1"></span>'}<button data-sel="${next}">${next === 1 ? 'Tomorrow' : WD[dateOf(next).getDay()]} ›</button></div>
+    </div></div>`;
+}
+
+// ---------- C: the wall, pocket-size ----------
+function renderC(M) {
+  const n = M.next, f = M.focus;
+  const band = `<div class="topline"><span class="d">${dFull(0)}</span>${wx(0)}</div>${M.T.rain ? `<div class="rain" style="margin:0 0 8px">${M.T.rain}</div>` : ''}
+    <button class="band" ${n ? `data-ev="${n.id}"` : ''} style="${n ? col(n.p) : ''}"><span class="bar"></span>
+    <span>${n ? `<span class="lab">${M.handoff ? 'Tomorrow, ' + WD[dateOf(1).getDay()] : 'Next'} · ${PERSON[n.p]}</span><span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.work ? 'At work' : n.t)}</span>` : '<span class="line">Nothing else today</span>'}</span></button>`;
+  const cl0 = clashes(f);
+  const row = (e, now) => `<span class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}" data-ev="${e.id}"><span class="bar"></span><span class="t0">${now ? 'Now' : tm(e.s)}${isNew(e) ? ' <span class="newdot"></span>' : ''}</span><span class="t1">${esc(e.work ? 'At work' : e.t)}${cl0.has(e.id) ? ' ' + clashSvg : ''}<span class="who">${now ? 'until ' + tmS(e.e) + ' · ' : ''}${PERSON[e.p]}</span></span></span>`;
+  const list = f === 0 ? [...M.nowEv.map(e => [e, true]), ...M.ahead.filter(e => !n || e.id !== n.id).map(e => [e])]
+    : [...evsOn(1).filter(e => !n || e.id !== n.id).map(e => [e])];
+  const ad = f ? allDayOn(1).map(e => `<span class="r" style="${col(e.p)}"><span class="bar"></span><span class="t0">All day</span><span class="t1">${esc(e.t)}</span></span>`) : [];
+  const shown = list.slice(0, 4), extra = list.length - shown.length;
+  const todayRows = [...ad, ...shown.map(([e, now]) => row(e, now))].join('') + (extra > 0 ? `<span class="m">+${extra} more</span>` : '') || '<div class="empty">Nothing else today</div>';
+  const notesLine = `<div class="meal"><span class="k">Notes</span><span class="v">${NOTES.length} · <span class="soft">Later (${LATER.length})</span></span></div>`;
+  const today = `<button class="card today" data-open="${f}"><span class="chd"><span>${f ? 'Tomorrow' : 'Today'}</span>${f ? wx(1) : ''}</span>${todayRows}${f === 0 ? notesLine : ''}${mealsRows(f)}</button>`;
+  const minis = [1, 2, 3, 4].map(k => k + f).map(i => {
+    const all = [...allDayOn(i).map(e => ({ e, ad: true })), ...evsOn(i).map(e => ({ e }))];
+    const show = all.slice(0, 2), more = all.length - show.length;
+    const rows = show.map(({ e, ad }) => `<span class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}"><span class="bar"></span><span><span class="t0">${ad ? 'All day' : tm(e.s)}${isNew(e) ? ' <span class="newdot"></span>' : ''}</span><span class="t1">${esc(e.work ? 'At work' : e.t)}</span></span></span>`).join('');
+    return `<button class="card mini" data-open="${i}"><span class="chd"><span>${dShort(i)}</span>${wx(i)}</span>${rows || '<span class="m">Nothing yet</span>'}${more > 0 ? `<span class="m">+${more} more</span>` : ''}<span class="din"><b>Dinner</b>${esc((MEALS[i] || {}).dinner || 'Not planned')}</span></button>`;
+  }).join('');
+  return `<div class="C pad">${band}${M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}${today}<div class="grid">${minis}</div>
+    <button class="more7" data-tab="month">The rest of the month ›</button></div>`;
+}
+
+// ---------- Month: D's home, a tab in A to C ----------
+function renderMonth(M) {
+  const sel = S.msel ?? M.focus, first = -dateOf(0).getDay() + S.mpage * 35; // the grid starts on this week's Sunday
+  const mid = dateOf(first + 17), label = MO[mid.getMonth()];
+  const cells = Array.from({ length: 35 }, (_, k) => {
+    const i = first + k, d = dateOf(i), all = [...allDayOn(i), ...evsOn(i)];
+    const bars = all.slice(0, 3).map(e => `<i class="${e.allDay ? 'ad' : ''}${e.shared ? ' shared' : ''}" style="${col(e.p)}"></i>`).join('');
+    const more = all.length > 3 ? `<span class="plus">+${all.length - 3}</span>` : '';
+    const num = d.getDate() === 1 ? `<span class="n mo">${MO[d.getMonth()].slice(0, 3)} 1</span>` : `<span class="n">${d.getDate()}</span>`;
+    const fresh = all.some(isNew) ? '<span class="newdot" style="position:absolute;top:6px;right:6px"></span>' : '';
+    return `<button class="c${i < 0 ? ' past' : ''}${i === 0 ? ' today' : ''}" style="position:relative" aria-selected="${i === sel}" data-msel="${i}">${num}<span class="bars">${bars}</span>${more}${fresh}</button>`;
+  }).join('');
+  const title = sel === 0 ? `Today, ${dLong(0).split(', ')[1]}` : sel === 1 ? `Tomorrow, ${dLong(1)}` : dFull(sel);
+  return `<div class="M"><div class="mhd"><span class="m">${label}</span><span class="r">
+      <button class="todaybtn" data-mtoday ${sel === 0 && S.mpage === 0 ? 'disabled' : ''}>Today</button>
+      <button class="iconbtn" data-mpage="-1" aria-label="Earlier" ${S.mpage <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button><button class="iconbtn" data-mpage="1" aria-label="Later">›</button>
+      ${S.variant === 'd' ? `<button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button>` : ''}</span></div>
+    <div class="wk"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="grid">${cells}</div>
+    <div class="day" data-swipe-m><div class="hd"><div class="date1" style="font-size:20px">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
+      ${sel === M.focus && M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
+      ${dayList(sel, M)}</div></div>`;
+}
+
+// ---------- Lists ----------
+function renderLists() {
+  return `<div class="L pad"><h2>Lists</h2>
+    <div class="card"><h3>Notes <span class="soft">for both of you</span></h3>${NOTES.map((n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${esc(n.t)}</button>`).join('')}
+      <button class="later" data-later>Later (${LATER.length}) <span class="chev">›</span></button></div>
+    <div class="card"><h3>Shopping list <span class="soft">${SHOPPING.length} items</span></h3>${SHOPPING.map(s => `<div class="note"><span class="ring"></span>${s}</div>`).join('')}</div>
+    <div class="card"><h3>House reminders</h3>${REMINDERS.map(([t, w]) => `<div class="row"><span>${t}</span><span class="soft">${w}</span></div>`).join('')}</div>
+    <div class="pnote">Prototype: what each list holds, and whether the shopping list lives here or in the Home Assistant app's own To-do widget, is the lists question on the map.</div></div>`;
+}
+
+// ---------- sheets: stand-ins for other tickets ----------
+function sheet(html) { const sh = document.querySelector('.sheet'); sh.innerHTML = `<div class="grab"></div>${html}`; sh.classList.add('on'); document.querySelector('.scrim').classList.add('on'); }
+function closeSheet() { document.querySelector('.sheet')?.classList.remove('on'); document.querySelector('.scrim')?.classList.remove('on'); }
+function eventSheet(id) {
+  const e = EV.find(x => x.id === +id); if (!e) return;
+  sheet(`<div class="sh"><h2>${esc(e.work ? 'At work' : e.t)}</h2><button class="done" data-close>Done</button></div>
+    <div class="soft" style="font-size:15px">${dFull(e.d)}${e.allDay ? ', all day' : `, ${tm(e.s)} to ${tm(e.e)}`} · ${PERSON[e.p]}</div>
+    <div class="pnote">Prototype: changing, deleting and hiding an event is the event sheet's question on the map. This only shows where it opens.</div>`);
+}
+function daySheet(i) { sheet(`<div class="sh"><h2>${dFull(i)}</h2><button class="done" data-close>Done</button></div>${dayList(i, moment())}`); }
+function addSheet() {
+  sheet(`<div class="sh"><h2>Add</h2><button class="done" data-close>Cancel</button></div><div class="field">What? For example "dentist tue 3"</div>
+    <div class="pnote">Prototype: how adding feels is its own question on the map. This only shows where the button sits.</div>`);
+}
+function settingsSheet() {
+  sheet(`<div class="sh"><h2>Settings</h2><button class="done" data-close>Done</button></div>
+    <div class="srow"><span>Your calendars show</span><span class="soft">Titles</span></div>
+    <div class="srow"><span>Hidden by you</span><span class="soft">1 ›</span></div>
+    <div class="srow"><span>Guest mode</span><span class="soft">Off</span></div>
+    <div class="srow"><span>Text size</span><span class="soft">Like the rest of the app</span></div>
+    <div class="pnote">Prototype: the plain settings page is its own question on the map. Rows here are the ones already known to belong on it.</div>`);
+}
+
+// ---------- the app frame ----------
+const S = { variant: 'a', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, week: 0, msel: null, mpage: 0, notesDone: {}, laterOpen: false, earlierOpen: false };
+const TABLBL = v => ({ home: VARIANTS[v].home, month: 'Month', lists: 'Lists' });
+const TABICON = v => ({ home: { a: 'tab_home', b: 'tab_day', c: 'tab_board', d: 'tab_home' }[v], month: 'tab_month', lists: 'tab_lists' });
+function frame() {
+  const v = VARIANTS[S.variant], lbl = TABLBL(S.variant), ic = TABICON(S.variant), tab = S.tab || v.tabs[0];
+  const tabs = v.tabs.map(t => `<button data-tab="${t}" ${t === tab ? 'aria-current="page"' : ''}>${SVG[ic[t]]}<span>${lbl[t]}</span></button>`).join('');
+  return `<div class="screen${S.look === 'dark' ? ' dark' : ''}${S.size === 'large' ? ' large' : ''}">
+    <div class="sb"><span>${TIMES[S.time].label.replace(/ (am|pm)/, '')}</span><span class="notch"></span><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true" fill="currentColor"><rect x="0" y="9" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="8" rx="1"/><rect x="10" y="3" width="3" height="11" rx="1"/><rect x="15" y="0" width="3" height="14" rx="1"/><rect x="27" y="1" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><rect x="29" y="3" width="16" height="8" rx="2"/><rect x="51" y="5" width="2" height="4" rx="1" opacity=".5"/></svg></div>
+    <div class="app">
+      <div class="habar">${SVG.menu}<span class="t">House board</span>${S.phone === 'will' ? SVG.dots : ''}</div>
+      <div class="view" id="view"></div>
+      <button class="todaychip" id="todaychip">Today</button>
+      <button class="fab" data-add aria-label="Add">${SVG.plus}</button>
+      <div class="tabs">${tabs}</div>
+      <div class="scrim" data-close></div><div class="sheet" role="dialog"></div>
+    </div>
+    <div class="hi"></div></div>`;
+}
+function renderView() {
+  const M = moment(), v = VARIANTS[S.variant], tab = S.tab || v.tabs[0];
+  const view = document.getElementById('view');
+  let html;
+  if (tab === 'lists') html = renderLists();
+  else if (tab === 'month') html = renderMonth(M);
+  else html = { a: renderA, b: renderB, c: renderC, d: renderA }[S.variant](M);
+  view.innerHTML = html;
+  for (const b of document.querySelectorAll('.tabs button')) b.toggleAttribute('aria-current', b.dataset.tab === tab), b.dataset.tab === tab && b.setAttribute('aria-current', 'page');
+  todayChip();
+}
+function todayChip() {
+  const chip = document.getElementById('todaychip'), view = document.getElementById('view');
+  const tab = S.tab || VARIANTS[S.variant].tabs[0];
+  const isList = tab === 'home' && (S.variant === 'a' || S.variant === 'd');
+  if (!isList) return chip.classList.remove('on');
+  const t1 = view.querySelector('.dayh[data-day="1"]');
+  chip.classList.toggle('on', !!t1 && view.scrollTop > t1.offsetTop + 40);
+}
+function render() {
+  const phone = document.getElementById('phone');
+  phone.innerHTML = frame();
+  renderView();
+  document.getElementById('vname').textContent = VARIANTS[S.variant].name;
+  document.getElementById('side').innerHTML = `<h1>${VARIANTS[S.variant].name}</h1><p>${VARIANTS[S.variant].about}</p><p class="soft" style="font-size:13px">Made-up data. "Today" is Friday, October 30. Inside the Home Assistant app, under its own top bar. Tap anything; the + and the event and settings sheets stand in for their own questions on the map.</p>`;
+  document.getElementById('about2').innerHTML = VARIANTS[S.variant].about;
+  for (const [g, k] of [['g-time', 'time'], ['g-phone', 'phone'], ['g-look', 'look'], ['g-size', 'size']])
+    for (const b of document.querySelectorAll(`#${g} button`)) b.setAttribute('aria-pressed', b.dataset.k === S[k]);
+  document.body.classList.toggle('shot', S.shot);
+  writeHash();
+  document.getElementById('view').addEventListener('scroll', todayChip, { passive: true });
+}
+
+// ---------- events ----------
+document.addEventListener('click', e => {
+  const t = e.target.closest('button, .scrim'); if (!t || !t.closest('#phone')) return;
+  const d = t.dataset;
+  if ('close' in d) return closeSheet();
+  if (d.tab) { S.tab = d.tab; renderView(); document.getElementById('view').scrollTop = 0; return; }
+  if (d.ev) return eventSheet(d.ev);
+  if (d.open !== undefined) return daySheet(+d.open);
+  if (d.sel !== undefined) { S.sel = +d.sel; S.week = Math.floor(S.sel / 7); renderView(); return; }
+  if (d.week) { S.week = Math.max(0, S.week + +d.week); S.sel = S.week * 7; renderView(); return; }
+  if ('today' in d) { S.sel = 0; S.week = 0; renderView(); return; }
+  if (d.msel !== undefined) { S.msel = +d.msel; renderView(); return; }
+  if (d.mpage) { S.mpage = Math.max(0, S.mpage + +d.mpage); S.msel = -dateOf(0).getDay() + S.mpage * 35 + (S.mpage ? 0 : 0); if (S.mpage === 0) S.msel = null; renderView(); return; }
+  if ('mtoday' in d) { S.mpage = 0; S.msel = 0; renderView(); return; }
+  if (d.note !== undefined) { S.notesDone[d.note] = !S.notesDone[d.note]; renderView(); return; }
+  if ('later' in d) { S.laterOpen = !S.laterOpen; renderView(); return; }
+  if ('earlier' in d) { S.earlierOpen = !S.earlierOpen; renderView(); return; }
+  if ('add' in d) return addSheet();
+  if ('settings' in d) return settingsSheet();
+  if (t.id === 'todaychip') { document.getElementById('view').scrollTo({ top: 0, behavior: 'smooth' }); return; }
+});
+// Swipe between days on B's page and the month's day panel.
+let sx = null, sy = null;
+document.addEventListener('pointerdown', e => { if (e.target.closest('[data-swipe], [data-swipe-m]')) { sx = e.clientX; sy = e.clientY; } });
+document.addEventListener('pointerup', e => {
+  if (sx === null) return; const dx = e.clientX - sx, dy = e.clientY - sy; const inM = e.target.closest('[data-swipe-m]'); sx = null;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  const M = moment(), step = dx < 0 ? 1 : -1;
+  if (inM) { S.msel = Math.max(-dateOf(0).getDay(), (S.msel ?? M.focus) + step); }
+  else { S.sel = Math.max(0, (S.sel ?? M.focus) + step); S.week = Math.floor(S.sel / 7); }
+  renderView();
+});
+
+// ---------- prototype controls ----------
+const GROUPS = { 'g-time': ['time', { morning: '7:40 am', afternoon: '3:10 pm', evening: '8:50 pm' }], 'g-phone': ['phone', { will: "Will's phone", jenn: "Jenn's phone" }],
+  'g-look': ['look', { light: 'Light', dark: 'Dark' }], 'g-size': ['size', { normal: 'Text', large: 'Large text' }] };
+for (const [id, [key, opts]] of Object.entries(GROUPS)) {
+  const g = document.getElementById(id);
+  g.innerHTML = Object.entries(opts).map(([k, l]) => `<button data-k="${k}" aria-pressed="false">${l}</button>`).join('');
+  g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.k; resetNav(); render(); });
+}
+function resetNav() { S.sel = null; S.week = 0; S.msel = null; S.mpage = 0; S.earlierOpen = false; S.laterOpen = false; }
+const keys = Object.keys(VARIANTS);
+const step = n => { S.variant = keys[(keys.indexOf(S.variant) + n + keys.length) % keys.length]; S.tab = null; resetNav(); render(); };
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+document.getElementById('moreBtn').onclick = () => { document.getElementById('proto').classList.toggle('open'); sizeMode(); };
+document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1); if (e.key === 'Escape') closeSheet(); });
+
+function readHash() {
+  for (const p of (location.hash || '').replace('#', '').split('-')) {
+    if (VARIANTS[p]) S.variant = p; else if (TIMES[p]) S.time = p; else if (p === 'will' || p === 'jenn') S.phone = p;
+    else if (p === 'light' || p === 'dark') S.look = p; else if (p === 'normal' || p === 'large') S.size = p;
+    else if (['home', 'month', 'lists'].includes(p)) S.tab = p; else if (p === 'shot') S.shot = true;
+  }
+}
+function writeHash() { if (S.shot) return; const h = `#${S.variant}-${S.time}-${S.phone}-${S.look}-${S.size}`; if (location.hash !== h) history.replaceState(null, '', h); }
+function sizeMode() {
+  const narrow = !S.shot && window.innerWidth < 760;
+  document.body.classList.toggle('narrow', narrow);
+  if (narrow) document.documentElement.style.setProperty('--vh', `${window.innerHeight - document.getElementById('proto').offsetHeight}px`);
+}
+window.addEventListener('resize', sizeMode);
+window.addEventListener('hashchange', () => { readHash(); render(); sizeMode(); });
+readHash(); render(); sizeMode();
+</script>
+</body>
+</html>
