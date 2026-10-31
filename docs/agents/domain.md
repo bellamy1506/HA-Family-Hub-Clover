@@ -6,7 +6,7 @@ How agents should read this repo's domain documentation before working. Layout: 
 
 - **[CONTEXT.md](../../CONTEXT.md)**: this repo's vocabulary. Use its terms; avoid the synonyms it lists.
 - **[CLAUDE.md](../../CLAUDE.md)**: the upstream policy and the owner's rules for this fork.
-- **[J008](https://github.com/bellamy1506/House-Modeling/blob/main/records/projects/J008-family-hub.md)** in the house repo: the plan and the owner's decisions. A dated "(owner, YYYY-MM-DD)" decision there plays the role of an ADR.
+- **[J008](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J008-family-hub.md)** in the house repo: the plan and the owner's decisions. A dated "(owner, YYYY-MM-DD)" decision there plays the role of an ADR.
 - **[card-map.md](card-map.md)**: the map of the week calendar card for agents: where things are, house changes, storage, tests.
 - **[PROJECT_CONTEXT.md](../../PROJECT_CONTEXT.md)** and **[DOCUMENTATION.md](../../DOCUMENTATION.md)**: upstream's description of the code.
 

@@ -4,8 +4,8 @@ This is the household fork of [JVarhol/HA-Family-Hub](https://github.com/JVarhol
 
 ## Where decisions live
 
-- **The plan and every owner decision:** [J008](https://github.com/bellamy1506/House-Modeling/blob/main/records/projects/J008-family-hub.md) in the house repo, `bellamy1506/House-Modeling`. Sessions usually have both repos; read J008 before proposing anything.
-- **What's built in Home Assistant:** [J006](https://github.com/bellamy1506/House-Modeling/blob/main/records/projects/J006-home-assistant-automations.md) in the house repo.
+- **The plan and every owner decision:** [J008](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J008-family-hub.md) in the house repo, `bellamy1506/Clover-Home`. Sessions usually have both repos; read J008 before proposing anything.
+- **What's built in Home Assistant:** [J006](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J006-home-assistant-automations.md) in the house repo.
 - **The house repo's CLAUDE.md rules apply here too**, notably: explain any Home Assistant change before making it and build only after approval; the smart-home lock-in check; Eastern time; plain-word commit subjects.
 - **Upstream's own docs** ([PROJECT_CONTEXT.md](PROJECT_CONTEXT.md), [DOCUMENTATION.md](DOCUMENTATION.md), `website/docs/`) describe the code. They were written for the upstream developer's machine: Windows paths, zips, and test harness notes there don't apply here.
 

@@ -1,6 +1,6 @@
 # Family Hub, house fork
 
-The vocabulary of this repo. Read it before working here. The house's wider vocabulary (owner, Jenn, task vs issue, the smart-home names) is in the house repo's [CONTEXT.md](https://github.com/bellamy1506/House-Modeling/blob/main/CONTEXT.md).
+The vocabulary of this repo. Read it before working here. The house's wider vocabulary (owner, Jenn, task vs issue, the smart-home names) is in the house repo's [CONTEXT.md](https://github.com/bellamy1506/Clover-Home/blob/main/CONTEXT.md).
 
 ## The code and where it comes from
 
