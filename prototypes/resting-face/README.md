@@ -26,8 +26,8 @@ Open `index.html` in a browser (it opens on D). The bar switches the layout (A t
 **What shows at rest**
 - Date, a minute clock (no seconds), today's high and low with one weather icon.
 - **Next:** the first of today's events that hasn't started. **Now:** events under way, with their end times.
-- Work at rest says only "At work" and its hours, under Will's name. How much Work shows is the map's privacy question; this is the safe default meanwhile.
-- **Needs you:** one fixed place, at most one item, amber bar plus words, up to three lines. When empty it says "Nothing needed today" in gray. Which conditions earn it is [What counts as "needs you" on the resting face?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/46).
+- Work at rest says only "At work" and its hours, in Will's color under Will's name: every calendar shows as its person, and Work is a labeled block ([decided 2026-10-30](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/61#issuecomment-6536915357)).
+- **Needs you:** one fixed place, at most one item, amber bar plus words, up to three lines. When empty it shows nothing and the space goes to the day columns; the prototype's gray "Nothing needed today" is superseded. What earns it, and the wording that names people: [decided 2026-10-30](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/61#issuecomment-6536913728).
 - **Rain:** one line while today's forecast still has rain ahead in waking hours ("Rain from 2 pm", then "Rain until 9 pm"). The first review flagged a morning-only line vanishing while it was still raining, so it stays while it's true.
 - **Meals:** dinner always; breakfast and lunch only when filled (owner, 2026-10-29).
 - All-day events are a tinted bar at the top of their day.
