@@ -58,6 +58,14 @@ _Avoid_: confirmation, toast, receipt
 The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), Delete from the calendar, and Hide from the board last. It saves when it closes, and the echo offers Undo (owner, 2026-10-31).
 _Avoid_: popup, modal, dialog, edit form, details
 
+**Lists**:
+The house board's screen for the household's AnyList shopping lists, the notes and the house jobs that are due. On the wall it opens from the rail down the left edge, beside Upcoming and Month; on the phones it's a tab (owner, 2026-10-31).
+_Avoid_: to-do, shopping list (it's one part of Lists), checklist
+
+**Tell Clover**:
+The microphone button at the foot of the wall's rail: say anything, and Clover files it as an event, a grocery, a note or a dinner. Adding to one day or one list starts from that day or list instead (owner, 2026-10-31).
+_Avoid_: the + (the wall has none of its own), voice button, Assist
+
 **Copy**:
 One browser storage at one address, belonging to whoever last signed in on it; what Family Hub's code calls a "device". One phone can hold several (the owner's iPhone has one for home and one for Home Assistant Cloud), and a user's view settings and theme follow them between their copies, while each copy keeps its own name.
 _Avoid_: device (except when quoting the code), browser, session

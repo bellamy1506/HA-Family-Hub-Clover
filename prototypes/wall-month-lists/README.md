@@ -1,10 +1,10 @@
 # Wall Month and Lists prototype
 
-For the map ticket [How do Month and Lists look on the wall, and how are they reached?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/79), 2026-10-31. **Waiting on the owner's pick.** Not house board code: `index.html` is one self-contained page with made-up data, kept as the record of what was tried. Build sessions rewrite the pick properly in `custom_components/family_hub/house_board/` per [How is the house board's code laid out?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/44).
+For the map ticket [How do Month and Lists look on the wall, and how are they reached?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/79), 2026-10-31. **Owner's pick: C's rail, much narrower, with A's Month and Lists; adding where things land, and one Tell Clover button** (2026-10-31; [below](#owner-decision-2026-10-31)). Not house board code: `index.html` is one self-contained page with made-up data, kept as the record of what was tried. Build sessions rewrite the pick properly in `custom_components/family_hub/house_board/` per [How is the house board's code laid out?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/44).
 
-Open `index.html` in a browser (it opens on A). The bar switches the variant (A to C), the screen (Resting face, Month, Lists), the time of day (7:40 am, 3:10 pm, 8:50 pm) and the distance (Fit, 9 ft). Everything inside the wall can be tapped: the controls, days in Month, list items (they tick off, with Undo), the add boxes (a stand-in keyboard comes up, and its keys type). Left alone for a minute, Month and Lists go back to the resting face. The address's `#hash` holds the state, e.g. `#a-month-afternoon-fit`; `shot` anywhere in it draws the wall alone at 1200×800, `kbd` shows the keyboard, `sel4` opens a day in Month, `from11` opens C's columns at a day, `listCostco` picks a list in B and C, and `later` opens the Later notes.
+Open `index.html` in a browser (it opens on the pick). The bar switches the variant (Picked, then A to C as reviewed), the screen (Resting face, Month, Lists), the time of day (7:40 am, 3:10 pm, 8:50 pm) and the distance (Fit, 9 ft). Everything inside the wall can be tapped: the controls, days in Month, list items (they tick off, with Undo), the add boxes (a stand-in keyboard comes up, and its keys type). Left alone for a minute, Month and Lists go back to the resting face. The address's `#hash` holds the state, e.g. `#a-month-afternoon-fit`; `shot` anywhere in it draws the wall alone at 1200×800, `kbd` shows the keyboard, `sel4` opens a day in Month, `from11` opens C's columns at a day, `listCostco` picks a list in B and C, `later` opens the Later notes, and on the pick `listenGroceries` (or `listenday4`, `listenany`) opens the listening stand-in, with `typing` to type instead.
 
-Pictures in [shots/](shots/): `final-a.png` to `final-c.png` (each variant's resting face at 3:10 pm and 8:50 pm, Month, a day tapped from Month, and Lists, plus Lists while typing or B's house jobs), `final-far.png` (the three resting faces at 25%, about 9 ft), and `round1-a.png` to `round1-c.png` as the reviewers saw them, before the fixes below.
+Pictures in [shots/](shots/): `final-picked.png` (the pick: the resting face at 3:10 pm and 8:50 pm, Month, a day opened from Month, Lists, and adding to a list), `final-picked-far.png` (C as reviewed beside the pick at 25%), `final-a.png` to `final-c.png` (each variant's resting face at 3:10 pm and 8:50 pm, Month, a day tapped from Month, and Lists, plus Lists while typing or B's house jobs), `final-far.png` (the three resting faces at 25%, about 9 ft), and `round1-a.png` to `round1-c.png` as the reviewers saw them, before the fixes below.
 
 Starting points: the [resting face](../resting-face/README.md) (layout D) with the [marks pick](../marks/README.md) (E); the [phones prototype](../phones/README.md)'s Month and Lists; the [lists decision](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/76#issuecomment-6546575045).
 
@@ -18,9 +18,35 @@ Starting points: the [resting face](../resting-face/README.md) (layout D) with t
 
 Left out on purpose: controls that appear only after a first touch (Month and Lists must be one touch from the resting face, and the first-time profile won't look for hidden ones); swipes as the only way between screens; a count on the Lists control ([lists decision](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/76#issuecomment-6546575045)).
 
+## Owner decision (2026-10-31)
+
+**Picked: C's rail, much narrower, with A's Month and Lists.** In the owner's words: "I like the c sidebar, it just needs to be much narrower like skylights- you only need to see it when you're right in front of the tablet touching it." And on the +: "If the plus on the sidebar is meant to add to the calendar, then it should be on the calendar, not on the sidebar- same for lists." Then, asked three questions: **icons with small words** on the rail (1a), **one microphone button, Tell Clover, at the foot of the rail** (2b), and **tapping a day in Month opens it, with Add at the top of its panel** (3a).
+
+So the wall works like this:
+- **The rail:** 64 px (1.6 cm) down the left edge, pale, with small icons and words: Upcoming, Month and Lists at the top; Tell Clover and Settings at the foot. Only needed at the tablet, so it's sized for arm's length, not for across the room. No + on it.
+- **Adding happens where it lands:** tap a day (or the small + beside its name) on the resting face, as the [adding pick](../adding/README.md#owner-decision-2026-10-31) has it; in Month, a tapped day opens in a panel whose first button, under the day's name, is "Add to Tue, Nov 3"; each list has its own "Add to Groceries". **Tell Clover** is for anything without picking a place first: speak, and Clover files it as an event, a grocery, a note or a dinner. Every add listens, with Type instead, and answers in the echo.
+- **Month and Lists are A's:** titles in the days, a tapped day in a panel beside the grid; every list side by side.
+- **Back to the resting face** after a minute untouched, as decided.
+
+**The sizes were the misread** (the owner asked whether this was a misunderstanding about sizes): the [delight research](../../docs/research/delight-and-discoverability.md) set about 1 cm (40 px) as the least for any control and about 2 cm (80 px) for things done standing in a hurry (the +, a day's add, ticks, Undo). The event sheet's prototype made "wall targets 80 px" a rule for everything, and this one went further: navigation got 2 cm too, every button was drawn as big as its touch area, and words went under the icons, so C's rail reached 108 px (2.7 cm). It also treated the controls as something to find from across the room; the owner's standard puts them with the words, for when you're at the tablet.
+
+What was put to the owner first, kept for the record (the owner: "That was not a decision, we are discussing"):
+- **A.** A as drawn (0.50), recommended. **B.** A's Month and Lists behind C's rail (0.30). **C.** A's Month and Lists behind B's corner buttons (0.12). **D.** C as drawn (0.08).
+
+Then the three questions: the rail's buttons, **(a) icons with small words (0.6)**, (b) icons only (0.3), (c) words only (0.1); a general add on the wall, (a) none (0.55), **(b) one microphone button, Tell Clover, at the foot of the rail (0.35)**, (c) a + on the rail (0.10); tapping a day in Month, **(a) opens it, with Add at the top of its panel (0.65)**, (b) adds to it at once (0.25), (c) a small + in each day adds (0.10). The owner's answers in bold.
+
+**Calls made with the pick (technical and basic; the owner can veto):**
+- **Wall sizes, replacing "wall targets 80 px":** at least 40 px (1 cm) for anything; 56 px (1.4 cm) for buttons (Month's arrows and Today, Close, a day's Add); list adds and list rows 64 px (1.6 cm) tall, the whole row being the tick target; 80 px (2 cm) kept for Mark done and the echo's Undo. The rail's items are 62 by 70 px. Text keeps its decided sizes.
+- **The rail's words are 13 px** so "Upcoming" fits 64 px; that reads from about 1.3 ft (the legibility rule: size divided by 10, in feet), i.e. standing at the tablet. A build session checks it on the tablet; if it's too small there, the rail goes to 72 px with 15 px words rather than dropping them.
+- The rail is pale (#ECEEEA) with a 1 px edge, gray icons and words (#3D4347, over 7:1), the current item a near-black pill; Tell Clover's words take two lines.
+- **Settings** opens from the rail's foot on the wall (its contents are still fog on the map); on the phones it stays the gear at the top right of every tab.
+- The day panel's Add sits just under the day's name and date, above the events. Lists' adds show a small microphone, since they listen.
+- **The echo sits at the top on the wall** (the adding pick), below the listening panel while that's open; Undo there is 80 px.
+- The listening panel here is a stand-in; how it looks is the adding pick's, and how the wall hears is [the voice research's answer](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/83#issuecomment-6548719340) (the browser's own speech recognition in Fully, if [Does Fully let the house board's http page listen?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/85) says yes; else the keyboard's microphone key). It applies the same way to Tell Clover, Month's Add and the list adds; the wall has no + of its own now.
+
 ## Touches from the resting face
 
-Counted by the reviewers; typing a word and Enter count as one.
+Counted by the reviewers for A to C as reviewed (the pick's Month and Lists are A's, so its counts are A's); typing a word and Enter count as one.
 
 | Task | A | B | C |
 |---|---|---|---|

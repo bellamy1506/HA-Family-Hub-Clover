@@ -153,6 +153,41 @@ body.shot .face * { animation: none !important; transition: none !important }
 .vC > .main { position: relative; flex: 1; min-width: 0 }
 .vC .D { padding-left: 26px; padding-right: 28px }
 
+/* The owner's pick: C's rail, narrow and quiet (only needed at the tablet), A's Month and Lists, controls sized for arm's length. */
+.vP { display: flex }
+.vP > .rail { flex: none; width: 64px; background: #ECEEEA; border-right: 1px solid #D3D7D1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 8px; gap: 2px }
+.vP .rail .tab { width: 62px; height: 70px; gap: 3px; font-size: 13px; letter-spacing: -.01em }
+.vP .rail .tab .ind { width: 46px; height: 30px; border-radius: 15px }
+.vP .rail .tab svg { width: 24px; height: 24px }
+.vP .rail .tab.tell { height: 78px; line-height: 1.1; text-align: center }
+.vP > .main { position: relative; flex: 1; min-width: 0 }
+.vP .D { padding-left: 24px; padding-right: 28px }
+.vP .D .col .hd { cursor: pointer }
+.vP .dplus { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-left: 6px; border-radius: 15px; color: #5A6166; font-size: 26px; font-weight: 500; line-height: 1; vertical-align: 2px; box-shadow: inset 0 0 0 1.5px #B9BFB8 }
+.vP .btn { height: 56px; min-width: 56px; padding: 0 18px; border-radius: 12px; font-size: 20px }
+.vP .btn.ar { width: 56px; font-size: 32px }
+.vP .btn svg { width: 26px; height: 26px }
+.vP .mh, .vP .lh { height: 66px }
+.vP .addbox { height: 64px; font-size: 22px }
+.vP .listen { flex: none; width: 100%; justify-content: flex-start; gap: 10px; height: 64px; margin-bottom: 4px; color: #3D4347 }
+.vP .listen .mic { margin-left: auto; width: 24px; height: 24px; fill: #5A6166 }
+.vP .li { min-height: 64px; font-size: 23px }
+.vP .li .ring { width: 30px; height: 30px }
+.vP .hj .btn { height: 80px; font-size: 20px }
+.vP .dd .addday { order: 1; margin-bottom: 4px } .vP .dd .list { order: 2 } .vP .dd .din { order: 3 }
+.vP .echo { top: 14px; bottom: auto } .vP .echo.hide { transform: translate(-50%, -16px) }
+.vP .echo .ub { min-height: 80px; padding: 0 26px }
+/* The listening panel: a stand-in for the adding pick's (prototypes/adding), across the top. */
+.vP .lp ~ .echo { top: 200px }
+.lp { position: absolute; top: 12px; left: 80px; right: 16px; z-index: 11; background: #FFFFFF; border-radius: 18px; box-shadow: 0 0 0 1px #CDD2CC, 0 12px 36px rgba(0,0,0,.22); padding: 14px 14px 14px 22px; display: flex; flex-direction: column; gap: 10px; animation: drop 220ms cubic-bezier(.2,.8,.2,1) }
+@keyframes drop { from { transform: translateY(-24px); opacity: 0 } }
+.lp .r1 { display: flex; align-items: center; gap: 12px }
+.lp .chip2 { font-size: 18px; font-weight: 700; background: #E3E7E1; border-radius: 10px; padding: 6px 12px; white-space: nowrap }
+.lp .say { flex: 1; font-size: 26px; font-weight: 600; color: #3D4347; display: flex; align-items: center; gap: 12px }
+.lp .say svg { width: 34px; height: 34px; fill: #B3261E; flex: none }
+.lp .addbox { flex: 1; margin: 0 }
+.lp .note2 { font-size: 16px; font-weight: 500; color: #3D4347 }
+
 /* ---------- Month ---------- */
 .MS { height: 100%; display: flex; flex-direction: column; padding: 10px 24px 14px }
 .mh { flex: none; display: flex; align-items: center; gap: 12px; height: 84px; padding-bottom: 4px }
@@ -309,6 +344,7 @@ const UI = {
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>',
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>',
+  mic: '<svg class="mic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zm7 9a7 7 0 0 1-6 6.93V21h-2v-3.07A7 7 0 0 1 5 11h2a5 5 0 0 0 10 0z"/></svg>',
 };
 const WXI = {
   sun: '<circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g>',
@@ -374,6 +410,8 @@ const DISTS = { fit: { label: 'Fit' }, '9ft': { label: '9 ft', w: Math.round(11.
 const SCREENS = { rest: { label: 'Resting face' }, month: { label: 'Month' }, lists: { label: 'Lists' } };
 
 const VARIANTS = {
+  p: { name: 'Picked · Narrow rail',
+    about: '<b>The owner\'s pick (2026-10-31): C\'s rail, much narrower, with A\'s Month and Lists.</b> The rail is only needed when you\'re at the tablet touching it, so it\'s 64 px (1.6 cm) of pale gray with small icons and words: Upcoming, Month, Lists, then Tell Clover (speak anything; Clover files it) and Settings at the foot. Adding happens where it lands: tap a day (or its small +) on the resting face, Add at the top of a day opened from Month, or Add on a list; each one listens, with Type instead. Buttons are sized for arm\'s length (56 px); ticks and Undo keep 80 px.' },
   a: { name: 'A · Tabs along the bottom',
     about: '<b>A. Tabs along the bottom, like the phones.</b> A bar across the bottom edge: Upcoming, Month and Lists, the same three words as the phones\' tabs, with the settings gear and the + at its right end. The resting face gives up the bar\'s height (about a row per day). <b>Month</b> fills the screen: each day\'s events as colored blocks with short titles, work as a thin strip; tap a day and it opens in a panel beside it. <b>Lists</b> shows every list at once, a column each, with an add box at the top of each.' },
   b: { name: 'B · Buttons in the corner',
@@ -428,7 +466,7 @@ function restHTML() {
     const rows = isFocus ? [...M.nowEv.map(e => row(e, true)), ...M.later.map(e => row(e, false, M.T.needs && e.clash))] : d.events.map(e => row(e));
     const ms = mealsOf(d).map(([lbl, v]) => `<div class="dinner"><span class="lab">${lbl}</span><span class="clamp2">${esc(v)}</span></div>`).join('');
     const title = isFocus ? (M.tf ? 'Tomorrow' : 'Today') : (d.i === 0 ? 'Today' : `${d.short} ${d.num}`);
-    return `<div class="col"><div class="hd"><span class="dn">${title}</span><span class="hl">${d.wx ? `${d.wx[1]}° ${d.wx[2]}°` : ''}</span></div>
+    return `<div class="col"${S.v === 'p' ? ` data-listen="day${d.i}"` : ''}><div class="hd"><span class="dn">${title}${S.v === 'p' ? '<span class="dplus" aria-hidden="true">+</span>' : ''}</span><span class="hl">${d.wx ? `${d.wx[1]}° ${d.wx[2]}°` : ''}</span></div>
       ${notes}<div class="list" data-fit>${d.allDay.map(adRow).join('')}${rows.join('') || (first && !d.allDay.length ? '<div class="more">Nothing on the calendar</div>' : '')}</div>${ms}</div>`;
   }).join('');
   const strip = browsing ? `<div class="browse"><span>${dShort(S.from)} to ${dShort(S.from + 3)}</span><span class="sp"></span><button class="btn" data-act="today">Back to today</button></div>`
@@ -468,7 +506,7 @@ function dayDetail(i, opts = {}) {
   const din = d.meals.dinner ? `<div class="din"><b>Dinner</b>${esc(d.meals.dinner)}</div>` : '';
   return `<div class="hd"><div><div class="dt">${when}</div><div class="ds">${sub}${d.wx ? ` · ${wxIcon(d.wx[0], 30)}${d.wx[1]}° ${d.wx[2]}°` : ''}</div></div>${opts.close ? `<button class="btn" data-dclose>${UI.close}Close</button>` : ''}</div>
     <div class="list">${rows || '<div class="empty">Nothing on the calendar.</div>'}</div>${din}
-    <button class="btn addday" data-plus="${i}">${UI.plus}Add to ${i === 0 ? 'today' : i === 1 ? 'tomorrow' : dShort(i)}</button>`;
+    <button class="btn addday" ${S.v === 'p' ? `data-listen="day${i}"` : `data-plus="${i}"`}>${UI.plus}Add to ${i === 0 ? 'today' : i === 1 ? 'tomorrow' : dShort(i)}</button>`;
 }
 function monthHTML() {
   if (S.v === 'b') {
@@ -476,18 +514,19 @@ function monthHTML() {
     return `<div class="MS">${monthHead(closeGear())}<div class="body"><div class="gw">${WKD}<div class="grid">${cells('bars', sel)}</div></div>
       <div class="dpane dd">${dayDetail(sel)}</div></div></div>`;
   }
-  const panel = S.v === 'a' && S.sel != null ? (() => {
+  const panel = (S.v === 'a' || S.v === 'p') && S.sel != null ? (() => {
     const col = (S.sel + dateOf(0).getDay()) % 7, side = col >= 4 ? 'left' : 'right';
     return `<div class="dpanel dd ${side}" data-panel>${dayDetail(S.sel, { close: true })}</div>`;
   })() : '';
-  return `<div class="MS">${monthHead()}${WKD}<div class="grid">${cells('words', S.v === 'a' ? S.sel : null)}</div></div>${panel}`;
+  return `<div class="MS">${monthHead()}${WKD}<div class="grid">${cells('words', S.v === 'a' || S.v === 'p' ? S.sel : null)}</div></div>${panel}`;
 }
 
 // ---------- Lists ----------
 const L = SEED();
 const ring = `<span class="ring">${UI.check}</span>`;
 const itemRow = (sec, x, k) => `<button class="li${x.done ? ' done' : ''}${x.fresh ? ' fresh' : ''}" data-tick="${sec}:${k}">${ring}<span class="tx">${esc(x.t)}</span>${x.isNew ? '<span class="dot" aria-label="new"></span>' : ''}</button>`;
-const addBox = (sec, ph) => `<form class="addbox" data-add="${sec}">${UI.plus}<input name="t" placeholder="${ph}" autocomplete="off" enterkeyhint="done"></form>`;
+const addBox = (sec, ph) => S.v === 'p' ? `<button class="btn listen" data-listen="${sec}">${UI.plus}${ph}${UI.mic}</button>`
+  : `<form class="addbox" data-add="${sec}">${UI.plus}<input name="t" placeholder="${ph}" autocomplete="off" enterkeyhint="done"></form>`;
 const shopSec = (name, cls = '') => `<div class="sec">
     <h3>${name} <span class="c">${L[name].filter(x => !x.done).length}</span></h3>${addBox(name, `Add to ${name}`)}
     <div class="its ${cls}">${L[name].map((x, k) => itemRow(name, x, k)).join('') || '<div class="empty1">Nothing on it.</div>'}</div></div>`;
@@ -503,7 +542,7 @@ const notesSec = () => `<div class="sec"><h3>Notes <span class="c">${notesCount(
 const houseItems = () => L.House.map((x, k) => `<div class="hj${x.done ? ' done' : ''}"><span class="tx">${esc(x.t)}</span><span class="due${x.over ? ' over' : ''}">${x.done ? 'Done' : x.due}</span>${x.done ? '' : `<button class="btn" data-hdone="${k}">Mark done</button>`}</div>`).join('') || '<div class="empty1">Nothing due.</div>';
 const houseSec = () => `<div class="sec"><h3>House jobs <span class="c">${L.House.filter(x => !x.done).length} due</span></h3><div class="its">${houseItems()}</div></div>`;
 function listsHTML() {
-  if (S.v === 'a') return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LA">${SHOPPING.map(n => shopSec(n)).join('')}${notesSec()}${houseSec()}</div></div>`;
+  if (S.v === 'a' || S.v === 'p') return `<div class="LS"><div class="lh"><span class="t">Lists</span></div><div class="LA">${SHOPPING.map(n => shopSec(n)).join('')}${notesSec()}${houseSec()}</div></div>`;
   if (S.v === 'b') {
     const cur = S.list || 'Groceries', ixr = (k, lbl, c) => `<button class="it" data-list="${k}" ${k === cur ? 'aria-current="true"' : ''}><span>${lbl}</span><span class="c">${c}</span></button>`;
     const body = SHOPPING.includes(cur) ? shopSec(cur, 'two') : cur === 'Notes' ? notesSec() : houseSec();
@@ -533,6 +572,22 @@ function railHTML() {
   const t = (k, lbl, ic) => `<button class="tab" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ''}><span class="ind">${UI[ic]}</span>${lbl}</button>`;
   return `<nav class="rail">${t('rest', 'Upcoming', 'upcoming')}${t('month', 'Month', 'month')}${t('lists', 'Lists', 'lists')}<span class="sp"></span>
     <button class="plusb" data-plus aria-label="Add"><span>${UI.plus}</span></button><button class="ib" data-gear aria-label="Settings">${UI.gear}</button></nav>`;
+}
+function railPHTML() {
+  const t = (k, lbl, ic) => `<button class="tab" data-go="${k}" ${S.screen === k ? 'aria-current="page"' : ''}><span class="ind">${UI[ic]}</span>${lbl}</button>`;
+  return `<nav class="rail">${t('rest', 'Upcoming', 'upcoming')}${t('month', 'Month', 'month')}${t('lists', 'Lists', 'lists')}<span class="sp"></span>
+    <button class="tab tell" data-listen="any"><span class="ind">${UI.mic}</span>Tell<br>Clover</button><button class="tab" data-gear><span class="ind">${UI.gear}</span>Settings</button></nav>`;
+}
+// The listening panel, a stand-in for the adding pick: what it adds to, Listening, Type instead, Done.
+function listenHTML() {
+  if (!S.listen) return '';
+  const k = S.listen.k, isList = L[k] !== undefined && !k.startsWith('Notes') || k === 'Notes.today', isDay = /^day-?\d+$/.test(k);
+  const chip = isList ? `Adding to ${k === 'Notes.today' ? 'Notes' : k}` : isDay ? `Adding to ${dShort(+k.slice(3))}, unless you say another day` : 'Clover files it where it belongs';
+  const body = S.listen.typing ? `<form class="addbox" data-say>${UI.plus}<input name="t" placeholder="Type it the way you'd say it" autocomplete="off"></form>`
+    : `<span class="say">${UI.mic}Listening… say it the way you'd say it</span>`;
+  return `<div class="lp" data-lp><div class="r1"><span class="chip2">${chip}</span></div><div class="r1">${body}
+    ${S.listen.typing ? '' : '<button class="btn" data-typeinstead>Type instead</button>'}<button class="btn" data-ldone>Done</button></div>
+    <div class="note2">Stand-in: how the wall listens is the adding pick's (prototypes/adding). Here, Type instead adds.</div></div>`;
 }
 const KBD = `<div class="kbd" data-kbd><span class="cap">Stand-in for the tablet's keyboard</span>
   ${['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].map((r, n) => `<div class="r">${n === 2 ? '<span class="k w2 dk">⇧</span>' : ''}${[...r].map(c => `<span class="k" data-key="${c}">${c}</span>`).join('')}${n === 0 ? '<span class="k w2 dk" data-key="⌫">⌫</span>' : n === 1 ? '<span class="k w2 dk" data-key="⏎">Enter</span>' : '<span class="k w2 dk">⇧</span>'}</div>`).join('')}
@@ -569,7 +624,7 @@ function fit(root) {
 }
 
 // ---------- state, echo, idle return ----------
-const S = { laterOpen: false, v: 'a', screen: 'rest', t: 'morning', d: 'fit', shot: false, kbd: false, sel: null, mpage: 0, list: null, from: null, echo: null };
+const S = { listen: null, laterOpen: false, v: 'p', screen: 'rest', t: 'morning', d: 'fit', shot: false, kbd: false, sel: null, mpage: 0, list: null, from: null, echo: null };
 let echoTimer, idleTimer;
 function paintEcho() {
   const el = document.getElementById('echo'); if (!el) return;
@@ -583,7 +638,7 @@ function say(text, undo) {
 }
 function poke() {
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => { if (S.screen !== 'rest' || S.from != null) { Object.assign(S, { screen: 'rest', from: null, sel: null, kbd: false }); render(); } }, 60000);
+  idleTimer = setTimeout(() => { if (S.screen !== 'rest' || S.from != null) { Object.assign(S, { screen: 'rest', from: null, sel: null, kbd: false, listen: null }); render(); } }, 60000);
 }
 function tick(sec, k) {
   const arr = L[sec], x = arr && arr[k]; if (!x || x.done) return;
@@ -604,16 +659,16 @@ function addItem(sec, t) {
   say(`Added “${esc(t)}” to ${sec.startsWith('Notes') ? 'today\'s notes' : sec}`, () => { const j = L[sec].indexOf(x); if (j >= 0) L[sec].splice(j, 1); render(); });
   setTimeout(() => { x.fresh = false; const el = document.querySelector('.li.fresh'); if (el) el.classList.remove('fresh'); }, 2500);
 }
-function refocus(sec) { const inp = document.querySelector(`form[data-add="${sec}"] input`); if (inp) { inp.focus(); S.kbd = true; showKbd(); } }
+function refocus(sec) { const inp = document.querySelector(`form[data-add="${sec}"] input`) || document.querySelector('form[data-say] input'); if (inp) { inp.focus(); S.kbd = true; showKbd(); } }
 function showKbd() { const face = document.getElementById('face'); if (!face) return; let k = face.querySelector('[data-kbd]'); if (S.kbd && !k) face.insertAdjacentHTML('beforeend', KBD); if (!S.kbd && k) k.remove(); }
 
 // ---------- viewer ----------
 function readHash() {
   const parts = (location.hash || '').replace('#', '').split('-');
-  Object.assign(S, { v: 'a', screen: 'rest', t: 'morning', d: 'fit', kbd: false, sel: null, list: null, from: null, laterOpen: false });
+  Object.assign(S, { v: 'p', screen: 'rest', t: 'morning', d: 'fit', kbd: false, sel: null, list: null, from: null, laterOpen: false, listen: null });
   for (const p of parts) {
     if (VARIANTS[p]) S.v = p; else if (SCREENS[p]) S.screen = p; else if (TIMES[p]) S.t = p; else if (DISTS[p]) S.d = p;
-    else if (p === 'kbd') S.kbd = true; else if (p === 'later') { S.laterOpen = true; S.list = 'Notes'; } else if (/^sel\d+$/.test(p)) S.sel = +p.slice(3); else if (/^from\d+$/.test(p)) S.from = +p.slice(4);
+    else if (p === 'kbd') S.kbd = true; else if (p.startsWith('listen')) S.listen = { k: p.slice(6) || 'any', typing: parts.includes('typing') }; else if (p === 'later') { S.laterOpen = true; S.list = 'Notes'; } else if (/^sel\d+$/.test(p)) S.sel = +p.slice(3); else if (/^from\d+$/.test(p)) S.from = +p.slice(4);
     else if (p.startsWith('list')) S.list = p.slice(4);
   }
   S.shot = parts.includes('shot');
@@ -628,10 +683,12 @@ function layout() {
 function render() {
   const frame = document.getElementById('frame');
   const fa = document.activeElement && document.activeElement.closest && document.activeElement.closest('form[data-add]');
-  const keep = fa && { sec: fa.dataset.add, v: fa.querySelector('input').value };
+  const fs = document.activeElement && document.activeElement.closest && document.activeElement.closest('form[data-say]');
+  const keep = (fa && { sec: fa.dataset.add, v: fa.querySelector('input').value }) || (fs && { say: true, v: fs.querySelector('input').value });
   const main = `<div class="main">${S.screen === 'month' ? monthHTML() : S.screen === 'lists' ? listsHTML() : restHTML()}</div>`;
-  const shell = S.v === 'a' ? main + barHTML() : S.v === 'b' ? main + cornerHTML() : railHTML() + main;
-  frame.innerHTML = `<div class="face v${S.v.toUpperCase()}" id="face">${shell}<div class="echo hide" id="echo"></div></div>`;
+  const shell = S.v === 'a' ? main + barHTML() : S.v === 'b' ? main + cornerHTML() : S.v === 'p' ? railPHTML() + main : railHTML() + main;
+  frame.innerHTML = `<div class="face v${S.v.toUpperCase()}" id="face">${shell}${listenHTML()}<div class="echo hide" id="echo"></div></div>`;
+  if (S.listen && S.listen.typing && !keep) { const inp = frame.querySelector('[data-say] input'); if (inp) { inp.focus(); S.kbd = true; showKbd(); } }
   showKbd(); paintEcho();
   document.getElementById('vname').textContent = VARIANTS[S.v].name;
   document.getElementById('about').innerHTML = VARIANTS[S.v].about;
@@ -646,7 +703,7 @@ function render() {
   }
   if (S.laterOpen) { const sub = [...frame.querySelectorAll('.sub')].find(x => x.textContent === 'Later'), box = sub && sub.closest('.its');
     if (box) { box.scrollTop = sub.offsetTop - box.offsetTop - 8; box.dispatchEvent(new Event('scroll')); } }
-  if (keep) { const inp = document.querySelector(`form[data-add="${keep.sec}"] input`); if (inp) { inp.value = keep.v; inp.focus(); S.kbd = true; showKbd(); } }
+  if (keep) { const inp = keep.say ? document.querySelector('form[data-say] input') : document.querySelector(`form[data-add="${keep.sec}"] input`); if (inp) { inp.value = keep.v; inp.focus(); S.kbd = true; showKbd(); } }
 }
 
 // One listener for every tap inside the wall.
@@ -654,11 +711,16 @@ document.getElementById('frame').addEventListener('click', e => {
   const t = e.target, q = s => t.closest(s);
   poke();
   if (q('[data-kbd]')) return;
+  if (q('[data-lp]')) {
+    if (q('[data-typeinstead]')) { S.listen.typing = true; render(); }
+    else if (q('[data-ldone]')) { S.listen = null; S.kbd = false; render(); }
+    return;
+  }
   if (q('[data-undo]')) { const u = S.echo && S.echo.undo; S.echo = null; clearTimeout(echoTimer); if (u) u(); paintEcho(); return; }
   // A's day panel: a tap outside it only closes it.
-  if (S.v === 'a' && S.screen === 'month' && S.sel != null && q('.MS')) { S.sel = null; render(); return; }
+  if ((S.v === 'a' || S.v === 'p') && S.screen === 'month' && S.sel != null && q('.MS') && !S.listen) { S.sel = null; render(); return; }
   let b;
-  if ((b = q('[data-go]'))) { S.screen = S.v === 'b' && b.dataset.go === S.screen ? 'rest' : b.dataset.go; S.sel = null; S.from = null; S.kbd = false; S.laterOpen = false; render(); return; }
+  if ((b = q('[data-go]'))) { S.listen = null; S.screen = S.v === 'b' && b.dataset.go === S.screen ? 'rest' : b.dataset.go; S.sel = null; S.from = null; S.kbd = false; S.laterOpen = false; render(); return; }
   if ((b = q('[data-cell]'))) {
     const i = +b.dataset.cell;
     if (S.v === 'c') { S.from = i; S.screen = 'rest'; } else S.sel = i;
@@ -675,10 +737,18 @@ document.getElementById('frame').addEventListener('click', e => {
   if ((b = q('[data-tick]'))) { const [sec, k] = b.dataset.tick.split(':'); tick(sec, +k); return; }
   if ((b = q('[data-hdone]'))) { houseDone(+b.dataset.hdone); return; }
   if ((b = q('[data-plus]'))) { say('Adding opens here: its own question on the map, not drawn in this prototype.'); return; }
-  if (q('[data-gear]')) { say('Settings open here: their own question on the map, not drawn in this prototype.'); return; }
+  if (q('[data-gear]')) { S.listen = null; say('Settings open here: their own question on the map, not drawn in this prototype.'); return; }
   if (q('[data-ev]')) { say('The event\'s sheet opens here, as decided (a live panel beside it); not drawn in this prototype.'); return; }
+  if ((b = q('[data-listen]'))) { S.listen = { k: b.dataset.listen, typing: false }; render(); return; }
 });
-document.getElementById('frame').addEventListener('submit', e => { e.preventDefault(); const f = e.target.closest('form[data-add]'); const inp = f.querySelector('input'); const v = inp.value; inp.value = ''; addItem(f.dataset.add, v); });
+document.getElementById('frame').addEventListener('submit', e => {
+  const sf = e.target.closest('form[data-say]');
+  if (sf) {
+    e.preventDefault(); const v = sf.querySelector('input').value.trim(), k = S.listen.k; sf.querySelector('input').value = ''; if (!v) return;
+    if (L[k] !== undefined) { addItem(k, v); return; }
+    S.listen = null; S.kbd = false; render(); say(`Clover would file “${esc(v)}”${/^day/.test(k) ? ` for ${dShort(+k.slice(3))}` : ''} and say what landed where (the adding pick).`); return;
+  }
+  e.preventDefault(); const f = e.target.closest('form[data-add]'); const inp = f.querySelector('input'); const v = inp.value; inp.value = ''; addItem(f.dataset.add, v); });
 document.getElementById('frame').addEventListener('focusin', e => { if (e.target.matches('.addbox input')) { S.kbd = true; showKbd(); } });
 document.getElementById('frame').addEventListener('focusout', e => { if (e.target.matches('.addbox input')) setTimeout(() => { if (!document.activeElement || !document.activeElement.matches('.addbox input')) { S.kbd = false; showKbd(); } }, 0); });
 // The stand-in keyboard's keys type into the focused add box.
