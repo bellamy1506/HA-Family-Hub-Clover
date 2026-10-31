@@ -7,7 +7,7 @@
 <!--
 Motion lab for docs/research/motion-on-the-tablet.md (fork issue #72). Made-up content only.
 #p=<test>: one test (a key of TESTS), 4 s after load; the result goes in the hash and on screen.
-#all: every test in order, each started by a tap anywhere (adb `input tap`), so
+#all: every test in order (#all2: the second set), each started by a tap anywhere (adb `input tap`), so
 `dumpsys gfxinfo <pkg> reset` can print and clear the frame stats between tests.
 The last tap shows a table of every result.
 -->
@@ -33,7 +33,11 @@ The last tap shows a table of every result.
   body.m-blur #sheet   { background: rgba(255,255,255,.55); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
                          transform: translateY(100%); transition: transform 280ms var(--ease-out); }
   body.m-blur #sheet.open { transform: translateY(0); }
-  body.m-none #sheet, body.m-scroll #sheet, body.m-tap #sheet { display: none; }
+  body.m-none #sheet, body.m-scroll #sheet, body.m-tap #sheet, body.m-wx #sheet, body.m-wl #sheet { display: none; }
+  body.m-wx #grid { transition: transform 300ms var(--ease-out); }
+  body.m-wx #grid.open { transform: translateX(-50%); }
+  body.m-wl #grid { position: relative; left: 0; transition: left 300ms var(--ease-out); }
+  body.m-wl #grid.open { left: -50%; }
   #toast { position: fixed; left: 50%; bottom: 24px; width: 520px; margin-left: -260px; padding: 16px 20px; border-radius: 12px;
            background: #222; color: #fff; font-size: 24px; opacity: 0; transform: translateY(12px);
            transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
@@ -112,15 +116,16 @@ function report(s) {
 }
 
 // ---------- tests ----------
-async function cycles(mode, n, busyMs) {
+async function cycles(mode, n, busyMs, busyAfter) {
   document.body.className = "m-" + mode;
-  const sheet = $("#sheet");
+  const sheet = $(mode === "wx" || mode === "wl" ? "#grid" : "#sheet");
   await sleep(300);
   for (let i = 0; i < n; i++) {
     for (const open of [true, false]) {
       rafStart();
       sheet.classList.toggle("open", open);
-      if (busyMs) busy(busyMs);           // stands in for a render on a Home Assistant update
+      if (busyMs && busyAfter) setTimeout(() => busy(busyMs), busyAfter);  // a render arriving mid-slide
+      else if (busyMs) busy(busyMs);      // a render right as the slide starts
       await sleep(450);
       rafStop();
       await sleep(350);
@@ -180,6 +185,10 @@ const TESTS = {
   "xform-busy": () => cycles("xform", 6, 150),
   top: () => cycles("top", 6, 0),
   "top-busy": () => cycles("top", 6, 150),
+  "xform-mid": () => cycles("xform", 6, 150, 80),
+  "top-mid": () => cycles("top", 6, 150, 80),
+  "week-xform": () => cycles("wx", 6, 0),
+  "week-left": () => cycles("wl", 6, 0),
   height: () => cycles("height", 6, 0),
   blur: () => cycles("blur", 6, 0),
   toast: () => toastCycles(6, 0),
@@ -200,7 +209,7 @@ async function runOne(name) {
 }
 window.addEventListener("load", async () => {
   if (location.hash.includes("all")) {
-    const order = ["idle", "xform", "xform-busy", "top", "top-busy", "height", "blur", "toast", "render-full", "render-patch", "scroll", "tap"];
+    const order = location.hash.includes("all2") ? ["xform-mid", "top-mid", "blur", "week-xform", "week-left"] : ["idle", "xform", "xform-busy", "top", "top-busy", "height", "blur", "toast", "render-full", "render-patch", "scroll", "tap"];
     let i = 0, running = false;
     out.textContent = "motion lab: tap to start " + order[0];
     document.addEventListener("pointerdown", async (e) => {
