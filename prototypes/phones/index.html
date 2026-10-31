@@ -219,6 +219,9 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .M .c .bars i.shared { background: linear-gradient(90deg, var(--will) 50%, var(--jenn) 50%) }
 .M .c .bars i.ad { height: 6px; width: 92%; opacity: .55 }
 .M .c .plus { font-size: 11px; font-weight: 700; color: var(--soft); line-height: 1 }
+.M .key { display: flex; gap: 14px; justify-content: center; padding: 6px 0 2px; font-size: 13px; font-weight: 600; color: var(--soft) }
+.M .key span::before { content: ""; display: inline-block; width: 14px; height: 4px; border-radius: 2px; background: var(--c); margin-right: 5px; vertical-align: .2em }
+.M .key .kd::before { width: 7px; height: 7px; border-radius: 50%; background: var(--dot); vertical-align: .05em }
 .M .day { padding: 12px 16px 96px; touch-action: pan-y }
 
 /* ---------- Lists ---------- */
@@ -407,7 +410,7 @@ function evRow(e, o = {}) {
   const end = o.now ? `until ${tmS(e.e)}` : `to ${tmS(e.e)}${Math.floor(e.s / 720) !== Math.floor(e.e / 720) ? (e.e >= 720 ? ' pm' : ' am') : ''}`;
   return `<button class="ev${o.past ? ' past' : ''}${e.shared ? ' shared' : ''}" data-ev="${e.id}" style="${col(e.p)}"><span class="bar"></span>
     <span class="tm">${tag}${o.now ? '' : `<span>${marks ? `<span class="marks">${marks}</span>` : ''}${tm(e.s).replace(' ', '&nbsp;')}</span>`}<span class="end">${end}</span></span>
-    <span class="tt">${esc(e.t)}<span class="who">${PERSON[e.p]}${e.shared ? ' and Jenn' : ''}${cl ? ` · ${clashSvg} overlaps` : ''}</span></span></button>`;
+    <span class="tt">${esc(e.t)}<span class="who">${e.shared ? 'Will and Jenn' : PERSON[e.p]}${cl ? ` · ${clashSvg} overlaps` : ''}</span></span></button>`;
 }
 const allDayRow = e => `<button class="allday" data-ev="${e.id}" style="${col(e.p)}">${isNew(e) ? '<span class="newdot"></span>' : ''}${esc(e.t)}<span class="who">${PERSON[e.p]}</span></button>`;
 function mealsRows(i) {
@@ -495,7 +498,7 @@ function renderB(M) {
 // ---------- C: the wall, pocket-size ----------
 function renderC(M) {
   const n = M.next, f = M.focus;
-  const band = `<div class="topline"><span class="d">${dFull(0)}</span>${wx(0)}</div>${M.T.rain ? `<div class="rain" style="margin:0 0 8px">${M.T.rain}</div>` : ''}
+  const band = `<div class="topline"><span class="d">${dFull(0)}</span><span style="display:flex;align-items:center;gap:4px">${wx(0)}<button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>${M.T.rain ? `<div class="rain" style="margin:0 0 8px">${M.T.rain}</div>` : ''}
     <button class="band" ${n ? `data-ev="${n.id}"` : ''} style="${n ? col(n.p) : ''}"><span class="bar"></span>
     <span>${n ? `<span class="lab">${M.handoff ? 'Tomorrow, ' + WD[dateOf(1).getDay()] : 'Next'} · ${PERSON[n.p]}</span><span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.work ? 'At work' : n.t)}</span>` : '<span class="line">Nothing else today</span>'}</span></button>`;
   const cl0 = clashes(f);
@@ -520,7 +523,7 @@ function renderC(M) {
 // ---------- Month: D's home, a tab in A to C ----------
 function renderMonth(M) {
   const sel = S.msel ?? M.focus, first = -dateOf(0).getDay() + S.mpage * 35; // the grid starts on this week's Sunday
-  const mid = dateOf(first + 17), label = MO[mid.getMonth()];
+  const m1 = dateOf(first).getMonth(), m2 = dateOf(first + 34).getMonth(), label = m1 === m2 ? MO[m1] : `${MO[m1].slice(0, 3)} – ${MO[m2].slice(0, 3)}`;
   const cells = Array.from({ length: 35 }, (_, k) => {
     const i = first + k, d = dateOf(i), all = [...allDayOn(i), ...evsOn(i)];
     const bars = all.slice(0, 3).map(e => `<i class="${e.allDay ? 'ad' : ''}${e.shared ? ' shared' : ''}" style="${col(e.p)}"></i>`).join('');
@@ -533,9 +536,9 @@ function renderMonth(M) {
   return `<div class="M"><div class="mhd"><span class="m">${label}</span><span class="r">
       <button class="todaybtn" data-mtoday ${sel === 0 && S.mpage === 0 ? 'disabled' : ''}>Today</button>
       <button class="iconbtn" data-mpage="-1" aria-label="Earlier" ${S.mpage <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button><button class="iconbtn" data-mpage="1" aria-label="Later">›</button>
-      ${S.variant === 'd' ? `<button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button>` : ''}</span></div>
+      <button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>
     <div class="wk"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
-    <div class="grid">${cells}</div>
+    <div class="grid">${cells}</div><div class="key"><span style="--c:var(--will)">Will</span><span style="--c:var(--jenn)">Jenn</span><span style="--c:var(--us)">Us</span><span class="kd">new</span></div>
     <div class="day" data-swipe-m><div class="hd"><div class="date1" style="font-size:20px">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
       ${sel === M.focus && M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
       ${dayList(sel, M)}</div></div>`;
@@ -543,7 +546,7 @@ function renderMonth(M) {
 
 // ---------- Lists ----------
 function renderLists() {
-  return `<div class="L pad"><h2>Lists</h2>
+  return `<div class="L pad"><div class="hd"><h2>Lists</h2><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></div>
     <div class="card"><h3>Notes <span class="soft">for both of you</span></h3>${NOTES.map((n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${esc(n.t)}</button>`).join('')}
       <button class="later" data-later>Later (${LATER.length}) <span class="chev">›</span></button></div>
     <div class="card"><h3>Shopping list <span class="soft">${SHOPPING.length} items</span></h3>${SHOPPING.map(s => `<div class="note"><span class="ring"></span>${s}</div>`).join('')}</div>
@@ -635,7 +638,7 @@ document.addEventListener('click', e => {
   if (d.ev) return eventSheet(d.ev);
   if (d.open !== undefined) return daySheet(+d.open);
   if (d.sel !== undefined) { S.sel = +d.sel; S.week = Math.floor(S.sel / 7); renderView(); return; }
-  if (d.week) { S.week = Math.max(0, S.week + +d.week); S.sel = S.week * 7; renderView(); return; }
+  if (d.week) { const M = moment(), cur = S.sel ?? M.focus; S.sel = Math.max(0, cur + 7 * +d.week); S.week = Math.floor(S.sel / 7); renderView(); return; }
   if ('today' in d) { S.sel = 0; S.week = 0; renderView(); return; }
   if (d.msel !== undefined) { S.msel = +d.msel; renderView(); return; }
   if (d.mpage) { S.mpage = Math.max(0, S.mpage + +d.mpage); S.msel = -dateOf(0).getDay() + S.mpage * 35 + (S.mpage ? 0 : 0); if (S.mpage === 0) S.msel = null; renderView(); return; }
