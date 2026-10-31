@@ -123,6 +123,10 @@ _Avoid_: conflict, double-booking (that's only one kind)
 The small mark on something the other person added or changed since you last opened the board on your phone; on the wall, on anything added or changed in the last 24 hours (owner, 2026-10-30).
 _Avoid_: badge, unread, notification
 
+**Guest mode**:
+The household switch, turned on from a phone, for when visitors are over. On the house board, shared plans keep their titles, each adult's own events show as blocks, Work hides, and anyone at the wall can only add things and tick notes off (owner, 2026-10-30). Home Assistant itself stays reachable at the wall.
+_Avoid_: privacy mode (Family Hub's lock), Board private (the Hide work calendars switch Guest mode turns on)
+
 **Hide**:
 Taking one event off the house board everywhere, the wall and both phones, without changing its calendar. Only whoever hid it can bring it back (owner, 2026-10-30).
 _Avoid_: delete, remove, mute
