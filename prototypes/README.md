@@ -7,4 +7,4 @@ Each prototype gets a folder with its page, a README (the question, every varian
 | Prototype | Question | Tried | Picked |
 |---|---|---|---|
 | [resting-face/](resting-face/) | What the wall shows when nobody's touching it ([ticket](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/38)), 2026-10-30 | A Next, big · B four days, today wide · C today and tomorrow · D Next over four days | D |
-| [marks/](marks/) | How each person and kind of event looks, and D's sizes retuned for across the room ([ticket](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/57)), 2026-10-31 | A bars, two-tone Us · B blocks, two-tone Us · C bars, green Us · D names with emoji · E blocks, green Us; round 1 also a picture each and emoji alone | pending |
+| [marks/](marks/) | How each person and kind of event looks, and D's sizes retuned for across the room ([ticket](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/57)), 2026-10-31 | A bars, two-tone Us · B blocks, two-tone Us · C bars, green Us · D names with emoji · E blocks, green Us; round 1 also a picture each and emoji alone | E |

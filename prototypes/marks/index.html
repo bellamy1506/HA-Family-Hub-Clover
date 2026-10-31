@@ -14,6 +14,7 @@
   D (emoji) are pictures in shots/. The bar switches the marks, the time of day, the distance, color vision,
   and wall or phone; the address's #hash holds the state (#a-morning-fit-normal-wall), and "shot"
   anywhere in it draws the face alone at full size for screenshots. Made-up data only.
+  Owner's pick (2026-10-31): E, color blocks with a green Us; the page opens on it.
   Icons: Material Design Icons 7.4.47 by Pictogrammers, Apache License 2.0
   (https://www.apache.org/licenses/LICENSE-2.0); the paths below are inlined unmodified.
 -->
@@ -314,10 +315,10 @@ function fit(root) {
 }
 
 // ---------- viewer ----------
-const state = { v: 'a', t: 'morning', d: 'fit', cv: 'normal', dev: 'wall', shot: false };
+const state = { v: 'e', t: 'morning', d: 'fit', cv: 'normal', dev: 'wall', shot: false };
 function readHash() {
   const parts = (location.hash || '').replace('#', '').split('-');
-  Object.assign(state, { v: 'a', t: 'morning', d: 'fit', cv: 'normal', dev: 'wall' });
+  Object.assign(state, { v: 'e', t: 'morning', d: 'fit', cv: 'normal', dev: 'wall' });
   for (const p of parts) {
     if (VARIANTS[p]) state.v = p; else if (TIMES[p]) state.t = p; else if (DISTS[p]) state.d = p;
     else if (VISIONS[p]) state.cv = p; else if (DEVICES[p]) state.dev = p;
