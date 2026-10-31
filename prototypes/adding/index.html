@@ -16,6 +16,9 @@
   Switch with the bar or the address's #hash: #<variant>-<device>-<task>, e.g. #a-wall-dentist
   or #c-phone-gym; add -shot to draw the screen alone at real size.
   The keyboards are drawn stand-ins (sizes inferred) so you can see what they cover; their keys type.
+  Owner's pick (2026-10-31): A, with tapping the day to add to it (a small + beside each day here), and
+  speaking rather than typing on the wall (not drawn: how the wall hears is its own research ticket).
+  The page opens on A.
 -->
 <style>
 :root { --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2;
@@ -99,7 +102,9 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .wb .col { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3; font-size: 26px; cursor: pointer }
 .wb .col:first-child { border-left: 0; padding-left: 0; font-size: 28px }
 .wb .col .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
-.wb .col .dn { font-size: 30px; font-weight: 700 }
+.wb .col .dn { font-size: 30px; font-weight: 700; display: flex; align-items: center; gap: 10px }
+.wb .col .addcue { width: 34px; height: 34px; border-radius: 50%; background: #E4E8E2; display: inline-flex; align-items: center; justify-content: center }
+.wb .col .addcue svg { width: 24px; height: 24px; fill: #464C50 }
 .wb .col .hl { font-size: 22px; font-weight: 600; color: #464C50 }
 .wb .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden }
 .wb .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 6px; font-size: 22px; font-weight: 600; line-height: 1.15; border-radius: 0 0 6px 6px }
@@ -680,7 +685,7 @@ function wallBoard() {
     const rows = C ? rowsWithCards(d, e => rowHTML(e)) : dayEvents(d).map(e => rowHTML(e)).join('');
     const dcard = C ? cardsFor(d, 'dinner').map(c => cardHTML(c.it)).join('') : '';
     const dfl = S.flash.has(`dinner${d}`) ? ' flash' : '';
-    return `<div class="col" data-act="addday" data-arg="${d}"><div class="hd"><span class="dn">${d === 0 ? 'Today' : `${DOW[dateOf(d).getDay()]} ${dateOf(d).getDate()}`}</span><span class="hl">${[55, 58, 63, 60][d]}° ${[40, 39, 45, 42][d]}°</span></div>
+    return `<div class="col" data-act="addday" data-arg="${d}"><div class="hd"><span class="dn">${d === 0 ? 'Today' : `${DOW[dateOf(d).getDay()]} ${dateOf(d).getDate()}`}<span class="addcue" aria-hidden="true">${PLUS}</span></span><span class="hl">${[55, 58, 63, 60][d]}° ${[40, 39, 45, 42][d]}°</span></div>
       ${field}${top}${notes}<div class="list" data-fit>${ad}${rows}${dcard}</div>
       <div class="dinner${dfl}"><span class="lab">Dinner</span><span class="clamp1">${esc(M.dinners[d] || 'Not planned')}</span></div></div>`;
   }).join('');
@@ -702,7 +707,7 @@ function phoneBoard() {
     const dcard = C ? cardsFor(d, 'dinner').map(c => cardHTML(c.it)).join('') : '';
     const din = M.dinners[d] ? `<div class="dinner${S.flash.has(`dinner${d}`) ? ' flash' : ''}">Dinner · <b>${esc(M.dinners[d])}</b></div>` : '';
     const label = d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : DOWL[dateOf(d).getDay()];
-    return `<div class="day" id="day${d}" data-act="${C ? 'addday' : 'noop'}" data-arg="${d}"><div class="dh"><span>${label}<span class="dd">${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</span></span>${C ? `<button class="plus" data-act="addday" data-arg="${d}" aria-label="Add to ${label}">${PLUS}</button>` : ''}</div>
+    return `<div class="day" id="day${d}" data-act="${C ? 'addday' : 'noop'}" data-arg="${d}"><div class="dh"><span>${label}<span class="dd">${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</span></span><button class="plus" data-act="addday" data-arg="${d}" aria-label="Add to ${label}">${PLUS}</button></div>
       ${field}${top}<div class="rows">${notes}${ad}${rows}${dcard}</div>${din}</div>`;
   }).join('');
   return `<div class="pb"><div class="app"><span>☰ <span>House board</span></span>${GEAR}</div><div class="strip">${strip}</div>
@@ -1048,7 +1053,7 @@ function closeSheet() {
 const ACT = {
   noop() {},
   plus() { openAdd(!wall() && S.stripDay ? S.stripDay : null); },   // on a phone, + adds to the day picked in the strip
-  addday(d) { if (S.add && S.v !== 'c') return; openAdd(+d); },
+  addday(d) { if (S.add && S.v !== 'c') return; openAdd(+d); },   // tap the day, like a whiteboard (owner, 2026-10-31)
   jump(d) { S.stripDay = +d; scrollToDay(+d); for (const b of document.querySelectorAll('.sd')) b.classList.toggle('on', b.dataset.arg === d); },
   cancel() { const d = S.v === 'd' && S.add && S.add.convo.length; closeAdd(); if (d) { renderBoard(); scrollToCard(); } },
   send() { send(); },
