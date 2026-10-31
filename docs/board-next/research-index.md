@@ -13,4 +13,4 @@ Every research note behind [the synthesis](synthesis.md), with the one sentence 
 | [delight-and-discoverability.md](../research/delight-and-discoverability.md) | Comfort, small joys, never being lost | Comfort comes from safety and relief: every action visible, every result shown at once, every mistake one tap to undo |
 | [walkthrough-2026-10-29.md](walkthrough-2026-10-29.md) | A first-time user, as the owner and as Jenn, in the sandbox | "Would Jenn pick this over a Skylight? No, not yet": fixing edits, the shopping list and the resting view would make it a maybe |
 
-House-repo research for the same project: [J008-research/](https://github.com/bellamy1506/House-Modeling/tree/main/records/projects/J008-research) (reminders and calendars architecture; screens). The sandbox used for the walkthrough: [tests/sandbox/](../../tests/sandbox/README.md).
+House-repo research for the same project: [J008-research/](https://github.com/bellamy1506/Clover-Home/tree/main/records/projects/J008-research) (reminders and calendars architecture; screens). The sandbox used for the walkthrough: [tests/sandbox/](../../tests/sandbox/README.md).

@@ -2,7 +2,7 @@
 
 Issues live in this fork's GitHub Issues: code changes, upstream updates, bugs seen on the board, and anything needing the owner's input about the integration. GitHub turns Issues off on new forks; the owner turns them on under Settings, General, Features, Issues.
 
-Work that isn't about this code goes to the house repo, `bellamy1506/House-Modeling`: Home Assistant setup and automations (its issues and J006), physical house work (its TASKS.md), dated reminders (its `records/dates.csv`).
+Work that isn't about this code goes to the house repo, `bellamy1506/Clover-Home`: Home Assistant setup and automations (its issues and J006), physical house work (its TASKS.md), dated reminders (its `records/dates.csv`).
 
 ## Tools in this environment
 
