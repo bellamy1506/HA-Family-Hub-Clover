@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Motion lab</title>
 <!--
-Motion lab for docs/research/motion-on-the-tablet.md (fork issue #72).
-Made-up content only. One test per load, picked by the address's hash:
-  #p=<test>  where <test> is one of the keys of TESTS below.
-The page waits 4 s (time to reset `dumpsys gfxinfo`), runs the test, then
-writes a one-line result into the hash (#p=<test>&done=...) and on screen.
+Motion lab for docs/research/motion-on-the-tablet.md (fork issue #72). Made-up content only.
+#p=<test>: one test (a key of TESTS), 4 s after load; the result goes in the hash and on screen.
+#all: every test in order, each started by a tap anywhere (adb `input tap`), so
+`dumpsys gfxinfo <pkg> reset` can print and clear the frame stats between tests.
+The last tap shows a table of every result.
 -->
 <style>
   :root { --ease-out: cubic-bezier(0.2, 0, 0, 1); }
@@ -63,7 +63,7 @@ writes a one-line result into the hash (#p=<test>&done=...) and on screen.
 "use strict";
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.hash.slice(1));
-const test = params.get("p") || "xform";
+let test = params.get("p") || "xform";
 const out = $("#out");
 const DAYS = ["Thu", "Fri", "Sat", "Sun"];
 const TITLES = ["Dentist", "At work 8 to 5", "Groceries", "Vet for Franklin", "Dinner with Sam", "Call plumber",
@@ -80,7 +80,7 @@ $("#sheet").innerHTML = `<div class="row"><b>Dentist</b>, Thursday 3 to 4 pm</di
 $("#list").innerHTML = Array.from({ length: 240 }, (_, i) => `<div class="ev">${TITLES[i % TITLES.length]}, day ${1 + (i >> 3)}</div>`).join("");
 
 // ---------- measurement ----------
-const intervals = []; let rafOn = false; let last = 0;
+let intervals = []; let rafOn = false; let last = 0;
 function rafLoop(t) { if (!rafOn) return; if (last) intervals.push(t - last); last = t; requestAnimationFrame(rafLoop); }
 function rafStart() { if (rafOn) return; rafOn = true; last = 0; requestAnimationFrame(rafLoop); }
 function rafStop() { rafOn = false; }
@@ -106,9 +106,9 @@ function summary(extra) {
 function report(s) {
   const line = Object.entries(s).map(([k, v]) => `${k}=${v}`).join("&");
   out.textContent = line.replace(/&/g, "  ");
-  history.replaceState(null, "", "#p=" + test + "&done=1&" + line);
+  try { history.replaceState(null, "", "#p=" + test + "&done=1&" + line); } catch (e) { }  // throws in a data: page
   window.__result = s;
-  try { const all = JSON.parse(localStorage.motionLab || "{}"); all[test] = s; localStorage.motionLab = JSON.stringify(all); } catch (e) { }
+  (window.__all = window.__all || []).push(s);
 }
 
 // ---------- tests ----------
@@ -162,43 +162,66 @@ async function shiftDemo(reserve) {
 async function scrollTest() {
   document.body.className = "m-scroll";
   let scrolls = 0; $("#list").addEventListener("scroll", () => { scrolls++; rafStart(); clearTimeout(window.__st); window.__st = setTimeout(rafStop, 300); }, { passive: true });
-  await sleep(14000);                      // an ADB `input swipe` flings the list in this window
+  await sleep(9000);                       // an ADB `input swipe` flings the list in this window
   return { scrolls };
 }
 async function tapTest() {
   document.body.className = "m-tap";
   $("#btn").addEventListener("click", () => { $("#panel").classList.toggle("open"); });
-  await sleep(14000);                      // ADB `input tap` presses the button in this window
+  await sleep(9000);                       // ADB `input tap` presses the button in this window
   const ev = events.filter((e) => e.name === "pointerup" || e.name === "click" || e.name === "pointerdown");
   const d = ev.map((e) => e.duration);
   const delay = ev.map((e) => e.processingStart - e.startTime);
   return { taps: ev.filter((e) => e.name === "click").length, evDurMax: Math.round(Math.max(0, ...d)), evDurP50: Math.round(pct(d, 50)), inDelayMax: Math.round(Math.max(0, ...delay)) };
 }
 const TESTS = {
-  idle: async () => { document.body.className = "m-none"; await sleep(12000); return {}; },
-  xform: () => cycles("xform", 8, 0),
-  "xform-busy": () => cycles("xform", 8, 150),
-  top: () => cycles("top", 8, 0),
-  "top-busy": () => cycles("top", 8, 150),
-  height: () => cycles("height", 8, 0),
-  blur: () => cycles("blur", 8, 0),
-  toast: () => toastCycles(8, 0),
-  "render-full": () => rerender(16, true),
-  "render-patch": () => rerender(16, false),
+  idle: async () => { document.body.className = "m-none"; await sleep(9000); return {}; },
+  xform: () => cycles("xform", 6, 0),
+  "xform-busy": () => cycles("xform", 6, 150),
+  top: () => cycles("top", 6, 0),
+  "top-busy": () => cycles("top", 6, 150),
+  height: () => cycles("height", 6, 0),
+  blur: () => cycles("blur", 6, 0),
+  toast: () => toastCycles(6, 0),
+  "render-full": () => rerender(12, true),
+  "render-patch": () => rerender(12, false),
   "shift": () => shiftDemo(false),
   "shift-reserved": () => shiftDemo(true),
   scroll: scrollTest,
   tap: tapTest,
 };
 let t0 = 0;
-window.addEventListener("load", async () => {
-  out.textContent = "motion lab: " + test + " starts in 4 s";
-  await sleep(4000);
-  t0 = performance.now();
+async function runOne(name) {
+  test = name; intervals = []; t0 = performance.now();
   out.textContent = "motion lab: " + test + " running";
   const extra = await (TESTS[test] || TESTS.xform)();
   await sleep(200);
   report(summary(extra));
+}
+window.addEventListener("load", async () => {
+  if (location.hash.includes("all")) {
+    const order = ["idle", "xform", "xform-busy", "top", "top-busy", "height", "blur", "toast", "render-full", "render-patch", "scroll", "tap"];
+    let i = 0, running = false;
+    out.textContent = "motion lab: tap to start " + order[0];
+    document.addEventListener("pointerdown", async (e) => {
+      if (running || e.target.id === "btn") return;
+      if (i >= order.length) {        // one more tap: the table
+        document.body.className = "m-none"; $("#grid").style.display = "none";
+        out.style.maxWidth = "96%";
+        out.textContent = window.__all.map((r) => [r.test, "f" + r.frames, "p50 " + r.p50, "p95 " + r.p95, "max " + r.max, "late " + r.late, "bad " + r.bad, "loaf " + r.loaf + "/" + r.loafMax,
+          "cls " + r.cls, r.renderP50 !== undefined ? "render " + r.renderP50 + "/" + r.renderMax : "", r.scrolls !== undefined ? "scrolls " + r.scrolls : "",
+          r.taps !== undefined ? "taps " + r.taps + " dur " + r.evDurP50 + "/" + r.evDurMax + " delay " + r.inDelayMax : ""].join(" ")).join("\n") +
+          "\n" + window.__all[0].ua + " dpr " + window.__all[0].dpr + " " + window.__all[0].vw + "x" + window.__all[0].vh + " rm " + window.__all[0].rm;
+        return;
+      }
+      running = true; await sleep(500); await runOne(order[i++]); running = false;
+      out.textContent += "\nnext: " + (order[i] || "table");
+    });
+    return;
+  }
+  out.textContent = "motion lab: " + test + " starts in 4 s";
+  await sleep(4000);
+  await runOne(test);
 });
 </script>
 </body>
