@@ -44,7 +44,12 @@ Used by `/wayfinder` (the owner starts it; it doesn't run on its own). The **map
 - **Frontier:** the map's open sub-issues (`mcp__github__issue_read` on the map lists them; else search `"Part of #<map>" is:open`), minus any with an open blocker or an assignee; first in map order wins.
 - **Claim:** assign the ticket to `bellamy1506` with `mcp__github__issue_write`, as the session's first write.
 - **Resolve:** a resolution comment (`mcp__github__add_issue_comment`), close the issue with a state reason, then add a one-line pointer (gist + link) under the map's Decisions so far.
-- **Hand-off (owner, 2026-10-31):** a session that finishes a ticket ends its last reply with a paste block for every other ticket a session can start now (open, unblocked, unclaimed), in map order. Each is one fenced block, `/wayfinder <map URL> ticket <ticket URL>`, under a line giving the ticket's name and type. Blocked tickets are listed by name, each with what blocks it, and get no block.
+- **Hand-off (owner, 2026-10-31):** a session that finishes a ticket ends its last reply with a paste block for every other ticket a session can start now (open, unblocked, unclaimed), in map order, each in its own fenced block under a line giving the ticket's name and type. Blocked tickets are listed by name, each with what blocks it, and get no block.
+  - **Session name first (owner, 2026-10-31):** the app names a new session from its opening words, so each block starts with the session's name right after the command:
+    ```
+    /wayfinder Board: event sheet (prototype). Map <map URL> ticket <ticket URL>
+    ```
+    The name is the map's short name (the house board map is "Board"), the ticket's topic in two to five words, and its type, under 40 characters so it fits a phone's session list. A session started this way sets its title to exactly that name with `set_session_title` (claude-code-remote) when it claims the ticket, if it has that tool.
 - **Owner time:** grilling and prototype tickets need the owner live.
   - **Grilling sessions have no decision limit (owner, 2026-10-31):** answering questions is the point of grilling, so a grilling session asks every question its design tree needs, in rounds, however many that is. Several grilling tickets can be combined into one ticket for one session. The bar is yield, not count: never ask the owner a fact the agent can look up or a technical or basic call the agent can make, and never ask about something the owner wouldn't notice on the wall or a phone.
   - **Every other session** (prototype, research, task) puts at most one decision to the owner, per the house rule on decision load.
