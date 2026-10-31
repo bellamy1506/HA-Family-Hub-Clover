@@ -2,7 +2,7 @@
 
 For the map ticket [What do the phones show?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/50), 2026-10-31. Not house board code: `index.html` is one self-contained page with made-up data, kept as the record of what was tried. Build sessions rewrite the pick properly in `custom_components/family_hub/house_board/` per [How is the house board's code laid out?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/44).
 
-Open `index.html` in a browser (it opens on B, the recommendation). On a phone it fills the screen; on a computer it draws an iPhone (390×844) beside a description. The bar at the top switches the layout (A to E) and, under More on a phone, the time of day (7:40 am, 3:10 pm, 8:50 pm), whose phone (Will's or Jenn's: the new dots differ), light or dark, and text (Large is the Home Assistant app's Page Zoom at 150%, about 260 CSS px wide). Everything inside the phone can be tapped. The address's `#hash` holds the state, e.g. `#e-evening-jenn-dark-normal`; add `month` or `lists` to open on that tab and `shot` to draw the phone alone at 390×844 for screenshots. Pictures are in [shots/](shots/): `round1-*.png` for A to D as first reviewed, `round2-*.png` as reviewed in round 2 (with E), and `final-b.png` and `final-e.png` after round 2's fixes.
+Open `index.html` in a browser (it opens on E, the owner's pick; Settings, the gear, has its Show days as switch). On a phone it fills the screen; on a computer it draws an iPhone (390×844) beside a description. The bar at the top switches the layout (A to E) and, under More on a phone, the time of day (7:40 am, 3:10 pm, 8:50 pm), whose phone (Will's or Jenn's: the new dots differ), light or dark, and text (Large is the Home Assistant app's Page Zoom at 150%, about 260 CSS px wide). Everything inside the phone can be tapped. The address's `#hash` holds the state, e.g. `#e-evening-jenn-dark-normal`; add `month` or `lists` to open on that tab and `shot` to draw the phone alone at 390×844 for screenshots. Pictures are in [shots/](shots/): `round1-*.png` for A to D as first reviewed, `round2-*.png` as reviewed in round 2 (with E), `final-b.png` and `final-e.png` after round 2's fixes, and `final-picked-e-and-setting.png` for the pick with its setting switched.
 
 ## Layouts
 
@@ -62,6 +62,13 @@ All four sit inside the Home Assistant app under its own top bar (it stays on th
 - **Left as is, for the owner to see:** both rounds paused at "Later (2)" (the owner's decided name for old notes); "Your next" skipping your own work hours made the owner profile pause once ("is work ignored on purpose?" Yes: you know you're at work); no clash warning in the morning for tomorrow's overlap (the decided rule raises it after the evening hand-off; rows still say "overlaps").
 - **Caveats:** headless Chromium at iPhone size, not Safari in the Home Assistant app; swipes simulated; Large is Page Zoom, not iOS Dynamic Type.
 
-## Owner decision
+## Owner decision (2026-10-31)
 
-Pending: which layout the phones open on.
+- **E by default, with a setting to act like B.** The phones open on E: the seven-day strip over one scrolling list. A per-person setting turns that off, and the phone then shows one day at a time, as B does. In the owner's words: "I like E, but it can be the default with a setting toggle for 'Phone Continuous Scroll' or something like that, and when it's off it acts like B."
+- Options put to the owner: B one day at a time (0.60, recommended), E the strip over one list (0.35), A one list (0.15), C or D (0.05).
+
+**Calls made with the pick (technical and basic; the owner can veto):**
+- The setting reads **Show days as: One scrolling list / One day at a time**, a two-way choice in the reader's words rather than an on/off switch with a technical name.
+- It is **per person** and follows them to all their copies (both of a phone's addresses), through the house preferences service ([#43](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/43)); browser storage isn't trusted with it. Phones only; the wall keeps its resting face.
+- Everything else is shared by both modes: the strip, the top block (needs-you, what's new, your next), the Month and Lists tabs, the + and the gear. The home tab reads "Upcoming" in one mode and "Day" in the other; in the evening, one day at a time opens on tomorrow, while the list opens at its top, where "Your first tomorrow" leads.
+- Built together, they share the strip and the day list, so the second mode costs little: E's list is B's day list repeated for each day.

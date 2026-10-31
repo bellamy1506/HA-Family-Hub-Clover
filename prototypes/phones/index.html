@@ -249,6 +249,9 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .sheet .field { margin-top: 10px; border: 2px solid var(--line); border-radius: 12px; padding: 12px; font-size: 17px; color: var(--soft) }
 .sheet .srow { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 16px }
 .sheet .srow .soft { text-align: right }
+.seg { display: flex; gap: 2px; background: var(--chip); border-radius: 10px; padding: 2px; flex: none }
+.seg button { font-size: 14px; font-weight: 600; padding: 7px 9px; border-radius: 8px; min-height: 36px }
+.seg button[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink) }
 
 
 /* ---------- round 2 ---------- */
@@ -383,8 +386,8 @@ const VARIANTS = {
     about: '<b>C. The wall, pocket-size.</b> Your next event and the needs-you band on top, today under it, then the next four days as small cards listing everything but work hours. Tap a card for the whole day.' },
   d: { name: 'D · Month, day below', tabs: ['month', 'home', 'lists'], home: 'Upcoming', icon: 'tab_home',
     about: '<b>D. Month, with the day below.</b> What the phones open on today, done better: the month starts with this week, shows events as colored bars instead of cut-off words, and the day you tap is listed underneath. Opens on today.' },
-  e: { name: 'E · Upcoming + week strip', tabs: ['home', 'month', 'lists'], home: 'Upcoming', icon: 'tab_home',
-    about: '<b>E. Upcoming with a week strip.</b> Added after the first review, which split between A and B: B\'s strip of seven days stays at the top, A\'s list runs below it. Tap a day in the strip and the list jumps there; scroll and the strip follows.' },
+  e: { name: 'E · Upcoming + week strip (picked)', tabs: ['home', 'month', 'lists'], home: 'Upcoming', icon: 'tab_home',
+    about: '<b>E. Upcoming with a week strip. The owner\'s pick (2026-10-31).</b> B\'s strip of seven days stays at the top, A\'s list runs below it. Tap a day in the strip and the list jumps there; scroll and the strip follows. Each person can switch their phones to one day at a time (B) in Settings, under Show days as.' },
 };
 
 // ---------- helpers ----------
@@ -627,6 +630,7 @@ const addSheet = () => sheet(`<div class="sh"><h2>Add</h2><button class="done" d
 const settingsSheet = () => sheet(`<div class="sh"><h2>Settings</h2><button class="done" data-close>Done</button></div>
     <div class="srow"><span>How much of your calendars shows</span><span class="soft">Full titles</span></div>
     <div class="srow"><span>Your work calendar shows</span><span class="soft">"At work" and the hours</span></div>
+    ${S.variant === 'e' ? `<div class="srow" style="align-items:center"><span>Show days as</span><span class="seg"><button data-days="list" aria-pressed="${S.days === 'list'}">One scrolling list</button><button data-days="day" aria-pressed="${S.days === 'day'}">One day at a time</button></span></div>` : ''}
     <div class="srow"><span>Events hidden by you</span><span class="soft">1 ›</span></div>
     <div class="srow"><span>Guest mode</span><span class="soft">Off</span></div>
     <div class="srow"><span>Text size</span><span class="soft">Like the rest of the app</span></div>
@@ -639,11 +643,13 @@ function toast(msg, undo) {
 }
 
 // ---------- the app frame ----------
-const S = { variant: 'b', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, msel: null, mpage: 0, estart: 0, ecur: 0,
+const S = { variant: 'e', days: 'list', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, msel: null, mpage: 0, estart: 0, ecur: 0,
   notesDone: {}, needsDone: false, laterOpen: false, earlierOpen: false, undo: null };
 const tabOf = () => S.tab || VARIANTS[S.variant].tabs[0];
+// E with Show days as set to One day at a time is B.
+const dayMode = () => S.variant === 'e' && S.days === 'day';
 function frame() {
-  const v = VARIANTS[S.variant], tab = tabOf(), lbl = { home: v.home, month: 'Month', lists: 'Lists' }, ic = { home: v.icon, month: 'tab_month', lists: 'tab_lists' };
+  const v = dayMode() ? VARIANTS.b : VARIANTS[S.variant], tab = tabOf(), lbl = { home: v.home, month: 'Month', lists: 'Lists' }, ic = { home: v.icon, month: 'tab_month', lists: 'tab_lists' };
   const tabs = v.tabs.map(t => `<button data-tab="${t}" ${t === tab ? 'aria-current="page"' : ''}>${SVG[ic[t]]}<span>${lbl[t]}</span></button>`).join('');
   return `<div class="screen${S.look === 'dark' ? ' dark' : ''}${S.size === 'large' ? ' large' : ''}">
     <div class="sb"><span>${TIMES[S.time].label.replace(/ (am|pm)/, '')}</span><span class="notch"></span><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true" fill="currentColor"><rect x="0" y="9" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="8" rx="1"/><rect x="10" y="3" width="3" height="11" rx="1"/><rect x="15" y="0" width="3" height="14" rx="1"/><rect x="27" y="1" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><rect x="29" y="3" width="16" height="8" rx="2"/><rect x="51" y="5" width="2" height="4" rx="1" opacity=".5"/></svg></div>
@@ -660,7 +666,7 @@ function frame() {
 }
 function renderView() {
   const M = moment(), tab = tabOf(), view = $('#view'), top = view.scrollTop;
-  view.innerHTML = tab === 'lists' ? renderLists() : tab === 'month' ? renderMonth(M) : { a: renderA, b: renderB, c: renderC, d: renderA, e: renderE }[S.variant](M);
+  view.innerHTML = tab === 'lists' ? renderLists() : tab === 'month' ? renderMonth(M) : { a: renderA, b: renderB, c: renderC, d: renderA, e: dayMode() ? renderB : renderE }[S.variant](M);
   for (const b of document.querySelectorAll('.tabs button')) b.dataset.tab === tab ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   const strip = $('#estrip'); if (strip) view.style.setProperty('--sh', `${strip.offsetHeight}px`);
   view.scrollTop = top;
@@ -727,6 +733,7 @@ document.addEventListener('click', e => {
   if ('earlier' in d) { S.earlierOpen = !S.earlierOpen; renderView(); return; }
   if ('add' in d) return addSheet();
   if ('settings' in d) return settingsSheet();
+  if (d.days) { S.days = d.days; resetNav(); S.tab = null; render(); toast(d.days === 'day' ? 'Your phones now show one day at a time' : 'Your phones now show one scrolling list'); return; }
   if (t.id === 'todaychip') { $('#view').scrollTop = 0; return; }
 });
 // Swipes: B's page and the month's day panel move a day; a strip moves a week. Every swipe has a button too.
@@ -762,7 +769,7 @@ function readHash() {
   for (const p of (location.hash || '').replace('#', '').split('-')) {
     if (VARIANTS[p]) S.variant = p; else if (TIMES[p]) S.time = p; else if (p === 'will' || p === 'jenn') S.phone = p;
     else if (p === 'light' || p === 'dark') S.look = p; else if (p === 'normal' || p === 'large') S.size = p;
-    else if (['home', 'month', 'lists'].includes(p)) S.tab = p; else if (p === 'shot') S.shot = true;
+    else if (['home', 'month', 'lists'].includes(p)) S.tab = p; else if (p === 'oneday') S.days = 'day'; else if (p === 'shot') S.shot = true;
   }
 }
 function writeHash() { if (S.shot) return; const h = `#${S.variant}-${S.time}-${S.phone}-${S.look}-${S.size}`; if (location.hash !== h) history.replaceState(null, '', h); }
