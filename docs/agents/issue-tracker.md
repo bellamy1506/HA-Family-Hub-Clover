@@ -44,4 +44,5 @@ Used by `/wayfinder` (the owner starts it; it doesn't run on its own). The **map
 - **Frontier:** the map's open sub-issues (`mcp__github__issue_read` on the map lists them; else search `"Part of #<map>" is:open`), minus any with an open blocker or an assignee; first in map order wins.
 - **Claim:** assign the ticket to `bellamy1506` with `mcp__github__issue_write`, as the session's first write.
 - **Resolve:** a resolution comment (`mcp__github__add_issue_comment`), close the issue with a state reason, then add a one-line pointer (gist + link) under the map's Decisions so far.
+- **Hand-off (owner, 2026-10-31):** a session that finishes a ticket ends its last reply with a paste block for every other ticket a session can start now (open, unblocked, unclaimed), in map order. Each is one fenced block, `/wayfinder <map URL> ticket <ticket URL>`, under a line giving the ticket's name and type. Blocked tickets are listed by name, each with what blocks it, and get no block.
 - **Owner time:** grilling and prototype tickets need the owner live; batch them so each session asks for one decision at most, per the house rule on decision load.
