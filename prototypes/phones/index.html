@@ -81,8 +81,8 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .tabs button[aria-current="page"] { color: var(--ink); font-weight: 700 }
 .fab { position: absolute; right: 16px; bottom: 68px; width: 58px; height: 58px; border-radius: 29px; background: var(--sel); color: var(--sel-ink); display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.25); z-index: 5 }
 .fab svg { width: 30px; height: 30px; fill: currentColor }
-.todaychip { position: absolute; left: 50%; top: 66px; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; z-index: 6; background: var(--sel); color: var(--sel-ink); font-weight: 700; font-size: 15px; padding: 9px 18px; border-radius: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .2s, opacity .2s }
-.todaychip.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto }
+.todaychip { position: absolute; left: 16px; bottom: 76px; transform: translateY(8px); opacity: 0; pointer-events: none; z-index: 6; background: var(--sel); color: var(--sel-ink); font-weight: 700; font-size: 15px; padding: 9px 18px; border-radius: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .2s, opacity .2s }
+.todaychip.on { transform: none; opacity: 1; pointer-events: auto }
 
 /* ---------- shared pieces ---------- */
 .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px }
@@ -145,24 +145,26 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .A .tail { display: block; text-align: center; padding: 18px 0; color: var(--soft); font-weight: 600; width: 100% }
 
 /* ---------- B: one day at a time ---------- */
-.B .stripwrap { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 10px 6px 8px; border-bottom: 1px solid var(--line) }
-.B .striphd { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 6px }
-.B .striphd .m { font-size: 20px; font-weight: 700 }
-.B .striphd .r { display: flex; align-items: center; gap: 4px }
+.stripwrap { position: sticky; top: 0; z-index: 4; background: var(--bg); padding: 10px 6px 8px; border-bottom: 1px solid var(--line) }
+.striphd { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 6px }
+.striphd .m { font-size: 20px; font-weight: 700 }
+.striphd .r { display: flex; align-items: center; gap: 4px }
 .todaybtn { font-size: 15px; font-weight: 700; padding: 8px 14px; border-radius: 18px; background: var(--chip); min-height: 36px }
 .todaybtn[disabled] { opacity: .35; cursor: default }
-.B .strip { display: grid; grid-template-columns: 28px repeat(7, 1fr) 28px; align-items: stretch }
-.B .strip .arr { display: grid; place-items: center; font-size: 22px; color: var(--soft); font-weight: 700 }
-.B .cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 6px; border-radius: 12px; min-height: 66px }
-.B .cell .w { font-size: 12px; font-weight: 700; color: var(--soft); text-transform: uppercase }
-.B .cell .n { font-size: 19px; font-weight: 700; width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center }
-.B .cell.today .n { box-shadow: inset 0 0 0 2px var(--ink) }
-.B .cell[aria-selected="true"] { background: var(--sel); color: var(--sel-ink) }
-.B .cell[aria-selected="true"] .w { color: inherit; opacity: .8 }
-.B .cell[aria-selected="true"] .n { box-shadow: none }
+.strip { display: grid; grid-template-columns: 24px repeat(7, minmax(0, 1fr)) 24px; align-items: stretch }
+.strip .arr { display: grid; place-items: center; font-size: 22px; color: var(--soft); font-weight: 700 }
+.cell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 0 6px; border-radius: 12px; min-height: 66px }
+.cell .w { font-size: 12px; font-weight: 700; color: var(--soft); text-transform: uppercase }
+.cell .n { font-size: 19px; font-weight: 700; width: 30px; height: 30px; border-radius: 15px; display: grid; place-items: center }
+.cell.today .n { box-shadow: inset 0 0 0 2px var(--ink) }
+.cell[aria-selected="true"] { background: var(--sel); color: var(--sel-ink) }
+.cell[aria-selected="true"] .w { color: inherit; opacity: .8 }
+.cell[aria-selected="true"] .n { box-shadow: none }
 .dots { display: flex; gap: 3px; height: 7px; align-items: center }
 .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--c) }
-.B .cell[aria-selected="true"] .dots i { box-shadow: 0 0 0 1.5px var(--sel) , 0 0 0 2.5px var(--sel-ink) }
+.cell[aria-selected="true"] .dots i { box-shadow: 0 0 0 1.5px var(--sel-ink) }
+.cnew { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--dot) }
+.cell[aria-selected="true"] .cnew { background: var(--sel-ink) }
 .B .page { padding: 14px 16px 96px; touch-action: pan-y }
 .B .pager { display: flex; justify-content: space-between; margin: 18px 72px 0 0; gap: 10px }
 .B .pager button { flex: 1; min-height: 46px; border-radius: 12px; background: var(--chip); font-weight: 600; font-size: 15px; padding: 0 12px }
@@ -247,6 +249,32 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .sheet .field { margin-top: 10px; border: 2px solid var(--line); border-radius: 12px; padding: 12px; font-size: 17px; color: var(--soft) }
 .sheet .srow { display: flex; justify-content: space-between; gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 16px }
 .sheet .srow .soft { text-align: right }
+
+
+/* ---------- round 2 ---------- */
+.anchor { display: block; height: 0 }
+.E .dayh { top: var(--sh, 0px) }
+.newline { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--chip); font-weight: 600; font-size: 15px }
+.newline .chev { margin-left: auto }
+.needs.rem { display: flex; align-items: center; gap: 10px }
+.needs .ndone { margin-left: auto; flex: none; font-weight: 700; font-size: 15px; padding: 7px 14px; border-radius: 16px; background: var(--surf); color: var(--ink); min-height: 36px }
+.toast { position: absolute; left: 12px; right: 86px; bottom: 66px; z-index: 9; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--sel); color: var(--sel-ink); border-radius: 14px; padding: 8px 8px 8px 14px; font-size: 15px; font-weight: 500; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .18s, transform .18s }
+.toast.on { opacity: 1; transform: none; pointer-events: auto }
+.toast button { font-weight: 700; padding: 8px 12px; border-radius: 10px; background: rgba(127,127,127,.3); min-height: 38px }
+.C .today .chd { display: flex; width: 100%; justify-content: space-between; align-items: baseline }
+.C .today .r { width: 100%; text-align: left; padding: 3px 0 }
+.C .cnotes { border-top: 1px solid var(--line); margin-top: 4px }
+.C .cnotes .note { min-height: 38px; font-size: 15px }
+.C .cnotes .note .ring { width: 20px; height: 20px }
+.C .cnotes .later { min-height: 32px }
+.C .mini .r .t0 .clash { width: 13px; height: 13px }
+.large .C .grid { grid-template-columns: 1fr }
+.large .fab { width: 46px; height: 46px; bottom: 62px; right: 10px } .large .fab svg { width: 24px; height: 24px }
+.large .toast { bottom: 60px; right: 64px }
+.large .M .c { min-height: 42px }
+.large .cell .n { width: 26px; height: 26px; font-size: 16px }
+.large .cell .w { font-size: 10px }
 
 @media (prefers-reduced-motion: reduce) { .sheet, .scrim, .todaychip { transition: opacity .15s !important } .sheet { transform: none; opacity: 0; pointer-events: none } .sheet.on { opacity: 1; pointer-events: auto } }
 </style>
@@ -335,19 +363,21 @@ const LATER = [{ t: 'Return the blue sweater', age: 5 }, { t: 'Look into new cou
 const SHOPPING = ['Milk', 'Eggs', 'Coffee beans', 'Cat litter'];
 const REMINDERS = [['Furnace filter: check it', 'today'], ['Smoke and CO detectors: test', 'in 12 days'], ['Gutters: clear the leaves', 'in 3 weeks']];
 const TIMES = {
-  morning: { label: '7:40 am', now: hm(7, 40), needs: 'Furnace filter: check it today', rain: 'Rain from 2 pm' },
-  afternoon: { label: '3:10 pm', now: hm(15, 10), needs: null, rain: 'Rain until 9 pm' },
-  evening: { label: '8:50 pm', now: hm(20, 50), needs: 'Tomorrow at 7: Date night and Jenn\'s Dinner with friends overlap', rain: null },
+  morning: { label: '7:40 am', now: hm(7, 40), needs: { t: 'Furnace filter: check it today', rem: true }, rain: 'Rain from 2 pm' },
+  afternoon: { label: '3:10 pm', now: hm(15, 10), needs: { t: 'Furnace filter: check it today', rem: true }, rain: 'Rain until 9 pm' },
+  evening: { label: '8:50 pm', now: hm(20, 50), needs: { t: 'Tomorrow at 7: Date night and Jenn\'s Dinner with friends overlap' }, rain: null },
 };
 const VARIANTS = {
-  a: { name: 'A · Upcoming', tabs: ['home', 'month', 'lists'], home: 'Upcoming',
-    about: '<b>A. Upcoming, one list.</b> Opens on today: the wall\'s Next line, anything that needs you, today\'s notes and events. Keep scrolling and the next two weeks follow, one day after another, each day\'s name staying pinned while you read it. Month and Lists are tabs at the bottom; a Today button appears once you scroll away.' },
-  b: { name: 'B · One day at a time', tabs: ['home', 'month', 'lists'], home: 'Day',
+  a: { name: 'A · Upcoming', tabs: ['home', 'month', 'lists'], home: 'Upcoming', icon: 'tab_home',
+    about: '<b>A. Upcoming, one list.</b> Opens on today: your next event, anything that needs you, today\'s notes and events. Keep scrolling and the days ahead follow, one after another, each day\'s name staying pinned while you read it. Month and Lists are tabs at the bottom; a Today button appears once you scroll past today.' },
+  b: { name: 'B · One day at a time', tabs: ['home', 'month', 'lists'], home: 'Day', icon: 'tab_day',
     about: '<b>B. One day at a time.</b> A strip of the next seven days across the top, with a dot per event so you can see which days are full. Tap a day, or swipe, to read it below. Opens on today, or on tomorrow once today is done in the evening.' },
-  c: { name: 'C · The wall, pocket-size', tabs: ['home', 'month', 'lists'], home: 'Board',
-    about: '<b>C. The wall, pocket-size.</b> The wall\'s Next line and needs-you band on top, today under it, then the next four days as small cards. Tap a card for the whole day. Nearly one screen, like the wall.' },
-  d: { name: 'D · Month, day below', tabs: ['month', 'home', 'lists'], home: 'Upcoming',
+  c: { name: 'C · The wall, pocket-size', tabs: ['home', 'month', 'lists'], home: 'Board', icon: 'tab_board',
+    about: '<b>C. The wall, pocket-size.</b> Your next event and the needs-you band on top, today under it, then the next four days as small cards listing everything but work hours. Tap a card for the whole day.' },
+  d: { name: 'D · Month, day below', tabs: ['month', 'home', 'lists'], home: 'Upcoming', icon: 'tab_home',
     about: '<b>D. Month, with the day below.</b> What the phones open on today, done better: the month starts with this week, shows events as colored bars instead of cut-off words, and the day you tap is listed underneath. Opens on today.' },
+  e: { name: 'E · Upcoming + week strip', tabs: ['home', 'month', 'lists'], home: 'Upcoming', icon: 'tab_home',
+    about: '<b>E. Upcoming with a week strip.</b> Added after the first review, which split between A and B: B\'s strip of seven days stays at the top, A\'s list runs below it. Tap a day in the strip and the list jumps there; scroll and the strip follows.' },
 };
 
 // ---------- helpers ----------
@@ -355,10 +385,11 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 const tmS = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}${mm ? ':' + String(mm).padStart(2, '0') : ''}`; };
 const tm = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`; };
 const col = p => `--c:var(--${p})`;
-const dayName = i => i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : WD[dateOf(i).getDay()];
 const dShort = i => { const d = dateOf(i); return `${WD[d.getDay()].slice(0, 3)} ${d.getDate()}`; };
 const dLong = i => { const d = dateOf(i); return `${WD[d.getDay()]}, ${MO[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
 const dFull = i => { const d = dateOf(i); return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`; };
+const LAST = 40; // the made-up calendar runs to here
+const $ = q => document.querySelector(q);
 const SVG = {
   sun: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="9" fill="#E69F00"/><g stroke="#E69F00" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v6M24 38v6M4 24h6M38 24h6M9.9 9.9l4.2 4.2M33.9 33.9l4.2 4.2M9.9 38.1l4.2-4.2M33.9 14.1l4.2-4.2"/></g></svg>',
   cloud: '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="16" cy="12" r="7" fill="#E69F00"/><path d="M14 38h22a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-1 18z" fill="#8A949A"/></svg>',
@@ -375,6 +406,7 @@ const SVG = {
 };
 const wx = i => WX[i] ? `<span class="wx">${SVG[WX[i][0]]}${WX[i][1]}° <span class="lo">${WX[i][2]}°</span></span>` : '';
 const clashSvg = '<svg class="clash" viewBox="0 0 24 24" aria-label="overlaps"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>';
+const gearBtn = () => `<button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button>`;
 
 // ---------- what the board knows ----------
 const evsOn = i => EV.filter(e => e.d === i && !e.allDay).sort((a, b) => a.s - b.s || (a.work ? -1 : 1));
@@ -390,27 +422,49 @@ function clashes(i) {
   }
   return out;
 }
+// On a phone, Next is yours: the next event on your calendars or Us, never your own work hours.
+const mine = e => !e.work && (e.p === S.phone || e.p === 'us' || e.shared);
 function moment() {
   const T = TIMES[S.time], now = T.now, today = evsOn(0);
   const nowEv = today.filter(e => e.s <= now && now < e.e);
   const ahead = today.filter(e => e.s > now);
   const done = today.filter(e => e.e <= now);
   const handoff = ahead.length === 0 && nowEv.filter(e => !e.work).length === 0 && now >= hm(18);
-  const next = handoff ? evsOn(1)[0] : ahead[0];
-  return { T, now, nowEv, ahead, done, handoff, next, focus: handoff ? 1 : 0 };
+  const next = handoff ? evsOn(1).find(mine) : ahead.find(mine);
+  const needs = T.needs && !(T.needs.rem && S.needsDone) ? T.needs : null;
+  return { T, now, nowEv, ahead, done, handoff, next, needs, focus: handoff ? 1 : 0 };
 }
 const isNew = e => e.fresh && e.by && e.by !== S.phone;
+const other = () => S.phone === 'will' ? 'Jenn' : 'Will';
+const newEvents = () => EV.filter(e => isNew(e) && e.d >= 0).sort((a, b) => a.d - b.d || (a.s ?? 0) - (b.s ?? 0));
+const newNotes = () => NOTES.map((n, k) => ({ ...n, k })).filter(n => n.fresh && n.by !== S.phone && !S.notesDone[n.k]);
 
-// ---------- shared row renderers ----------
+// ---------- shared pieces ----------
+function needsHTML(M) {
+  if (!M.needs) return '';
+  return M.needs.rem
+    ? `<div class="needs rem"><span>${esc(M.needs.t)}</span><button class="ndone" data-needs-done>Done</button></div>`
+    : `<div class="needs">${esc(M.needs.t)}</div>`;
+}
+function newLine() {
+  const n = newEvents().length + newNotes().length;
+  return n ? `<button class="newline" data-new><span class="newdot"></span>${n} new from ${other()} since you last looked <span class="chev">›</span></button>` : '';
+}
+function nextCard(M, cls) {
+  const n = M.next;
+  if (!n) return '';
+  return `<button class="${cls}" data-ev="${n.id}" style="${col(n.p)}"><span class="bar"></span><span>
+    <span class="lab">${M.handoff ? 'Your first tomorrow, ' + WD[dateOf(1).getDay()] : 'Your next'}${n.p === 'us' ? ' · Us' : n.shared ? ' · Will and Jenn' : ''}</span>
+    <span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.t)}</span></span></button>`;
+}
 function evRow(e, o = {}) {
-  const cl = o.clash && o.clash.has(e.id);
-  const marks = `${isNew(e) ? '<span class="newdot" aria-label="new"></span>' : ''}`;
+  const cl = o.clash && o.clash.has(e.id), nw = isNew(e);
   if (e.work) return `<button class="ev work" data-ev="${e.id}" style="${col(e.p)}"><span class="bar"></span><span class="tm">${o.now ? '<span class="pill">Now</span>' : tm(e.s).replace(' ', '&nbsp;')}</span><span class="tt">At work until ${tmS(e.e)}<span class="who">${PERSON[e.p]}</span></span></button>`;
   const tag = o.now ? `<span class="pill">Now</span>` : o.next ? `<span class="pill next">Next</span>` : '';
   const end = o.now ? `until ${tmS(e.e)}` : `to ${tmS(e.e)}${Math.floor(e.s / 720) !== Math.floor(e.e / 720) ? (e.e >= 720 ? ' pm' : ' am') : ''}`;
   return `<button class="ev${o.past ? ' past' : ''}${e.shared ? ' shared' : ''}" data-ev="${e.id}" style="${col(e.p)}"><span class="bar"></span>
-    <span class="tm">${tag}${o.now ? '' : `<span>${marks ? `<span class="marks">${marks}</span>` : ''}${tm(e.s).replace(' ', '&nbsp;')}</span>`}<span class="end">${end}</span></span>
-    <span class="tt">${esc(e.t)}<span class="who">${e.shared ? 'Will and Jenn' : PERSON[e.p]}${cl ? ` · ${clashSvg} overlaps` : ''}</span></span></button>`;
+    <span class="tm">${tag}${o.now ? '' : `<span>${nw ? '<span class="marks"><span class="newdot"></span></span>' : ''}${tm(e.s).replace(' ', '&nbsp;')}</span>`}<span class="end">${end}</span></span>
+    <span class="tt">${esc(e.t)}<span class="who">${e.shared ? 'Will and Jenn' : PERSON[e.p]}${nw ? ' · new' : ''}${cl ? ` · ${clashSvg} overlaps` : ''}</span></span></button>`;
 }
 const allDayRow = e => `<button class="allday" data-ev="${e.id}" style="${col(e.p)}">${isNew(e) ? '<span class="newdot"></span>' : ''}${esc(e.t)}<span class="who">${PERSON[e.p]}</span></button>`;
 function mealsRows(i) {
@@ -420,20 +474,18 @@ function mealsRows(i) {
   out.push(['Dinner', m.dinner || '<span class="soft">Not planned</span>']);
   return out.map(([k, v], n) => `<div class="meal"${n ? ' style="border-top:0;padding-top:2px"' : ''}><span class="k">${k}</span><span class="v">${v.startsWith('<') ? v : esc(v)}</span></div>`).join('');
 }
-function notesBlock() {
-  const rows = NOTES.map((n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${n.fresh && n.by !== S.phone ? '<span class="newdot"></span>' : ''}${esc(n.t)}</button>`).join('');
-  const later = S.laterOpen
+const noteRow = (n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${n.fresh && n.by !== S.phone ? '<span class="newdot"></span>' : ''}${esc(n.t)}</button>`;
+function laterRows() {
+  return S.laterOpen
     ? LATER.map(n => `<div class="note" style="color:var(--soft)"><span class="ring"></span>${esc(n.t)}</div>`).join('') + `<button class="later" data-later>Hide Later <span class="chev">‹</span></button>`
     : `<button class="later" data-later>Later (${LATER.length}) <span class="chev">›</span></button>`;
-  return `<div class="sect">Notes</div>${rows}${later}`;
 }
-// One day's full list: used by B's page, D's day panel, C's day sheet and A's sections.
-function dayList(i, M, o = {}) {
-  const cl = clashes(i);
-  let out = '';
-  const ad = allDayOn(i);
-  if (ad.length) out += ad.map(allDayRow).join('');
-  if (i === 0 && !o.noNotes) out += notesBlock();
+const notesBlock = () => `<div class="sect">Notes</div>${NOTES.map(noteRow).join('')}${laterRows()}`;
+// One day's full list: B's page, D's day panel, the day sheet, and each day of A and E.
+function dayList(i, M) {
+  const cl = clashes(i), isNext = e => M.next && e.id === M.next.id;
+  let out = allDayOn(i).map(allDayRow).join('');
+  if (i === 0) out += notesBlock();
   let evs = evsOn(i);
   if (i === 0) {
     const past = M.done;
@@ -443,53 +495,54 @@ function dayList(i, M, o = {}) {
     const nowIds = new Set(M.nowEv.map(e => e.id));
     evs = evs.filter(e => e.e > M.now);
     if (!evs.length) out += `<div class="empty">Nothing else today</div>`;
-    out += evs.map(e => evRow(e, { clash: cl, now: nowIds.has(e.id), next: !o.noNext && !M.handoff && M.next && e.id === M.next.id })).join('');
+    out += evs.map(e => evRow(e, { clash: cl, now: nowIds.has(e.id), next: isNext(e) })).join('');
   } else {
-    if (!evs.length && !ad.length) out += `<div class="empty">Nothing yet</div>`;
-    out += evs.map(e => evRow(e, { clash: cl, next: !o.noNext && M.handoff && i === 1 && M.next && e.id === M.next.id })).join('');
+    if (!evs.length && !allDayOn(i).length) out += `<div class="empty">Nothing yet</div>`;
+    out += evs.map(e => evRow(e, { clash: cl, next: isNext(e) })).join('');
   }
   if (!(i === 0 && M.handoff)) out += mealsRows(i);
   return out;
 }
-
-// ---------- A: Upcoming, one list ----------
-function renderA(M) {
-  const n = M.next;
-  const nextCard = n ? `<button class="nextcard" data-ev="${n.id}" style="${col(n.p)}"><span class="bar"></span><span>
-      <span class="lab">${M.handoff ? 'Tomorrow, ' + WD[dateOf(1).getDay()] : 'Next'} · ${PERSON[n.p]}</span>
-      <span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.work ? 'At work' : n.t)}</span></span></button>` : '';
-  let html = `<div class="A pad"><div class="top">
-    <div class="hd"><div class="date1">${dFull(0)}</div><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></div>
-    <div class="hd" style="justify-content:flex-start;gap:14px;font-size:15px">${wx(0)}${M.T.rain ? `<span class="rain">${M.T.rain}</span>` : ''}</div>
-    ${M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
-    ${nextCard}</div>`;
-  for (let i = 0; i < 14; i++) {
-    html += `<div class="dayh${i === 0 ? ' today' : ''}" data-day="${i}"><span>${i === 0 ? 'Today' : i === 1 ? 'Tomorrow · ' + dLong(1) : dLong(i)}</span>${i ? wx(i) : ''}</div>`;
+// The seven-day strip: B selects a day with it; E jumps its list with it.
+function stripHTML(start, sel, mode) {
+  const cells = Array.from({ length: 7 }, (_, k) => {
+    const i = start + k, evs = [...allDayOn(i), ...evsOn(i)].filter(e => !e.work), d = dateOf(i);
+    const dots = evs.slice(0, 3).map(e => `<i style="${col(e.shared ? 'us' : e.p)}"></i>`).join('');
+    return `<button class="cell${i === 0 ? ' today' : ''}" aria-selected="${i === sel}" data-${mode}="${i}">${evs.some(isNew) ? '<span class="cnew"></span>' : ''}<span class="w">${WD[d.getDay()].slice(0, 3)}</span><span class="n">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
+  }).join('');
+  const m1 = MO[dateOf(start).getMonth()], m2 = MO[dateOf(start + 6).getMonth()];
+  return `<div class="striphd"><span class="m">${m1 === m2 ? m1 : m1.slice(0, 3) + ' – ' + m2.slice(0, 3)}</span><span class="r"><button class="todaybtn" data-${mode}-today ${sel === 0 ? 'disabled' : ''}>Today</button>${gearBtn()}</span></div>
+    <div class="strip" data-swipe-strip><button class="arr" data-${mode}-week="-1" aria-label="Earlier week" ${start <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button>${cells}<button class="arr" data-${mode}-week="1" aria-label="Later week">›</button></div>`;
+}
+function listDays(M) {
+  let html = '';
+  for (let i = 0; i <= LAST; i++) {
+    html += `<i class="anchor" data-anchor="${i}"></i><div class="dayh" data-day="${i}"><span>${i === 0 ? 'Today' : i === 1 ? 'Tomorrow · ' + dLong(1) : dLong(i)}</span>${i ? wx(i) : ''}</div>`;
     html += dayList(i, M);
   }
-  html += `<button class="tail" data-tab="month">Later dates are on the Month tab ›</button></div>`;
-  return html;
+  return html + `<button class="tail" data-tab="month">That's everything through ${dLong(LAST)}. Month ›</button>`;
 }
+const topBlock = (M, gear) => `<div class="top">
+    <div class="hd"><div class="date1">${dFull(0)}</div>${gear ? gearBtn() : ''}</div>
+    <div class="hd" style="justify-content:flex-start;gap:14px;font-size:15px">${wx(0)}${M.T.rain ? `<span class="rain">${M.T.rain}</span>` : ''}</div>
+    ${needsHTML(M)}${newLine()}${nextCard(M, 'nextcard')}</div>`;
+
+// ---------- A: Upcoming, one list ----------
+const renderA = M => `<div class="A pad">${topBlock(M, true)}${listDays(M)}</div>`;
+
+// ---------- E: A's list under B's strip ----------
+const renderE = M => `<div class="A E"><div class="stripwrap" id="estrip">${stripHTML(S.estart, S.ecur, 'jump')}</div><div class="pad">${topBlock(M, false)}${listDays(M)}</div></div>`;
 
 // ---------- B: one day at a time ----------
 function renderB(M) {
-  const sel = S.sel ?? M.focus, week = S.week;
-  const cells = Array.from({ length: 7 }, (_, k) => {
-    const i = week * 7 + k, evs = [...allDayOn(i), ...evsOn(i)].filter(e => !e.work);
-    const dots = evs.slice(0, 4).map(e => `<i style="${col(e.shared ? 'us' : e.p)}"></i>`).join('');
-    const d = dateOf(i);
-    return `<button class="cell${i === 0 ? ' today' : ''}" role="tab" aria-selected="${i === sel}" data-sel="${i}"><span class="w">${WD[d.getDay()].slice(0, 3)}</span><span class="n">${d.getDate()}</span><span class="dots">${dots}</span></button>`;
-  }).join('');
-  const d = dateOf(sel), m1 = MO[dateOf(week * 7).getMonth()], m2 = MO[dateOf(week * 7 + 6).getMonth()];
+  const sel = S.sel ?? M.focus, start = Math.floor(sel / 7) * 7, d = dateOf(sel);
   const title = sel === 0 ? `Today, ${MO[d.getMonth()]} ${d.getDate()}` : sel === 1 ? `Tomorrow, ${WD[d.getDay()]}` : dFull(sel);
   const prev = sel - 1, next = sel + 1;
-  return `<div class="B"><div class="stripwrap">
-      <div class="striphd"><span class="m">${m1 === m2 ? m1 : m1.slice(0, 3) + ' – ' + m2.slice(0, 3)}</span><span class="r"><button class="todaybtn" data-today ${sel === 0 ? 'disabled' : ''}>Today</button><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>
-      <div class="strip" role="tablist"><button class="arr" data-week="-1" aria-label="Earlier week" ${week <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button>${cells}<button class="arr" data-week="1" aria-label="Later week">›</button></div></div>
+  return `<div class="B"><div class="stripwrap">${stripHTML(start, sel, 'sel')}</div>
     <div class="page" data-swipe>
       <div class="hd"><div class="date1">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
       ${sel === 0 && M.T.rain ? `<div class="rain">${SVG.rain}${M.T.rain}</div>` : ''}
-      ${sel === M.focus && M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
+      ${sel === M.focus ? needsHTML(M) + newLine() : ''}
       ${dayList(sel, M)}
       <div class="pager">${prev >= 0 ? `<button data-sel="${prev}">‹ ${prev === 0 ? 'Today' : WD[dateOf(prev).getDay()]}</button>` : '<span style="flex:1"></span>'}<button data-sel="${next}">${next === 1 ? 'Tomorrow' : WD[dateOf(next).getDay()]} ›</button></div>
     </div></div>`;
@@ -497,30 +550,23 @@ function renderB(M) {
 
 // ---------- C: the wall, pocket-size ----------
 function renderC(M) {
-  const n = M.next, f = M.focus;
-  const band = `<div class="topline"><span class="d">${dFull(0)}</span><span style="display:flex;align-items:center;gap:4px">${wx(0)}<button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>${M.T.rain ? `<div class="rain" style="margin:0 0 8px">${M.T.rain}</div>` : ''}
-    <button class="band" ${n ? `data-ev="${n.id}"` : ''} style="${n ? col(n.p) : ''}"><span class="bar"></span>
-    <span>${n ? `<span class="lab">${M.handoff ? 'Tomorrow, ' + WD[dateOf(1).getDay()] : 'Next'} · ${PERSON[n.p]}</span><span class="line" style="display:block"><span class="t">${tm(n.s)}</span>${esc(n.work ? 'At work' : n.t)}</span>` : '<span class="line">Nothing else today</span>'}</span></button>`;
-  const cl0 = clashes(f);
-  const row = (e, now) => `<span class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}" data-ev="${e.id}"><span class="bar"></span><span class="t0">${now ? 'Now' : tm(e.s)}${isNew(e) ? ' <span class="newdot"></span>' : ''}</span><span class="t1">${esc(e.work ? 'At work' : e.t)}${cl0.has(e.id) ? ' ' + clashSvg : ''}<span class="who">${now ? 'until ' + tmS(e.e) + ' · ' : ''}${PERSON[e.p]}</span></span></span>`;
-  const list = f === 0 ? [...M.nowEv.map(e => [e, true]), ...M.ahead.filter(e => !n || e.id !== n.id).map(e => [e])]
-    : [...evsOn(1).filter(e => !n || e.id !== n.id).map(e => [e])];
-  const ad = f ? allDayOn(1).map(e => `<span class="r" style="${col(e.p)}"><span class="bar"></span><span class="t0">All day</span><span class="t1">${esc(e.t)}</span></span>`) : [];
-  const shown = list.slice(0, 4), extra = list.length - shown.length;
-  const todayRows = [...ad, ...shown.map(([e, now]) => row(e, now))].join('') + (extra > 0 ? `<span class="m">+${extra} more</span>` : '') || '<div class="empty">Nothing else today</div>';
-  const notesLine = `<div class="meal"><span class="k">Notes</span><span class="v">${NOTES.length} · <span class="soft">Later (${LATER.length})</span></span></div>`;
-  const today = `<button class="card today" data-open="${f}"><span class="chd"><span>${f ? 'Tomorrow' : 'Today'}</span>${f ? wx(1) : ''}</span>${todayRows}${f === 0 ? notesLine : ''}${mealsRows(f)}</button>`;
+  const f = M.focus, cl = clashes(f);
+  const crow = (e, now, cls) => `<button class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}" data-ev="${e.id}"><span class="bar"></span><span class="t0">${isNew(e) ? '<span class="newdot"></span> ' : ''}${now ? 'Now' : e.allDay ? 'All day' : tm(e.s)}</span><span class="t1">${esc(e.work ? 'At work' : e.t)}${cls.has(e.id) ? ' ' + clashSvg : ''}<span class="who">${now ? 'until ' + tmS(e.e) + ' · ' : ''}${e.shared ? 'Will and Jenn' : PERSON[e.p]}</span></span></button>`;
+  const list = f === 0 ? [...M.nowEv.map(e => crow(e, true, cl)), ...M.ahead.map(e => crow(e, false, cl))]
+    : [...allDayOn(1).map(e => crow(e, false, cl)), ...evsOn(1).map(e => crow(e, false, cl))];
+  const notes = f === 0 ? `<div class="cnotes">${NOTES.map(noteRow).join('')}${laterRows()}</div>` : '';
+  const today = `<div class="card today"><button class="chd" data-open="${f}"><span>${f ? 'Tomorrow' : 'Today'} <span class="chev">›</span></span>${f ? wx(1) : ''}</button>${list.join('') || '<div class="empty">Nothing else today</div>'}${notes}${f === 0 && M.handoff ? '' : mealsRows(f)}</div>`;
   const minis = [1, 2, 3, 4].map(k => k + f).map(i => {
-    const all = [...allDayOn(i).map(e => ({ e, ad: true })), ...evsOn(i).map(e => ({ e }))];
-    const show = all.slice(0, 2), more = all.length - show.length;
-    const rows = show.map(({ e, ad }) => `<span class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}"><span class="bar"></span><span><span class="t0">${ad ? 'All day' : tm(e.s)}${isNew(e) ? ' <span class="newdot"></span>' : ''}</span><span class="t1">${esc(e.work ? 'At work' : e.t)}</span></span></span>`).join('');
-    return `<button class="card mini" data-open="${i}"><span class="chd"><span>${dShort(i)}</span>${wx(i)}</span>${rows || '<span class="m">Nothing yet</span>'}${more > 0 ? `<span class="m">+${more} more</span>` : ''}<span class="din"><b>Dinner</b>${esc((MEALS[i] || {}).dinner || 'Not planned')}</span></button>`;
+    const ci = clashes(i);
+    const rows = [...allDayOn(i), ...evsOn(i).filter(e => !e.work)].map(e => `<span class="r${e.shared ? ' shared' : ''}" style="${col(e.p)}"><span class="bar"></span><span><span class="t0">${isNew(e) ? '<span class="newdot"></span> ' : ''}${e.allDay ? 'All day' : tm(e.s)}${ci.has(e.id) ? ' ' + clashSvg : ''}</span><span class="t1">${esc(e.t)}</span></span></span>`).join('');
+    return `<button class="card mini" data-open="${i}"><span class="chd"><span>${dShort(i)}</span>${wx(i)}</span>${rows || '<span class="m">Nothing yet</span>'}<span class="din"><b>Dinner</b>${esc((MEALS[i] || {}).dinner || 'Not planned')}</span></button>`;
   }).join('');
-  return `<div class="C pad">${band}${M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}${today}<div class="grid">${minis}</div>
+  return `<div class="C pad"><div class="topline"><span class="d">${dFull(0)}</span><span style="display:flex;align-items:center;gap:4px">${wx(0)}${gearBtn()}</span></div>
+    ${M.T.rain ? `<div class="rain" style="margin:0 0 8px">${M.T.rain}</div>` : ''}${nextCard(M, 'band')}${needsHTML(M)}${newLine()}${today}<div class="grid">${minis}</div>
     <button class="more7" data-tab="month">The rest of the month ›</button></div>`;
 }
 
-// ---------- Month: D's home, a tab in A to C ----------
+// ---------- Month: D's home, a tab in the others ----------
 function renderMonth(M) {
   const sel = S.msel ?? M.focus, first = -dateOf(0).getDay() + S.mpage * 35; // the grid starts on this week's Sunday
   const m1 = dateOf(first).getMonth(), m2 = dateOf(first + 34).getMonth(), label = m1 === m2 ? MO[m1] : `${MO[m1].slice(0, 3)} – ${MO[m2].slice(0, 3)}`;
@@ -536,53 +582,61 @@ function renderMonth(M) {
   return `<div class="M"><div class="mhd"><span class="m">${label}</span><span class="r">
       <button class="todaybtn" data-mtoday ${sel === 0 && S.mpage === 0 ? 'disabled' : ''}>Today</button>
       <button class="iconbtn" data-mpage="-1" aria-label="Earlier" ${S.mpage <= 0 ? 'disabled style="opacity:.25"' : ''}>‹</button><button class="iconbtn" data-mpage="1" aria-label="Later">›</button>
-      <button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></span></div>
+      ${gearBtn()}</span></div>
     <div class="wk"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
     <div class="grid">${cells}</div><div class="key"><span style="--c:var(--will)">Will</span><span style="--c:var(--jenn)">Jenn</span><span style="--c:var(--us)">Us</span><span class="kd">new</span></div>
     <div class="day" data-swipe-m><div class="hd"><div class="date1" style="font-size:20px">${title}</div><span style="font-size:15px">${wx(sel)}</span></div>
-      ${sel === M.focus && M.T.needs ? `<div class="needs">${esc(M.T.needs)}</div>` : ''}
+      ${sel === M.focus ? needsHTML(M) + newLine() : ''}
       ${dayList(sel, M)}</div></div>`;
 }
 
 // ---------- Lists ----------
 function renderLists() {
-  return `<div class="L pad"><div class="hd"><h2>Lists</h2><button class="iconbtn" data-settings aria-label="Settings">${SVG.gear}</button></div>
-    <div class="card"><h3>Notes <span class="soft">for both of you</span></h3>${NOTES.map((n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${esc(n.t)}</button>`).join('')}
-      <button class="later" data-later>Later (${LATER.length}) <span class="chev">›</span></button></div>
+  return `<div class="L pad"><div class="hd"><h2>Lists</h2>${gearBtn()}</div>
+    <div class="card"><h3>Notes <span class="soft">for both of you</span></h3>${NOTES.map(noteRow).join('')}${laterRows()}</div>
     <div class="card"><h3>Shopping list <span class="soft">${SHOPPING.length} items</span></h3>${SHOPPING.map(s => `<div class="note"><span class="ring"></span>${s}</div>`).join('')}</div>
-    <div class="card"><h3>House reminders</h3>${REMINDERS.map(([t, w]) => `<div class="row"><span>${t}</span><span class="soft">${w}</span></div>`).join('')}</div>
+    <div class="card"><h3>House reminders</h3>${REMINDERS.map(([t, w], k) => `<div class="row"><span>${t}</span><span class="soft">${k === 0 && S.needsDone ? 'done' : w}</span></div>`).join('')}</div>
     <div class="pnote">Prototype: what each list holds, and whether the shopping list lives here or in the Home Assistant app's own To-do widget, is the lists question on the map.</div></div>`;
 }
 
-// ---------- sheets: stand-ins for other tickets ----------
-function sheet(html) { const sh = document.querySelector('.sheet'); sh.innerHTML = `<div class="grab"></div>${html}`; sh.classList.add('on'); document.querySelector('.scrim').classList.add('on'); }
-function closeSheet() { document.querySelector('.sheet')?.classList.remove('on'); document.querySelector('.scrim')?.classList.remove('on'); }
+// ---------- sheets and the undo bar ----------
+function sheet(html) { const sh = $('.sheet'); sh.innerHTML = `<div class="grab"></div>${html}`; sh.scrollTop = 0; sh.classList.add('on'); $('.scrim').classList.add('on'); }
+function closeSheet() { $('.sheet')?.classList.remove('on'); $('.scrim')?.classList.remove('on'); }
 function eventSheet(id) {
   const e = EV.find(x => x.id === +id); if (!e) return;
   sheet(`<div class="sh"><h2>${esc(e.work ? 'At work' : e.t)}</h2><button class="done" data-close>Done</button></div>
-    <div class="soft" style="font-size:15px">${dFull(e.d)}${e.allDay ? ', all day' : `, ${tm(e.s)} to ${tm(e.e)}`} · ${PERSON[e.p]}</div>
+    <div class="soft" style="font-size:15px">${dFull(e.d)}${e.allDay ? ', all day' : `, ${tm(e.s)} to ${tm(e.e)}`} · ${e.shared ? 'Will and Jenn' : PERSON[e.p]}${isNew(e) ? ` · added by ${other()}` : ''}</div>
     <div class="pnote">Prototype: changing, deleting and hiding an event is the event sheet's question on the map. This only shows where it opens.</div>`);
 }
-function daySheet(i) { sheet(`<div class="sh"><h2>${dFull(i)}</h2><button class="done" data-close>Done</button></div>${dayList(i, moment())}`); }
-function addSheet() {
-  sheet(`<div class="sh"><h2>Add</h2><button class="done" data-close>Cancel</button></div><div class="field">What? For example "dentist tue 3"</div>
-    <div class="pnote">Prototype: how adding feels is its own question on the map. This only shows where the button sits.</div>`);
+const daySheet = i => sheet(`<div class="sh"><h2>${dFull(i)}</h2><button class="done" data-close>Done</button></div>${dayList(i, moment())}`);
+function newSheet() {
+  const evs = newEvents().map(e => `<button class="srow" data-ev="${e.id}" style="width:100%"><span><span class="newdot"></span> ${esc(e.t)}</span><span class="soft">${dShort(e.d)}${e.allDay ? '' : ', ' + tm(e.s)} ›</span></button>`);
+  const notes = newNotes().map(n => `<div class="srow"><span><span class="newdot"></span> ${esc(n.t)}</span><span class="soft">note</span></div>`);
+  sheet(`<div class="sh"><h2>New from ${other()}</h2><button class="done" data-close>Done</button></div>
+    <div class="soft" style="font-size:15px;margin-bottom:6px">Added or changed since you last opened the board. The dots clear after this visit.</div>${[...evs, ...notes].join('')}`);
 }
-function settingsSheet() {
-  sheet(`<div class="sh"><h2>Settings</h2><button class="done" data-close>Done</button></div>
-    <div class="srow"><span>Your calendars show</span><span class="soft">Titles</span></div>
-    <div class="srow"><span>Hidden by you</span><span class="soft">1 ›</span></div>
+const addSheet = () => sheet(`<div class="sh"><h2>Add</h2><button class="done" data-close>Cancel</button></div><div class="field">What? For example "dentist tue 3"</div>
+    <div class="pnote">Prototype: how adding feels is its own question on the map. This only shows where the button sits.</div>`);
+const settingsSheet = () => sheet(`<div class="sh"><h2>Settings</h2><button class="done" data-close>Done</button></div>
+    <div class="srow"><span>Your own calendars show</span><span class="soft">Titles</span></div>
+    <div class="srow"><span>Your work calendar shows</span><span class="soft">"At work" and the hours</span></div>
+    <div class="srow"><span>Events hidden by you</span><span class="soft">1 ›</span></div>
     <div class="srow"><span>Guest mode</span><span class="soft">Off</span></div>
     <div class="srow"><span>Text size</span><span class="soft">Like the rest of the app</span></div>
     <div class="pnote">Prototype: the plain settings page is its own question on the map. Rows here are the ones already known to belong on it.</div>`);
+let toastTimer;
+function toast(msg, undo) {
+  const t = $('#toast'); S.undo = undo;
+  t.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button data-undo>Undo</button>' : ''}`;
+  t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 5000);
 }
 
 // ---------- the app frame ----------
-const S = { variant: 'a', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, week: 0, msel: null, mpage: 0, notesDone: {}, laterOpen: false, earlierOpen: false };
-const TABLBL = v => ({ home: VARIANTS[v].home, month: 'Month', lists: 'Lists' });
-const TABICON = v => ({ home: { a: 'tab_home', b: 'tab_day', c: 'tab_board', d: 'tab_home' }[v], month: 'tab_month', lists: 'tab_lists' });
+const S = { variant: 'e', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, msel: null, mpage: 0, estart: 0, ecur: 0,
+  notesDone: {}, needsDone: false, laterOpen: false, earlierOpen: false, undo: null };
+const tabOf = () => S.tab || VARIANTS[S.variant].tabs[0];
 function frame() {
-  const v = VARIANTS[S.variant], lbl = TABLBL(S.variant), ic = TABICON(S.variant), tab = S.tab || v.tabs[0];
+  const v = VARIANTS[S.variant], tab = tabOf(), lbl = { home: v.home, month: 'Month', lists: 'Lists' }, ic = { home: v.icon, month: 'tab_month', lists: 'tab_lists' };
   const tabs = v.tabs.map(t => `<button data-tab="${t}" ${t === tab ? 'aria-current="page"' : ''}>${SVG[ic[t]]}<span>${lbl[t]}</span></button>`).join('');
   return `<div class="screen${S.look === 'dark' ? ' dark' : ''}${S.size === 'large' ? ' large' : ''}">
     <div class="sb"><span>${TIMES[S.time].label.replace(/ (am|pm)/, '')}</span><span class="notch"></span><svg width="54" height="14" viewBox="0 0 54 14" aria-hidden="true" fill="currentColor"><rect x="0" y="9" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="8" rx="1"/><rect x="10" y="3" width="3" height="11" rx="1"/><rect x="15" y="0" width="3" height="14" rx="1"/><rect x="27" y="1" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><rect x="29" y="3" width="16" height="8" rx="2"/><rect x="51" y="5" width="2" height="4" rx="1" opacity=".5"/></svg></div>
@@ -590,6 +644,7 @@ function frame() {
       <div class="habar">${SVG.menu}<span class="t">House board</span>${S.phone === 'will' ? SVG.dots : ''}</div>
       <div class="view" id="view"></div>
       <button class="todaychip" id="todaychip">Today</button>
+      <div class="toast" id="toast" role="status"></div>
       <button class="fab" data-add aria-label="Add">${SVG.plus}</button>
       <div class="tabs">${tabs}</div>
       <div class="scrim" data-close></div><div class="sheet" role="dialog"></div>
@@ -597,68 +652,84 @@ function frame() {
     <div class="hi"></div></div>`;
 }
 function renderView() {
-  const M = moment(), v = VARIANTS[S.variant], tab = S.tab || v.tabs[0];
-  const view = document.getElementById('view');
-  let html;
-  if (tab === 'lists') html = renderLists();
-  else if (tab === 'month') html = renderMonth(M);
-  else html = { a: renderA, b: renderB, c: renderC, d: renderA }[S.variant](M);
-  view.innerHTML = html;
-  for (const b of document.querySelectorAll('.tabs button')) b.toggleAttribute('aria-current', b.dataset.tab === tab), b.dataset.tab === tab && b.setAttribute('aria-current', 'page');
-  todayChip();
+  const M = moment(), tab = tabOf(), view = $('#view'), top = view.scrollTop;
+  view.innerHTML = tab === 'lists' ? renderLists() : tab === 'month' ? renderMonth(M) : { a: renderA, b: renderB, c: renderC, d: renderA, e: renderE }[S.variant](M);
+  for (const b of document.querySelectorAll('.tabs button')) b.dataset.tab === tab ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
+  const strip = $('#estrip'); if (strip) view.style.setProperty('--sh', `${strip.offsetHeight}px`);
+  view.scrollTop = top;
+  onScroll();
 }
-function todayChip() {
-  const chip = document.getElementById('todaychip'), view = document.getElementById('view');
-  const tab = S.tab || VARIANTS[S.variant].tabs[0];
-  const isList = tab === 'home' && (S.variant === 'a' || S.variant === 'd');
-  if (!isList) return chip.classList.remove('on');
-  const t1 = view.querySelector('.dayh[data-day="1"]');
-  chip.classList.toggle('on', !!t1 && view.scrollTop > t1.offsetTop + 40);
+const anchorTop = i => { const a = $(`#view .anchor[data-anchor="${i}"]`); return a ? a.offsetTop : 0; };
+function onScroll() {
+  const view = $('#view'), tab = tabOf();
+  // A (and D's Upcoming tab): a Today button once today's section has scrolled away.
+  const chipOn = tab === 'home' && (S.variant === 'a' || S.variant === 'd') && view.scrollTop > anchorTop(1);
+  $('#todaychip').classList.toggle('on', chipOn);
+  // E: the strip follows the day at the top of the list.
+  const strip = $('#estrip'); if (!strip) return;
+  const h = strip.offsetHeight; let cur = 0;
+  for (const a of view.querySelectorAll('.anchor')) { if (a.offsetTop <= view.scrollTop + h + 4) cur = +a.dataset.anchor; else break; }
+  if (cur !== S.ecur) { S.ecur = cur; S.estart = Math.floor(cur / 7) * 7; strip.innerHTML = stripHTML(S.estart, S.ecur, 'jump'); }
+}
+function jump(i) {
+  i = Math.max(0, Math.min(LAST, i));
+  const view = $('#view'), h = $('#estrip').offsetHeight;
+  view.scrollTo({ top: i === 0 ? 0 : anchorTop(i) - h, behavior: 'smooth' });
 }
 function render() {
-  const phone = document.getElementById('phone');
-  phone.innerHTML = frame();
+  $('#phone').innerHTML = frame();
+  $('#view').addEventListener('scroll', onScroll, { passive: true });
   renderView();
-  document.getElementById('vname').textContent = VARIANTS[S.variant].name;
-  document.getElementById('side').innerHTML = `<h1>${VARIANTS[S.variant].name}</h1><p>${VARIANTS[S.variant].about}</p><p class="soft" style="font-size:13px">Made-up data. "Today" is Friday, October 30. Inside the Home Assistant app, under its own top bar. Tap anything; the + and the event and settings sheets stand in for their own questions on the map.</p>`;
-  document.getElementById('about2').innerHTML = VARIANTS[S.variant].about;
+  $('#vname').textContent = VARIANTS[S.variant].name;
+  $('#side').innerHTML = `<h1>${VARIANTS[S.variant].name}</h1><p>${VARIANTS[S.variant].about}</p><p class="soft" style="font-size:13px">Made-up data. "Today" is Friday, October 30. Inside the Home Assistant app, under its own top bar. Tap anything; the + and the event and settings sheets stand in for their own questions on the map.</p>`;
+  $('#about2').innerHTML = VARIANTS[S.variant].about;
   for (const [g, k] of [['g-time', 'time'], ['g-phone', 'phone'], ['g-look', 'look'], ['g-size', 'size']])
     for (const b of document.querySelectorAll(`#${g} button`)) b.setAttribute('aria-pressed', b.dataset.k === S[k]);
   document.body.classList.toggle('shot', S.shot);
   writeHash();
-  document.getElementById('view').addEventListener('scroll', todayChip, { passive: true });
 }
 
-// ---------- events ----------
+// ---------- taps ----------
 document.addEventListener('click', e => {
   const t = e.target.closest('button, .scrim'); if (!t || !t.closest('#phone')) return;
-  const d = t.dataset;
+  const d = t.dataset, M = moment();
+  if ('undo' in d) { S.undo && S.undo(); S.undo = null; $('#toast').classList.remove('on'); renderView(); return; }
   if ('close' in d) return closeSheet();
-  if (d.tab) { S.tab = d.tab; renderView(); document.getElementById('view').scrollTop = 0; return; }
+  if (d.tab) { S.tab = d.tab; $('#view').scrollTop = 0; renderView(); return; }
   if (d.ev) return eventSheet(d.ev);
+  if ('new' in d) return newSheet();
   if (d.open !== undefined) return daySheet(+d.open);
-  if (d.sel !== undefined) { S.sel = +d.sel; S.week = Math.floor(S.sel / 7); renderView(); return; }
-  if (d.week) { const M = moment(), cur = S.sel ?? M.focus; S.sel = Math.max(0, cur + 7 * +d.week); S.week = Math.floor(S.sel / 7); renderView(); return; }
-  if ('today' in d) { S.sel = 0; S.week = 0; renderView(); return; }
+  if (d.sel !== undefined) { S.sel = +d.sel; renderView(); $('#view').scrollTop = 0; return; }
+  if (d.selWeek) { S.sel = Math.max(0, (S.sel ?? M.focus) + 7 * +d.selWeek); renderView(); return; }
+  if ('selToday' in d) { S.sel = 0; renderView(); return; }
+  if (d.jump !== undefined) return jump(+d.jump);
+  if (d.jumpWeek) return jump(S.ecur + 7 * +d.jumpWeek);
+  if ('jumpToday' in d) return jump(0);
   if (d.msel !== undefined) { S.msel = +d.msel; renderView(); return; }
-  if (d.mpage) { S.mpage = Math.max(0, S.mpage + +d.mpage); S.msel = -dateOf(0).getDay() + S.mpage * 35 + (S.mpage ? 0 : 0); if (S.mpage === 0) S.msel = null; renderView(); return; }
-  if ('mtoday' in d) { S.mpage = 0; S.msel = 0; renderView(); return; }
-  if (d.note !== undefined) { S.notesDone[d.note] = !S.notesDone[d.note]; renderView(); return; }
+  if (d.mpage) { S.mpage = Math.max(0, S.mpage + +d.mpage); S.msel = S.mpage ? -dateOf(0).getDay() + S.mpage * 35 : null; renderView(); return; }
+  if ('mtoday' in d) { S.mpage = 0; S.msel = 0; renderView(); $('#view').scrollTop = 0; return; }
+  if (d.note !== undefined) {
+    const k = d.note, was = !!S.notesDone[k]; S.notesDone[k] = !was; renderView();
+    if (!was) toast(`Ticked off: ${NOTES[k].t}`, () => { S.notesDone[k] = false; });
+    return;
+  }
+  if ('needsDone' in d) { S.needsDone = true; renderView(); toast('Furnace filter: marked done', () => { S.needsDone = false; }); return; }
   if ('later' in d) { S.laterOpen = !S.laterOpen; renderView(); return; }
   if ('earlier' in d) { S.earlierOpen = !S.earlierOpen; renderView(); return; }
   if ('add' in d) return addSheet();
   if ('settings' in d) return settingsSheet();
-  if (t.id === 'todaychip') { document.getElementById('view').scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (t.id === 'todaychip') { $('#view').scrollTo({ top: 0, behavior: 'smooth' }); return; }
 });
-// Swipe between days on B's page and the month's day panel.
+// Swipes: B's page and the month's day panel move a day; a strip moves a week. Every swipe has a button too.
 let sx = null, sy = null;
-document.addEventListener('pointerdown', e => { if (e.target.closest('[data-swipe], [data-swipe-m]')) { sx = e.clientX; sy = e.clientY; } });
+document.addEventListener('pointerdown', e => { if (e.target.closest('[data-swipe], [data-swipe-m], [data-swipe-strip]')) { sx = e.clientX; sy = e.clientY; } });
 document.addEventListener('pointerup', e => {
-  if (sx === null) return; const dx = e.clientX - sx, dy = e.clientY - sy; const inM = e.target.closest('[data-swipe-m]'); sx = null;
+  if (sx === null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
   if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
   const M = moment(), step = dx < 0 ? 1 : -1;
-  if (inM) { S.msel = Math.max(-dateOf(0).getDay(), (S.msel ?? M.focus) + step); }
-  else { S.sel = Math.max(0, (S.sel ?? M.focus) + step); S.week = Math.floor(S.sel / 7); }
+  if (e.target.closest('[data-swipe-strip]')) { if ($('#estrip')) return jump(S.ecur + 7 * step); S.sel = Math.max(0, (S.sel ?? M.focus) + 7 * step); }
+  else if (e.target.closest('[data-swipe-m]')) S.msel = Math.max(-dateOf(0).getDay(), (S.msel ?? M.focus) + step);
+  else S.sel = Math.max(0, (S.sel ?? M.focus) + step);
   renderView();
 });
 
@@ -670,12 +741,12 @@ for (const [id, [key, opts]] of Object.entries(GROUPS)) {
   g.innerHTML = Object.entries(opts).map(([k, l]) => `<button data-k="${k}" aria-pressed="false">${l}</button>`).join('');
   g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.k; resetNav(); render(); });
 }
-function resetNav() { S.sel = null; S.week = 0; S.msel = null; S.mpage = 0; S.earlierOpen = false; S.laterOpen = false; }
+function resetNav() { Object.assign(S, { sel: null, msel: null, mpage: 0, estart: 0, ecur: 0, earlierOpen: false, laterOpen: false, notesDone: {}, needsDone: false }); }
 const keys = Object.keys(VARIANTS);
 const step = n => { S.variant = keys[(keys.indexOf(S.variant) + n + keys.length) % keys.length]; S.tab = null; resetNav(); render(); };
-document.getElementById('prev').onclick = () => step(-1);
-document.getElementById('next').onclick = () => step(1);
-document.getElementById('moreBtn').onclick = () => { document.getElementById('proto').classList.toggle('open'); sizeMode(); };
+$('#prev').onclick = () => step(-1);
+$('#next').onclick = () => step(1);
+$('#moreBtn').onclick = () => { $('#proto').classList.toggle('open'); sizeMode(); };
 document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1); if (e.key === 'Escape') closeSheet(); });
 
 function readHash() {
@@ -689,7 +760,7 @@ function writeHash() { if (S.shot) return; const h = `#${S.variant}-${S.time}-${
 function sizeMode() {
   const narrow = !S.shot && window.innerWidth < 760;
   document.body.classList.toggle('narrow', narrow);
-  if (narrow) document.documentElement.style.setProperty('--vh', `${window.innerHeight - document.getElementById('proto').offsetHeight}px`);
+  if (narrow) document.documentElement.style.setProperty('--vh', `${window.innerHeight - $('#proto').offsetHeight}px`);
 }
 window.addEventListener('resize', sizeMode);
 window.addEventListener('hashchange', () => { readHash(); render(); sizeMode(); });
