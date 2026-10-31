@@ -4,7 +4,15 @@ For the map ticket [How does adding something on the house board feel?](https://
 
 Open `index.html` in a browser. The bar switches the way of adding (A to D), the screen (Wall at 1200×800 over the resting face, or Phone at 390×844 over the strip and list), a task to try, and "Clover doesn't answer". Above the screen: the task, a **Type the line for me** button and a count of touches since the task started; under it, what the board would write. Everything on the screen can be tapped. The keyboard is a drawn stand-in (the tablet's Android keyboard and the iPhone's, sizes inferred) so you can see what it covers; its keys type, or type on a computer's own keyboard. A stand-in Clover sorts the line the way the real one does ([J006, Ask Clover](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J006-home-assistant-automations.md)). The address's `#hash` holds the state, e.g. `#a-wall-dentist`; `-shot` draws the screen alone at real size. Pictures are in [shots/](shots/).
 
-<!-- VARIANTS -->
+Pictures: `round1-a.png` to `round1-d.png` as reviewed, `final-a.png` to `final-d.png` after the review's fixes. Each shows the gym task (the time guess is wrong): the wall with the line typed, then after Add; the phone the same.
+
+| | Way | What it does well | What it gives up | Reviews |
+|---|---|---|---|---|
+| **A** | **One line, then the answer:** + (or tapping a day) drops one big box from the top on the wall, or just above the keyboard on a phone. Type, press Add; Clover files it at once. The box closes, the new thing lights up where it landed (a phone scrolls to it), and a dark answer bar (at the top on the wall, the bottom on a phone) says what landed where and what was guessed, with Undo, a one-tap fix for a likely wrong guess, and Change. | Fastest to read and do; nothing moves on the board but the new thing; the same answer bar as the decided event sheet, so one pattern to learn; the least to build | You read a bar rather than seeing the answer on the thing itself; on the wall the bar covers the Next line for 10 seconds | Owner profile 1st on both screens; first-time 3rd |
+| B | **Clover's reading first:** the same box, with Clover's reading underneath as you type: what kind of thing, the day, the time, the list. Guessed parts are outlined in amber; tap any part to change it. Nothing lands until Add. | The most trusted: a wrong guess, an overlap or a replaced dinner shows before anything changes | A pause of about a second for the reading on every add, and a card to read each time; habituation (people learn to tap Add without reading, the capture research's warning); needs a second way of asking Clover ("read this, don't file it"), so two calls and twice the wait per add | 2nd for both |
+| C | **It lands where you tapped:** tap a day and the box opens inside that day (+ opens it in today; a phone's day headings get a small +). Type, Add, and the new thing appears in place as an amber card naming what was guessed, with the one-tap fix (or Change) and Undo. Something for a day off the wall's four, or for a list, shows its card where you typed. | You see it on the board, in the day you meant, with the fix on it; the most Skylight-like; the easiest to spot from across the room | A narrow box in a narrow column on the wall; cards take room in a full day for 10 seconds; things for later days or lists land "where you typed", which needs explaining; the most layout to build | First-time 1st on both screens; owner 3rd (phone), 4th (wall), mostly for problems fixed after (below) |
+| D | **Tell Clover, fix it in words:** + opens a short conversation beside the board (a full sheet on a phone). Clover answers each line with what it added and guessed, with Undo and the one-tap fix; to correct it, say so: "no, morning", "make it Wednesday", "undo that". Done closes it. | Corrections in plain words; several things one after another; friendly | It hides the board (half the wall, the whole phone) until Done, so you don't see it land; one more touch every time; corrections in words need a new house script, since Assist can't change an event | Last for both (owner 3rd on the wall) |
+
 
 ## What every way shares (technical and basic calls; the owner can veto)
 
@@ -43,6 +51,48 @@ Open `index.html` in a browser. The bar switches the way of adding (A to D), the
 **Look and motion:** the decided rules: wall targets 72 to 84 px, phone 44 to 50 px; Roboto 500 and up; only `transform` and `opacity` move, 180 to 260 ms; under reduced motion, fades ([motion research](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/72#issuecomment-6537563054)).
 
 
-<!-- COUNTS -->
+## Touches per task
 
-<!-- REVIEWS -->
+Counted by a script on the wall and the phone, each from a fresh page; the typed line counts as one touch, as do + (or the day) and Add. D needs one more touch everywhere to close it and see the board.
+
+| Task | A | B | C | D |
+|---|---|---|---|---|
+| 1. Dentist Tuesday at 3 (`dentist tue 3`) | 3 | 3 | 3 | 3 + Done |
+| 2. Call the vet, on Monday (tap Monday; on a phone, Monday in the strip, then +) | 3 wall, 4 phone | 3, 4 | 3 | 3, 4 + Done |
+| 3. Gym tomorrow at 6, guessed 6 pm, fixed to 6 am | 4 | 4 (fixed before Add) | 4 | 4 + Done |
+| 4. Milk, eggs and call the plumber, in one line | 3 | 3 | 3 | 3 + Done |
+| 5. Tacos Monday, then undo it (Lasagna comes back) | 4 | 4 | 4 | 4 + Done |
+| 6. Plumber Tuesday 10 to 12 (the answer names Jenn's overlapping call) | 3 | 3 | 3 | 3 + Done |
+| 7. Someday: new couches (goes to Later) | 3 | 3 | 3 | 3 + Done |
+| 8. Clover doesn't answer: nothing added, the words kept | 3 | 3 | 3 | 3 |
+
+Fixing task 3 through Change and the event sheet's time grid instead of the one-tap fix takes 8 touches in A (Change, the time, 6 am, :00, Done); the other ways open the same sheet.
+
+Today's week card: about 12 touches to add the dentist, with no answer saying it worked ([walkthrough](../../docs/board-next/walkthrough-2026-10-29.md)). The touch counts don't separate the four ways; what you see and trust does.
+
+
+## Reviews
+
+Two blind reviewers (Sonnet, high effort) drove the page in a browser without seeing its code, per [reviewers.md](../../docs/board-next/reviewers.md): the first-time, Jenn-like profile (wall, then phone) and the owner profile (phone, then wall).
+- **Rankings:** first-time C, B, A, D on both screens ("the thing shows up on the board, in the day I tapped, with the fix on it. I never have to read a bar"); owner A, B, C, D on the phone and A, B, D, C on the wall ("A is the quickest and still says it back"; "B is better trust, but I pay a wait on every add"). Both put D last: it hides the board.
+- **The wrong guess** (gym at 6 pm, meant 6 am) was noticed and fixed in one tap in every way. Both were surest in B (fixed before it landed) and C (the fix sits on the board), then A, then D.
+- **Both found, fixed after the review:**
+  - On the wall, A's and B's answer bar covered the dinner row, so "Tacos" couldn't be seen; the bar now sits at the top on the wall, and the dinner row lights up.
+  - On a phone, the new thing was often off screen (A, B), or the list scrolled past it (C scrolled to the last of three cards, or to Monday when the card was at the top of today). Phones now scroll the first new thing into view under the strip, every way, and D's Done does too.
+  - C's card was so tall it pushed real events into "+N more" (the vet vanished from Tuesday; tacos hid three of Monday's). The card is now about a third the height: the time and title, what was guessed, and one row of buttons.
+  - The one-tap fix offered absurd times ("3:00 am instead" for the dentist, "10:00 pm instead" for the plumber). A period now counts as guessed only when the other reading falls between 6 am and 10 pm, and the button says what it does: "Make it 6:00 am". "Guessed 1 hour" is gone from the words, since the times already show the length.
+  - B read the line happily even when Clover was down, then failed on Add; its reading now fails the same way, saying nothing can be added and the words are kept.
+  - "Oil change sat 9", typed Saturday afternoon, landed this morning (and B warned it would overlap Will's earlier oil change); a weekday that's today at a time already past now means next week.
+  - Small words stuck to titles ("And remind me to call the plumber", "Eggs to the shopping"); they're dropped now. The keyboard's label covered the failure message; it moved into the keyboard's bottom edge.
+  - D rewrote its own history on Undo (the "Tacos" answer turned into "Lasagna again"); Undo now adds Clover's line below and leaves the earlier answer as it was.
+- **Left as they are:**
+  - **Everything added goes to Us, even "Will's dentist" or "Jenn dentist".** Both reviewers called this the thing they'd least trust. It's the owner's decision ([Where do shared events live?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/41)); the board can't write to Jenn's Google calendar at all ([What kind of calendar account does Jenn have?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/40)). Names typed stay in the title. Raised to the owner and noted on the map.
+  - D's conversation covering the board: that's D.
+  - "Note" for a to-do: the decided name. "Jenn's Grocery list": J006's rule and AnyList's own list name. "Later (N)" not opening: the wall's Lists is [its own ticket](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/79).
+  - The owner profile saw D's "make it Wednesday" take the dentist off. Not reproduced: typed the same way, it moves the dentist to Wednesday.
+- One review round; the fixes were checked by script (every task in every way on both screens, 64 runs, all landing as expected), not by a second blind round.
+
+## Owner decision
+
+Waiting on the owner.
+

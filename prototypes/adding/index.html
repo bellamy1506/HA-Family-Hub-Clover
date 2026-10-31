@@ -165,8 +165,8 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .kbd .k.w { max-width: 14% } .kbd .k.sp { max-width: 42%; flex: 6 } .kbd .k.go { max-width: 18%; flex: 2; background: #16191B; color: #fff; font-weight: 700 }
 .kbd .k.gray { background: #ADB3B7 }
 .kbd .k svg { width: 1.1em; height: 1.1em; fill: currentColor }
-.kbd .lbl { position: absolute; right: 10px; top: -22px; font-size: 13px; font-weight: 600; color: #fff; background: rgba(22,25,27,.6); border-radius: 6px; padding: 2px 8px }
-.face.wall .kbd { height: 330px; padding: 10px 40px 12px; gap: 9px } .face.wall .kbd .r { gap: 9px } .face.wall .kbd .k { font-size: 26px }
+.kbd .lbl { position: absolute; left: 50%; transform: translateX(-50%); bottom: 4px; font-size: 12px; font-weight: 600; color: #4A5054; white-space: nowrap }
+.face.wall .kbd { height: 330px; padding: 10px 40px 24px; gap: 9px } .face.wall .kbd .r { gap: 9px } .face.wall .kbd .k { font-size: 26px }
 .face.phone .kbd { height: 300px; padding: 8px 3px 30px; gap: 10px } .face.phone .kbd .r { gap: 5px } .face.phone .kbd .k { font-size: 20px; max-width: 9.4% }
 .face.phone .kbd .k.go { max-width: 22% } .face.phone .kbd .k.sp { max-width: 40% } .face.phone .kbd .k.w { max-width: 13% }
 
@@ -174,6 +174,7 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .echo { position: absolute; z-index: 8; left: 50%; display: flex; align-items: center; background: #16191B; color: #F4F5F2; border-radius: 16px;
   box-shadow: 0 8px 30px rgba(0,0,0,.3); transform: translate(-50%, 0); opacity: 1; transition: transform 180ms ease-out, opacity 180ms ease-out }
 .echo.hide { opacity: 0; transform: translate(-50%, 16px); pointer-events: none }
+.face.wall .echo.hide { transform: translate(-50%, -16px) }
 .echo .lines { display: flex; flex-direction: column; flex: 1; min-width: 0 }
 .echo .ln { display: flex; align-items: center; justify-content: space-between }
 .echo .w { line-height: 1.25 } .echo .w b { font-weight: 700 }
@@ -182,7 +183,7 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .echo .ub { border: 0; background: #F4F5F2; color: #16191B; border-radius: 12px; font-weight: 700; flex: none }
 .echo .ub.o { background: transparent; color: #F4F5F2; box-shadow: 0 0 0 2px #F4F5F2 inset }
 .echo .ub.a { background: #FFD27A; color: #16191B }
-.face.wall .echo { bottom: 22px; margin-left: -56px; width: max-content; max-width: 1010px; gap: 16px; padding: 12px 12px 12px 24px; font-size: 25px }
+.face.wall .echo { top: 20px; width: max-content; max-width: 1150px; gap: 16px; padding: 12px 12px 12px 24px; font-size: 25px }
 .face.wall .echo .lines { gap: 12px } .face.wall .echo .ln { gap: 18px } .face.wall .echo .sub { font-size: 20px; margin-top: 2px }
 .face.wall .echo .bts { gap: 10px } .face.wall .echo .ub { min-height: 64px; padding: 0 20px; font-size: 23px }
 .face.phone .echo { bottom: 72px; width: calc(100% - 16px); padding: 10px; font-size: 15px; flex-direction: column; align-items: stretch; gap: 8px }
@@ -256,10 +257,11 @@ body.shot .frame { border-radius: 0; box-shadow: none }
 .card .cw { font-weight: 600; color: #2A3034 }
 .card .bts { display: flex; flex-wrap: wrap }
 .card .bts .btn { flex: 1 1 auto }
-.wb .card { padding: 8px 10px; gap: 6px; font-size: 21px } .wb .card .ch { font-size: 17px } .wb .card .ct { font-size: 24px }
-.wb .card .bts { gap: 8px } .wb .card .bts .btn { min-height: 72px; font-size: 21px; padding: 0 10px; background: #fff }
+.wb .card { padding: 6px 8px 8px; gap: 3px; font-size: 18px } .wb .card .ch { font-size: 16px } .wb .card .ct { font-size: 23px; line-height: 1.15 }
+.card .tm2 { font-size: .8em; font-weight: 600; color: #464C50; display: block }
+.wb .card .bts { gap: 6px; margin-top: 4px } .wb .card .bts .btn { min-height: 64px; font-size: 19px; padding: 0 8px; background: #fff }
 .wb .card .bts .btn.alt { background: #FFF0C7 }
-.pb .card { padding: 8px 10px; gap: 5px; font-size: 14px; margin-bottom: 2px } .pb .card .ch { font-size: 12px } .pb .card .ct { font-size: 17px }
+.pb .card { padding: 6px 10px 8px; gap: 3px; font-size: 13px; margin-bottom: 2px } .pb .card .ch { font-size: 12px } .pb .card .ct { font-size: 17px }
 .pb .card .bts { gap: 6px } .pb .card .bts .btn { min-height: 44px; font-size: 14px; padding: 0 10px; background: #fff } .pb .card .bts .btn.alt { background: #FFF0C7 }
 
 /* ================= D: tell Clover, and correct it in words ================= */
@@ -428,7 +430,7 @@ function readPart(raw, fromDay) {
   let rest = ` ${raw.trim().replace(/[.!?]+$/, '')} `;
   const take = re => { const m = rest.match(re); if (m) rest = rest.replace(re, ' '); return m; };
   const it = { words: raw.trim(), guessed: {} };
-  const tidy = () => cap(rest.replace(/^\s*(add|put|remind us to|remember to)\s+/i, ' ').replace(/[,:;]+/g, ' ').replace(/\s+(on|at|for|by|in|to)\s*$/i, ' ').replace(/^\s*(on|at|for)\s+/i, ' '));
+  const tidy = () => cap(rest.replace(/^\s*(and|also|then)\s+/i, ' ').replace(/^\s*(add|put|remind (me|us) to|remember to)\s+/i, ' ').replace(/[,:;]+/g, ' ').replace(/\s+(on|at|for|by|in|to)\s*$/i, ' ').replace(/^\s*(on|at|for)\s+/i, ' '));
   if (take(/\b(someday|some day|eventually|sometime)\b[:,]?/i)) { it.kind = 'later'; it.title = tidy(); return it; }
   const fd = findDay(rest); let d = null;
   if (fd) { d = fd.d; take(fd.re); }
@@ -453,6 +455,10 @@ function readPart(raw, fromDay) {
     if (!a1) it.guessed.ap = guessAp(+m[2], raw);
     s = toMin(+m[2], m[3], a1 || it.guessed.ap);
   }
+  // a weekday that is today, at a time already past, means next week's
+  if (s != null && fd && d === 0 && !/to(day|night)/i.test(fd.re.source) && s <= NOW) d = 7;
+  // only call the period a guess when the other reading is a plausible waking hour (6 am to 10 pm)
+  if (it.guessed.ap) { const f = s + (it.guessed.ap === 'pm' ? -720 : 720); if (!(f >= hm(6) && f < hm(22))) delete it.guessed.ap; }
   if (s != null) {
     it.kind = 'event'; it.s = s; it.e = e ?? s + 60; if (e == null) it.guessed.len = true;
     it.d = d ?? fromDay ?? (s > NOW ? 0 : 1); if (d == null && fromDay == null) it.guessed.day = true;
@@ -465,6 +471,7 @@ function readPart(raw, fromDay) {
     it.replaces = M.dinners[it.d] || ''; return it;
   }
   if (d == null && has(FOOD, rest)) {
+    take(/\b(to|on)\s+(the\s+)?(shopping|grocery|groceries)(\s+list)?\b/i); take(/\b(to|on)\s+the\s+list\b/i);
     it.kind = 'grocery'; it.list = /\bwill'?s\b/i.test(rest) ? 'will' : 'jenn';
     take(/\b(on|to)?\s*(will|jenn)'?s(\s+(grocery\s+)?list)?\b/i); it.title = tidy(); return it;
   }
@@ -587,7 +594,6 @@ function what(it) {
 function guessTxt(it) {
   const g = [];
   if (it.guessed.ap) g.push(it.guessed.ap);
-  if (it.guessed.len) g.push('1 hour');
   if (it.guessed.day) g.push(it.d === 0 ? 'today' : it.d === 1 ? 'tomorrow' : dShort(it.d));
   if (it.guessed.kind) g.push('that it’s dinner');
   return g.length ? `Guessed ${g.length > 1 ? `${g.slice(0, -1).join(', ')} and ${g[g.length - 1]}` : g[0]}.` : '';
@@ -599,8 +605,8 @@ function clashTxt(it) {
 }
 function alts(it) {
   if (it.undone) return [];
-  if (it.kind === 'event' && it.guessed.ap) return [{ act: 'flip', label: `${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'} instead` }];
-  if (it.kind === 'dinner' && it.guessed.kind) return [{ act: 'tonote', label: 'A note instead' }];
+  if (it.kind === 'event' && it.guessed.ap) return [{ act: 'flip', label: `Make it ${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'}` }];
+  if (it.kind === 'dinner' && it.guessed.kind) return [{ act: 'tonote', label: 'Make it a note' }];
   return [];
 }
 const undoneTxt = it => it.kind === 'dinner' ? (it.replaces ? `Dinner ${dShort(it.d)} is <b>${esc(it.replaces)}</b> again.` : `Took <b>${esc(it.title)}</b> off ${dShort(it.d)}.`) : `Took <b>${esc(it.title)}</b> off.`;
@@ -635,12 +641,14 @@ function cField(d) {
 function cardHTML(it) {
   const g = guessTxt(it), c = clashTxt(it);
   if (it.undone) return `<div class="card" data-act="noop" data-keep><span class="cw">${undoneTxt(it)}</span></div>`;
-  const head = it.kind === 'event' ? 'Added to Us' : it.kind === 'note' ? 'New note' : it.kind === 'dinner' ? 'Dinner' : it.kind === 'later' ? 'Went to Later' : `On ${P[it.list].name}'s Grocery list`;
-  const when = it.kind === 'event' ? `${dShort(it.d)} · ${range(it.s, it.e)}` : it.kind === 'note' || it.kind === 'dinner' ? dShort(it.d) : '';
-  return `<div class="card" data-act="noop" data-keep><span class="ch">${head}${it.fixed ? ' · changed' : ''}</span><span class="ct">${esc(it.title)}</span>
-    ${when ? `<span class="cw">${when}${it.kind === 'dinner' && it.replaces ? `, in place of ${esc(it.replaces)}` : ''}</span>` : ''}
-    ${g ? `<span class="g">${g}</span>` : ''}${c ? `<span class="cl">${c}</span>` : ''}
-    <div class="bts">${itemButtons(it, 'btn')}</div></div>`;
+  const days = wall() ? 4 : 7, away = (it.kind === 'event' || it.kind === 'note' || it.kind === 'dinner') && it.d >= days;
+  const head = it.kind === 'event' ? `Added to Us${away ? ` for ${dShort(it.d)}` : ''}` : it.kind === 'note' ? `New note${away ? ` for ${dShort(it.d)}` : ''}` : it.kind === 'dinner' ? `Dinner${away ? ` ${dShort(it.d)}` : ''}${it.replaces ? `, in place of ${esc(it.replaces)}` : ''}` : it.kind === 'later' ? 'Went to Later' : `On ${P[it.list].name}'s Grocery list`;
+  const t = it.kind === 'event' ? `<span class="tm2">${range(it.s, it.e)}</span> ${esc(it.title)}` : esc(it.title);
+  const btns = (alts(it).length ? alts(it).map(a => `<button class="btn alt" data-act="${a.act}" data-arg="${ix(it)}">${a.label}</button>`).join('') : canChange(it) ? `<button class="btn" data-act="change" data-arg="${ix(it)}">Change</button>` : '') +
+    `<button class="btn" data-act="undo" data-arg="${ix(it)}">Undo</button>`;
+  return `<div class="card" data-act="noop" data-keep><span class="ch">${head}${it.fixed ? ' · changed' : ''}</span><span class="ct">${t}</span>
+    ${g || c ? `<span class="g">${g}${c ? ` <span class="cl">${c}</span>` : ''}</span>` : ''}${away ? `<span class="g">${wall() ? `${DOWL[dateOf(it.d).getDay()]} is past the wall’s four days; it’s in Month.` : ''}</span>` : ''}
+    <div class="bts">${btns}</div></div>`;
 }
 // Where a C card shows: on its own day if that day is on screen, else where you typed.
 function cardsFor(d, place) {
@@ -676,7 +684,7 @@ function wallBoard() {
       ${field}${top}${notes}<div class="list" data-fit>${ad}${rows}${dcard}</div>
       <div class="dinner${dfl}"><span class="lab">Dinner</span><span class="clamp1">${esc(M.dinners[d] || 'Not planned')}</span></div></div>`;
   }).join('');
-  return `<div class="wb">${band}<div class="cols">${cols}</div></div><button class="fab" data-act="plus" aria-label="Add">${PLUS}</button>`;
+  return `<div class="wb">${band}<div class="cols">${cols}</div></div><button class="fab" data-act="plus" aria-label="Add something">${PLUS}</button>`;
 }
 function phoneBoard() {
   const strip = [0, 1, 2, 3, 4, 5, 6].map(d => {
@@ -699,7 +707,7 @@ function phoneBoard() {
   }).join('');
   return `<div class="pb"><div class="app"><span>☰ <span>House board</span></span>${GEAR}</div><div class="strip">${strip}</div>
     <div class="lst" id="lst">${days}</div><div class="tabs"><span class="on"><i></i>Upcoming</span><span><i></i>Month</span><span><i></i>Lists</span></div></div>
-    <button class="fab" data-act="plus" aria-label="Add">${PLUS}</button>`;
+    <button class="fab" data-act="plus" aria-label="Add something">${PLUS}</button>`;
 }
 function renderBoard() {
   const b = $('board'); if (!b) return;
@@ -749,6 +757,7 @@ function pvHTML() {
   if (a.phase === 'filing') return `<div class="stat"><span class="spin"></span>Clover is filing it…</div>`;
   if (a.grid) return pvGrid();
   if (a.phase === 'reading') return `<div class="stat"><span class="spin"></span>Reading…</div>`;
+  if (a.phase === 'unread') return `<div class="stat bad">Clover isn’t answering, so it can’t read this yet and nothing can be added. Your words are kept.</div>`;
   if (!a.preview || !a.preview.length) return `<div class="stat">Clover’s reading shows here before anything is added. Tap any part to change it.</div>`;
   return `<div class="pvh">Clover reads it as</div>` + a.preview.map((it, i) => {
     const kind = it.kind === 'event' ? 'An event on Us' : it.kind === 'note' ? 'A note' : it.kind === 'dinner' ? (it.guessed.kind ? 'Dinner (guessed)' : 'Dinner') : it.kind === 'later' ? 'Later, no day' : `${P[it.list].name}'s Grocery list`;
@@ -756,10 +765,10 @@ function pvHTML() {
     if (it.kind === 'event' || it.kind === 'note' || it.kind === 'dinner')
       parts += `<button class="chip${it.guessed.day ? ' gs' : ''}" data-act="pvday" data-arg="${i}">${dShort(it.d)}${it.guessed.day ? '<small>guessed</small>' : ''}</button>`;
     if (it.kind === 'event')
-      parts += `<button class="chip${it.guessed.ap || it.guessed.len ? ' gs' : ''}" data-act="pvtime" data-arg="${i}">${range(it.s, it.e)}${it.guessed.ap || it.guessed.len ? `<small>guessed ${[it.guessed.ap, it.guessed.len ? '1 hr' : ''].filter(Boolean).join(', ')}</small>` : ''}</button>`;
+      parts += `<button class="chip${it.guessed.ap ? ' gs' : ''}" data-act="pvtime" data-arg="${i}">${range(it.s, it.e)}${it.guessed.ap ? `<small>guessed ${it.guessed.ap}</small>` : ''}</button>`;
     if (it.kind === 'dinner' && it.replaces) parts += `<span class="g">in place of ${esc(it.replaces)}</span>`;
-    if (it.kind === 'event' && it.guessed.ap) parts += `<button class="btn alt" data-act="pvflip" data-arg="${i}">${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'} instead</button>`;
-    if (it.kind === 'dinner' && it.guessed.kind) parts += `<button class="btn alt" data-act="pvnote" data-arg="${i}">A note instead</button>`;
+    if (it.kind === 'event' && it.guessed.ap) parts += `<button class="btn alt" data-act="pvflip" data-arg="${i}">Make it ${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'}</button>`;
+    if (it.kind === 'dinner' && it.guessed.kind) parts += `<button class="btn alt" data-act="pvnote" data-arg="${i}">Make it a note</button>`;
     const c = it.kind === 'event' ? previewClash(it) : '';
     return `<div class="pvi">${parts}${c ? `<span class="cl">${c}</span>` : ''}</div>`;
   }).join('');
@@ -917,7 +926,11 @@ function onTyped() {
   clearTimeout(readTimer);
   if (!a.text.trim()) { a.preview = null; a.phase = 'typing'; updateParts(); return; }
   a.phase = 'reading'; updateParts();
-  readTimer = setTimeout(() => { if (!S.add) return; a.preview = readLine(a.text, a.from); a.phase = 'typing'; updateParts(); }, 700);
+  readTimer = setTimeout(() => {
+    if (!S.add) return;
+    if (S.fail) { a.preview = null; a.phase = 'unread'; updateParts(); return; }
+    a.preview = readLine(a.text, a.from); a.phase = 'typing'; updateParts();
+  }, S.fail ? FAIL_MS : 700);
 }
 function typeKey(k) {
   const f = $('fld'); if (!f || !S.add) return;
@@ -970,14 +983,13 @@ function landed(filed, a) {
     return;
   }
   closeAdd(); renderBoard();
-  say({ items: filed });
+  say({ items: filed }); scrollToCard();
 }
 function scrollToDay(d) { const day = $(`day${d}`), lst = $('lst'); if (day && lst) lst.scrollTop = day.offsetTop - lst.offsetTop - 4; }
-function scrollToCard() {
+function scrollToCard() {         // phones: bring the first new thing into view near the top of the list
   if (wall()) return;
-  const card = document.querySelector('.pb .card'); const lst = $('lst');
-  let y = 0; for (let el = card; el && el !== lst; el = el.offsetParent) y += el.offsetTop;
-  if (card && lst) lst.scrollTop = Math.max(0, y - lst.offsetTop - 90);
+  const el = document.querySelector('.pb .card, .pb .flash'), lst = $('lst');
+  if (el && lst) lst.scrollTop = Math.max(0, el.offsetTop - lst.offsetTop - 44);
 }
 function sendD(text) {
   const a = S.add, f = $('fld');
@@ -996,10 +1008,10 @@ function sendD(text) {
     const last = [...S.items].reverse().find(it => a.convo.some(m => m.items && m.items.includes(it)));
     const fix = readFix(text, last);
     if (fix && fix.undo) {
-      if (last && !last.undone) { unfile(last); reply.text = undoneTxt(last); } else reply.text = 'There’s nothing to undo.';
+      if (last && !last.undone) { unfile(last); reply.items = [last]; reply.undoMsg = true; } else reply.text = 'There’s nothing to undo.';
     } else if (fix && last) { applyFix(last, fix); reply.items = [last]; reply.fix = true; S.flash.add(flashKey(last)); }
     else reply.items = readLine(text, a.from).map(file);
-    if (reply.items) reply.snap = reply.items.map(it => `<span>${what(it)}.</span>${guessTxt(it) ? `<span class="sub">${guessTxt(it)}</span>` : ''}`);
+    if (reply.items) reply.snap = reply.items.map(it => it.undone ? `<span>${undoneTxt(it)}</span>` : `<span>${what(it)}.</span>${guessTxt(it) ? `<span class="sub">${guessTxt(it)}</span>` : ''}`);
     renderBoard(); updateParts();
   }, S.fail ? FAIL_MS : FILE_MS);
 }
@@ -1038,10 +1050,14 @@ const ACT = {
   plus() { openAdd(!wall() && S.stripDay ? S.stripDay : null); },   // on a phone, + adds to the day picked in the strip
   addday(d) { if (S.add && S.v !== 'c') return; openAdd(+d); },
   jump(d) { S.stripDay = +d; scrollToDay(+d); for (const b of document.querySelectorAll('.sd')) b.classList.toggle('on', b.dataset.arg === d); },
-  cancel() { closeAdd(); },
+  cancel() { const d = S.v === 'd' && S.add && S.add.convo.length; closeAdd(); if (d) { renderBoard(); scrollToCard(); } },
   send() { send(); },
   open(id) { if (S.add) { if (S.v === 'c') closeAdd(); return; } openSheet(id); },
-  undo(i) { const it = S.items[+i]; unfile(it); afterItemChange(); },
+  undo(i) {
+    const it = S.items[+i]; unfile(it);
+    if (S.v === 'd' && S.add) S.add.convo.push({ who: 'clover', items: [it], undoMsg: true, snap: [undoneTxt(it)] });
+    afterItemChange();
+  },
   flip(i) { const it = S.items[+i]; flip(it); S.flash.add(flashKey(it)); afterItemChange(); },
   tonote(i) { const it = S.items[+i]; toNote(it); afterItemChange(); },
   change(i) {
