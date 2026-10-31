@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Adding Something Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "How does adding something on the house board feel?"
+  (HA-Family-Hub-Clover #49). Four ways to add one rough typed line, over the decided board:
+  the wall's resting face (layout D, marks E) at 1200x800 and the phones' strip over one list
+  (layout E) at 390x844. A stand-in Clover reads the line the way the real one sorts it
+  (house repo J006, Ask Clover) and files it into made-up data. Nothing is saved anywhere.
+  Switch with the bar or the address's #hash: #<variant>-<device>-<task>, e.g. #a-wall-dentist
+  or #c-phone-gym; add -shot to draw the screen alone at real size.
+  The keyboards are drawn stand-ins (sizes inferred) so you can see what they cover; their keys type.
+-->
+<style>
+:root { --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2;
+  --ui: Roboto, Inter, system-ui, -apple-system, "Segoe UI", sans-serif }
+@media (prefers-color-scheme: dark) { :root { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; color-scheme: dark } }
+html, body { background: var(--page); color: var(--ink); font-family: var(--ui); margin: 0 }
+body { padding: 14px max(14px, env(safe-area-inset-right, 0px)) 210px max(14px, env(safe-area-inset-left, 0px)) }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700 }
+.intro { margin: 0 0 10px; color: var(--soft); max-width: 72ch; line-height: 1.45 }
+.task { max-width: 72ch; margin: 0 auto 10px; padding: 10px 14px; border-radius: 12px; background: #FFF0C7; color: #16191B; line-height: 1.4; display: flex; gap: 10px; align-items: center; flex-wrap: wrap }
+.task .tt { flex: 1 1 260px; font-weight: 500 }
+.task button { font: 600 14px var(--ui); border: 0; border-radius: 10px; background: #16191B; color: #F4F5F2; padding: 8px 12px; min-height: 38px; cursor: pointer }
+.task button:disabled { opacity: .45; cursor: default }
+.task .cnt { font-weight: 700; white-space: nowrap }
+.stage { display: flex; justify-content: center }
+.frame { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(0,0,0,.12); flex: none }
+.frame > .face { position: absolute; top: 0; left: 0; transform-origin: 0 0 }
+.meta { max-width: 72ch; margin: 10px auto 0; color: var(--soft); font-size: 14px; line-height: 1.5 }
+.meta b { color: var(--ink) }
+.meta ol { margin: 4px 0 0; padding-left: 20px }
+.about { max-width: 72ch; margin: 10px auto 0; color: var(--soft); line-height: 1.45 }
+.about b { color: var(--ink) }
+
+/* The switcher: not part of the design being judged. */
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: min(860px, calc(100vw - 20px)); box-sizing: border-box;
+  background: var(--bar); color: var(--bar-ink); padding: 8px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35) }
+.switcher .grp { display: flex; align-items: center; gap: 3px; background: rgba(127,127,127,.2); border-radius: 12px; padding: 3px }
+.switcher button, .switcher select { font: 600 14px var(--ui); color: inherit; background: transparent; border: 0; border-radius: 9px; padding: 7px 10px; cursor: pointer; min-height: 36px }
+.switcher select { max-width: 240px }
+.switcher select option { color: #16191B; background: #fff }
+.switcher button[aria-pressed="true"] { background: var(--bar-ink); color: var(--bar) }
+.switcher .name { min-width: 190px; text-align: center; font: 700 14px var(--ui) }
+body.shot { padding: 0; background: #F4F5F2 }
+body.shot h1, body.shot .intro, body.shot .about, body.shot .switcher, body.shot .meta, body.shot .task { display: none }
+body.shot .frame { border-radius: 0; box-shadow: none }
+
+/* ================= The screen: the board's fixed light look ================= */
+.face { position: relative; overflow: hidden; box-sizing: border-box; background: #F4F5F2; color: #16191B;
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none }
+.face * { box-sizing: border-box }
+.face.wall { width: 1200px; height: 800px }
+.face.phone { width: 390px; height: 844px }
+.face button { font-family: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation }
+.face textarea { font-family: inherit; user-select: text; -webkit-user-select: text; color: #16191B }
+.face .clamp1, .face .clamp2 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden }
+.face .clamp1 { -webkit-line-clamp: 1 } .face .clamp2 { -webkit-line-clamp: 2 }
+.face small.ap { font-size: .62em; font-weight: 600; margin-left: .06em }
+
+/* rows: marks E (pale block in the person's color, green Us, names in words), sized in em of the title */
+.face .ev { display: grid; grid-template-columns: .3em minmax(0, 1fr); column-gap: .42em; align-items: start; width: 100%; border: 0; text-align: left; font: inherit;
+  border-radius: .25em; padding: .05em .3em .07em 0; background: color-mix(in srgb, var(--c) 17%, #F4F5F2) }
+.face .ev .barc { align-self: stretch; border-radius: .25em 0 0 .25em; background: var(--c); margin: -.05em 0 -.07em }
+.face .ev .tm { display: block; font-size: .76em; font-weight: 600; color: #464C50; white-space: nowrap; line-height: 1.35 }
+.face .ev .tt { font-weight: 600; line-height: 1.15 }
+.face .ev.work, .face .ev.ad { background: color-mix(in srgb, var(--c) 8%, #F4F5F2) }
+.face .ev.ad .tt { font-size: .8em; padding: .12em 0 }
+.face .ev.flash { background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00 inset }
+.face .who { margin-left: .45em; font-weight: 600; color: #464C50 }
+.face .ovl { width: 1.1em; height: 1.1em; vertical-align: -.22em; margin-left: .3em }
+.face .note { display: flex; align-items: flex-start; gap: .4em; font-weight: 600; line-height: 1.15; font-size: .93em; border-radius: .25em }
+.face .note .ring { flex: none; width: .82em; height: .82em; border: .11em solid #464C50; border-radius: 50%; margin-top: .14em }
+.face .note.flash { background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00; }
+.face .laterln { font-size: .76em; font-weight: 600; color: #464C50 }
+.face .laterln.flash { color: #16191B; background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00; border-radius: .25em }
+.face .more { font-size: .76em; font-weight: 600; color: #464C50 }
+
+/* ----- wall: layout D with marks E ----- */
+.wb { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px 32px 22px }
+.wb .band { display: grid; grid-template-columns: 20px 1fr auto; column-gap: 22px; align-items: start; border: 0; background: none; padding: 0; text-align: left; width: 100% }
+.wb .band .barc { border-radius: 10px; align-self: stretch; background: var(--c) }
+.wb .band .lab { font-size: 28px; font-weight: 700; color: #464C50 }
+.wb .band .line { font-size: 84px; font-weight: 700; line-height: 1.04; letter-spacing: -.01em }
+.wb .band .line .t { margin-right: .26em }
+.wb .side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px }
+.wb .clock { font-size: 60px; font-weight: 700; line-height: 1 }
+.wb .date { font-size: 24px; font-weight: 600; color: #464C50 }
+.wb .wx { font-size: 32px; font-weight: 700 } .wb .wx .lo { color: #464C50 }
+.wb .cols { flex: 1; display: grid; grid-template-columns: 1.45fr 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); min-height: 0 }
+.wb .col { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3; font-size: 26px; cursor: pointer }
+.wb .col:first-child { border-left: 0; padding-left: 0; font-size: 28px }
+.wb .col .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.wb .col .dn { font-size: 30px; font-weight: 700 }
+.wb .col .hl { font-size: 22px; font-weight: 600; color: #464C50 }
+.wb .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden }
+.wb .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 6px; font-size: 22px; font-weight: 600; line-height: 1.15; border-radius: 0 0 6px 6px }
+.wb .col:first-child .dinner { font-size: 26px }
+.wb .col:last-child .dinner { padding-right: 92px }
+.wb .dinner .lab { display: block; font-size: 18px; font-weight: 700; color: #464C50 }
+.face .dinner.flash { background: #FFF0C7; box-shadow: 0 0 0 3px #E69F00 }
+.fab { position: absolute; z-index: 3; border: 0; border-radius: 50%; background: #16191B; color: #F4F5F2 !important; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.25) }
+.fab svg { fill: #F4F5F2 }
+.face.wall .fab { right: 24px; bottom: 20px; width: 80px; height: 80px } .face.wall .fab svg { width: 46px; height: 46px }
+
+/* ----- phone: layout E, the strip over one list ----- */
+.pb { position: absolute; inset: 0; display: flex; flex-direction: column }
+.pb .app { flex: none; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 19px; font-weight: 700; background: #fff; border-bottom: 1px solid #E1E5DF }
+.pb .app span { display: flex; gap: 14px; align-items: center }
+.pb .app svg { width: 24px; height: 24px; fill: #464C50 }
+.pb .strip { flex: none; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 6px 6px; background: #fff; border-bottom: 1px solid #E1E5DF }
+.pb .sd { border: 0; background: none; border-radius: 12px; padding: 3px 0 5px; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 12px; font-weight: 600; color: #464C50 }
+.pb .sd .num { font-size: 18px; font-weight: 700; color: #16191B }
+.pb .sd.on { background: #16191B; color: #C9CED1 } .pb .sd.on .num { color: #fff }
+.pb .sd .dots { display: flex; gap: 2px; height: 6px } .pb .sd .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--c) }
+.pb .lst { flex: 1; overflow-y: auto; padding: 4px 14px 96px; font-size: 17px; -webkit-overflow-scrolling: touch; scroll-behavior: auto }
+.pb .day { cursor: pointer; padding-bottom: 6px }
+.pb .dh { display: flex; justify-content: space-between; align-items: center; min-height: 40px; margin: 12px 0 6px; font-size: 18px; font-weight: 700 }
+.pb .dh .dd { font-size: 14px; font-weight: 600; color: #464C50; margin-left: 6px }
+.pb .dh .plus { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #ECEFEA; display: flex; align-items: center; justify-content: center }
+.pb .dh .plus svg { width: 24px; height: 24px; fill: #16191B }
+.pb .rows { display: flex; flex-direction: column; gap: 7px }
+.pb .dinner { margin-top: 6px; font-size: 15px; font-weight: 600; color: #464C50; padding: 2px 4px; border-radius: 6px }
+.pb .dinner b { color: #16191B; font-weight: 600 }
+.pb .tabs { flex: none; height: 64px; display: grid; grid-template-columns: repeat(3, 1fr); background: #fff; border-top: 1px solid #E1E5DF }
+.pb .tabs span { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #5A6064; gap: 3px }
+.pb .tabs span i { width: 22px; height: 4px; border-radius: 2px; background: transparent }
+.pb .tabs span.on { color: #16191B } .pb .tabs span.on i { background: #16191B }
+.face.phone.echoing .fab { opacity: 0; pointer-events: none }
+.face.phone .fab { transition: opacity 180ms; right: 16px; bottom: 80px; width: 58px; height: 58px } .face.phone .fab svg { width: 32px; height: 32px }
+
+/* ================= Shared pieces ================= */
+.scrim { position: absolute; inset: 0; z-index: 5; background: rgba(22,25,27,.32); transition: opacity 220ms ease-out }
+.scrim.light { background: rgba(22,25,27,.14) }
+.face .btn { border: 0; border-radius: 14px; background: #ECEFEA; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: .4em; text-align: center; line-height: 1.1 }
+.face .btn:active { background: #DCE1DA }
+.face .btn.dark { background: #16191B; color: #F4F5F2 }
+.face .btn.dark:disabled { background: #9AA19D }
+.face .btn.danger { background: #FBE9E5; color: #A3260F }
+.face .btn.plain { background: none; color: #464C50; text-decoration: underline; text-underline-offset: .2em; font-weight: 500 }
+.face .btn.alt { background: #FFF0C7; box-shadow: 0 0 0 2px #E69F00 inset; color: #16191B }
+.face .fld { width: 100%; border: 3px solid #16191B; border-radius: 14px; background: #fff; resize: none; outline: none; font-weight: 500; line-height: 1.2; overflow: hidden; display: block }
+.face .fld::placeholder { color: #737A7E; font-weight: 400 }
+.face .daychip { align-self: flex-start; background: #E3EFE9; color: #16191B; border-radius: 999px; font-weight: 600 }
+.face .stat { color: #464C50; line-height: 1.3 }
+.face .stat.bad { color: #A3260F; font-weight: 600 }
+.face .spin { display: inline-block; width: .9em; height: .9em; border-radius: 50%; border: .14em solid #C9CFC7; border-top-color: #16191B; vertical-align: -.12em; margin-right: .4em; animation: spin 800ms linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
+.face .g { color: #5A6064 } .face .g u { text-decoration: underline dotted #E69F00 .14em; text-underline-offset: .2em }
+.face .cl { color: #8A4B00 }
+
+/* the stand-in keyboard: what the real one covers (sizes inferred) */
+.kbd { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; background: #D3D6D8; display: flex; flex-direction: column; transition: transform 220ms ease-out }
+.kbd.hide { transform: translateY(110%) } .kbd.hide .lbl { opacity: 0 }
+.kbd .r { display: flex; justify-content: center; flex: 1 }
+.kbd .k { flex: 1; max-width: 9.2%; background: #fff; border: 0; border-radius: 7px; box-shadow: 0 1px 0 rgba(0,0,0,.28); display: flex; align-items: center; justify-content: center; color: #16191B; font-weight: 500; padding: 0 }
+.kbd .k.w { max-width: 14% } .kbd .k.sp { max-width: 42%; flex: 6 } .kbd .k.go { max-width: 18%; flex: 2; background: #16191B; color: #fff; font-weight: 700 }
+.kbd .k.gray { background: #ADB3B7 }
+.kbd .k svg { width: 1.1em; height: 1.1em; fill: currentColor }
+.kbd .lbl { position: absolute; right: 10px; top: -22px; font-size: 13px; font-weight: 600; color: #fff; background: rgba(22,25,27,.6); border-radius: 6px; padding: 2px 8px }
+.face.wall .kbd { height: 330px; padding: 10px 40px 12px; gap: 9px } .face.wall .kbd .r { gap: 9px } .face.wall .kbd .k { font-size: 26px }
+.face.phone .kbd { height: 300px; padding: 8px 3px 30px; gap: 10px } .face.phone .kbd .r { gap: 5px } .face.phone .kbd .k { font-size: 20px; max-width: 9.4% }
+.face.phone .kbd .k.go { max-width: 22% } .face.phone .kbd .k.sp { max-width: 40% } .face.phone .kbd .k.w { max-width: 13% }
+
+/* the echo: what landed, what was guessed, and Undo */
+.echo { position: absolute; z-index: 8; left: 50%; display: flex; align-items: center; background: #16191B; color: #F4F5F2; border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.3); transform: translate(-50%, 0); opacity: 1; transition: transform 180ms ease-out, opacity 180ms ease-out }
+.echo.hide { opacity: 0; transform: translate(-50%, 16px); pointer-events: none }
+.echo .lines { display: flex; flex-direction: column; flex: 1; min-width: 0 }
+.echo .ln { display: flex; align-items: center; justify-content: space-between }
+.echo .w { line-height: 1.25 } .echo .w b { font-weight: 700 }
+.echo .sub { display: block; color: #C9CED1; font-weight: 400 } .echo .sub.cl { color: #FFD27A }
+.echo .bts { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end }
+.echo .ub { border: 0; background: #F4F5F2; color: #16191B; border-radius: 12px; font-weight: 700; flex: none }
+.echo .ub.o { background: transparent; color: #F4F5F2; box-shadow: 0 0 0 2px #F4F5F2 inset }
+.echo .ub.a { background: #FFD27A; color: #16191B }
+.face.wall .echo { bottom: 22px; margin-left: -56px; width: max-content; max-width: 1010px; gap: 16px; padding: 12px 12px 12px 24px; font-size: 25px }
+.face.wall .echo .lines { gap: 12px } .face.wall .echo .ln { gap: 18px } .face.wall .echo .sub { font-size: 20px; margin-top: 2px }
+.face.wall .echo .bts { gap: 10px } .face.wall .echo .ub { min-height: 64px; padding: 0 20px; font-size: 23px }
+.face.phone .echo { bottom: 72px; width: calc(100% - 16px); padding: 10px; font-size: 15px; flex-direction: column; align-items: stretch; gap: 8px }
+.face.phone .echo .lines { gap: 10px } .face.phone .echo .ln { flex-direction: column; align-items: stretch; gap: 6px } .face.phone .echo .sub { font-size: 13px }
+.face.phone .echo.multi .ln { flex-direction: row; align-items: center; gap: 8px } .face.phone .echo.multi .bts { flex-wrap: nowrap }
+.face.phone .echo .bts { gap: 6px } .face.phone .echo .ub { min-height: 44px; padding: 0 12px; font-size: 14px }
+
+/* grids (the event sheet's, and B's chips) */
+.grid { display: flex; flex-direction: column; gap: 8px }
+.grid .gt { font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 10px }
+.grid .cells { display: grid; gap: 8px }
+.grid .cell { border: 0; border-radius: 12px; background: #ECEFEA; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1 }
+.grid .cell small { font-weight: 400; color: #464C50; font-size: .7em }
+.grid .cell.cur { box-shadow: 0 0 0 3px #16191B inset }
+.face.wall .grid .gt { font-size: 24px } .face.wall .grid .cell { min-height: 72px; font-size: 24px }
+.face.phone .grid .gt { font-size: 16px } .face.phone .grid .cell { min-height: 46px; font-size: 15px }
+
+/* ================= A: one line, then the echo ================= */
+.abar { position: absolute; z-index: 6; background: #fff; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.22); transition: transform 220ms cubic-bezier(.2,.8,.2,1) }
+.abar .arow { display: flex; align-items: stretch }
+.face.wall .abar { top: 0; left: 0; right: 0; padding: 18px 32px 16px; gap: 10px; border-radius: 0 0 22px 22px }
+.face.wall .abar.hide { transform: translateY(-104%) }
+.face.wall .abar .arow { gap: 12px } .face.wall .abar .fld { font-size: 34px; padding: 18px 20px; min-height: 84px }
+.face.wall .abar .btn { min-height: 84px; font-size: 28px; padding: 0 28px } .face.wall .abar .btn.x { width: 84px; padding: 0; font-size: 30px }
+.face.wall .abar .stat { font-size: 22px; min-height: 28px } .face.wall .daychip { font-size: 22px; padding: 6px 16px }
+.face.phone .abar { left: 0; right: 0; bottom: 300px; padding: 10px 10px 8px; gap: 7px; border-radius: 16px 16px 0 0 }
+.face.phone .abar.hide { transform: translateY(140%) }
+.face.phone .abar .arow { gap: 6px } .face.phone .abar .fld { font-size: 17px; padding: 11px 12px; min-height: 48px; border-width: 2px; border-radius: 12px }
+.face.phone .abar .btn { min-height: 48px; font-size: 16px; padding: 0 14px } .face.phone .abar .btn.x { width: 44px; padding: 0 }
+.face.phone .abar .stat { font-size: 13px } .face.phone .daychip { font-size: 13px; padding: 4px 10px }
+
+/* ================= B: Clover's reading first, then Add ================= */
+.bcard { position: absolute; z-index: 6; background: #fff; display: flex; flex-direction: column; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.24); transition: transform 220ms cubic-bezier(.2,.8,.2,1), opacity 220ms }
+.bcard .arow { display: flex; align-items: stretch }
+.bcard .pv { display: flex; flex-direction: column }
+.bcard .pvh { font-weight: 700; color: #464C50 }
+.bcard .pvi { display: flex; flex-wrap: wrap; align-items: center; border-radius: 14px; background: #F6F7F4 }
+.bcard .kind { font-weight: 700; color: #464C50; flex-basis: 100% }
+.bcard .ttl { font-weight: 700 }
+.bcard .chip { border: 0; border-radius: 12px; background: #ECEFEA; font-weight: 600; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1 }
+.bcard .chip.gs { background: #FFF6DD; box-shadow: 0 0 0 2px #E69F00 inset; }
+.bcard .chip small { font-weight: 500; font-size: .66em; color: #8A4B00 }
+.bcard .cl { flex-basis: 100% }
+.face.wall .bcard { top: 14px; left: 50%; width: 980px; max-height: 456px; margin-left: -490px; padding: 18px 22px; gap: 12px; border-radius: 22px }
+.face.wall .bcard.hide { transform: translateY(-30px); opacity: 0 }
+.face.wall .bcard .arow { gap: 12px } .face.wall .bcard .fld { font-size: 34px; padding: 16px 20px; min-height: 80px }
+.face.wall .bcard .btn { min-height: 80px; font-size: 28px; padding: 0 28px } .face.wall .bcard .btn.x { width: 80px; padding: 0; font-size: 30px }
+.face.wall .bcard .pv { gap: 10px; font-size: 24px } .face.wall .bcard .pvh { font-size: 20px }
+.face.wall .bcard .pvi { gap: 10px; padding: 10px 14px } .face.wall .bcard .kind { font-size: 19px } .face.wall .bcard .ttl { font-size: 28px; margin-right: 6px }
+.face.wall .bcard .chip { min-height: 64px; padding: 0 18px; font-size: 24px } .face.wall .bcard .pvi .btn { min-height: 64px; font-size: 22px; padding: 0 18px }
+.face.phone .bcard { left: 0; right: 0; bottom: 300px; max-height: 492px; padding: 12px 12px 10px; gap: 9px; border-radius: 18px 18px 0 0 }
+.face.phone .bcard.hide { transform: translateY(120%) }
+.face.phone .bcard .arow { gap: 6px } .face.phone .bcard .fld { font-size: 17px; padding: 11px 12px; min-height: 48px; border-width: 2px; border-radius: 12px }
+.face.phone .bcard .btn { min-height: 48px; font-size: 16px; padding: 0 14px } .face.phone .bcard .btn.x { width: 44px; padding: 0 }
+.face.phone .bcard .pv { gap: 7px; font-size: 15px } .face.phone .bcard .pvh { font-size: 13px }
+.face.phone .bcard .pvi { gap: 6px; padding: 8px 10px } .face.phone .bcard .kind { font-size: 12px } .face.phone .bcard .ttl { font-size: 17px; margin-right: 4px }
+.face.phone .bcard .chip { min-height: 44px; padding: 0 10px; font-size: 15px } .face.phone .bcard .pvi .btn { min-height: 44px; font-size: 14px; padding: 0 10px }
+
+/* ================= C: it lands where you tapped ================= */
+.cfield { display: flex; flex-direction: column; background: #fff; border: 3px solid #16191B; border-radius: 14px; cursor: default; flex: none }
+.cfield .fld { border: 0; padding: 4px 6px; min-height: 2.5em }
+.cfield .crow { display: flex }
+.cfield .crow .btn { flex: 1 }
+.wb .cfield { padding: 8px; gap: 8px } .wb .cfield .fld { font-size: 24px } .wb .col:first-child .cfield .fld { font-size: 27px }
+.wb .cfield .stat { font-size: 18px } .wb .cfield .crow { gap: 8px } .wb .cfield .crow .btn { min-height: 76px; font-size: 22px }
+.pb .cfield { padding: 6px; gap: 6px; border-width: 2px; margin-bottom: 8px } .pb .cfield .fld { font-size: 17px } .pb .cfield .stat { font-size: 13px }
+.pb .cfield .crow { gap: 6px } .pb .cfield .crow .btn { min-height: 46px; font-size: 15px }
+.card { display: flex; flex-direction: column; background: #FFF6DD; border: 3px solid #E69F00; border-radius: 12px; cursor: default; flex: none; line-height: 1.2 }
+.card .ch { font-weight: 700; color: #8A4B00 }
+.card .ct { font-weight: 700 }
+.card .cw { font-weight: 600; color: #2A3034 }
+.card .bts { display: flex; flex-wrap: wrap }
+.card .bts .btn { flex: 1 1 auto }
+.wb .card { padding: 8px 10px; gap: 6px; font-size: 21px } .wb .card .ch { font-size: 17px } .wb .card .ct { font-size: 24px }
+.wb .card .bts { gap: 8px } .wb .card .bts .btn { min-height: 72px; font-size: 21px; padding: 0 10px; background: #fff }
+.wb .card .bts .btn.alt { background: #FFF0C7 }
+.pb .card { padding: 8px 10px; gap: 5px; font-size: 14px; margin-bottom: 2px } .pb .card .ch { font-size: 12px } .pb .card .ct { font-size: 17px }
+.pb .card .bts { gap: 6px } .pb .card .bts .btn { min-height: 44px; font-size: 14px; padding: 0 10px; background: #fff } .pb .card .bts .btn.alt { background: #FFF0C7 }
+
+/* ================= D: tell Clover, and correct it in words ================= */
+.dpanel { position: absolute; z-index: 6; background: #fff; display: flex; flex-direction: column; box-shadow: 0 10px 48px rgba(0,0,0,.25); transition: transform 260ms cubic-bezier(.2,.8,.2,1) }
+.dpanel .dhd { display: flex; justify-content: space-between; align-items: center; font-weight: 700 }
+.dpanel .tx { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0 }
+.dpanel .tx .hint { color: #5A6064; line-height: 1.35 }
+.dpanel .you { align-self: flex-end; background: #E3E6E1; border-radius: 18px 18px 4px 18px; max-width: 85%; line-height: 1.25; font-weight: 500 }
+.dpanel .cv { align-self: flex-start; background: #F4F5F2; border: 2px solid #DDE1DB; border-radius: 18px 18px 18px 4px; max-width: 96%; line-height: 1.25; display: flex; flex-direction: column }
+.dpanel .cv.bad { border-color: #E4A99C; background: #FBEFEC }
+.dpanel .cv .bts { display: flex; flex-wrap: wrap }
+.dpanel .dcomp { display: flex; align-items: stretch; border-top: 1px solid #E1E5DF }
+.face.wall .dpanel { top: 0; right: 0; bottom: 0; width: 560px; border-radius: 22px 0 0 22px; padding-bottom: 330px }
+.face.wall .dpanel.hide { transform: translateX(104%) }
+.face.wall .dpanel .dhd { padding: 14px 18px 8px 26px; font-size: 30px } .face.wall .dpanel .dhd .btn { min-height: 72px; font-size: 24px; padding: 0 22px }
+.face.wall .dpanel .daychip { margin: 0 26px 6px }
+.face.wall .dpanel .tx { padding: 6px 22px 12px 26px; gap: 12px; font-size: 23px } .face.wall .dpanel .tx .hint { font-size: 22px }
+.face.wall .dpanel .you, .face.wall .dpanel .cv { padding: 10px 16px } .face.wall .dpanel .cv { gap: 8px }
+.face.wall .dpanel .cv .bts { gap: 8px } .face.wall .dpanel .cv .bts .btn { min-height: 64px; font-size: 21px; padding: 0 16px; background: #fff }
+.face.wall .dpanel .cv .bts .btn.alt { background: #FFF0C7 } .face.wall .dpanel .cv .sub { font-size: 19px }
+.face.wall .dpanel .dcomp { gap: 10px; padding: 10px 18px 10px 22px } .face.wall .dpanel .dcomp .fld { font-size: 28px; padding: 14px 16px; min-height: 76px }
+.face.wall .dpanel .dcomp .btn { min-height: 76px; font-size: 26px; padding: 0 22px }
+.face.phone .dpanel { left: 0; right: 0; top: 44px; bottom: 0; border-radius: 18px 18px 0 0; padding-bottom: 300px }
+.face.phone .dpanel.hide { transform: translateY(104%) }
+.face.phone .dpanel .dhd { padding: 8px 8px 4px 16px; font-size: 19px } .face.phone .dpanel .dhd .btn { min-height: 44px; font-size: 16px; padding: 0 14px }
+.face.phone .dpanel .daychip { margin: 0 16px 4px }
+.face.phone .dpanel .tx { padding: 4px 12px 10px 14px; gap: 9px; font-size: 15px } .face.phone .dpanel .tx .hint { font-size: 14px }
+.face.phone .dpanel .you, .face.phone .dpanel .cv { padding: 8px 12px } .face.phone .dpanel .cv { gap: 6px }
+.face.phone .dpanel .cv .bts { gap: 6px } .face.phone .dpanel .cv .bts .btn { min-height: 42px; font-size: 14px; padding: 0 10px; background: #fff }
+.face.phone .dpanel .cv .bts .btn.alt { background: #FFF0C7 } .face.phone .dpanel .cv .sub { font-size: 13px }
+.face.phone .dpanel .dcomp { gap: 6px; padding: 8px 8px 8px 10px } .face.phone .dpanel .dcomp .fld { font-size: 17px; padding: 11px 12px; min-height: 48px; border-width: 2px; border-radius: 12px }
+.face.phone .dpanel .dcomp .btn { min-height: 48px; font-size: 16px; padding: 0 14px }
+.dpanel .sub { display: block; color: #5A6064 } .dpanel .sub.cl { color: #8A4B00 }
+
+/* ================= the event sheet, a stand-in for the decided one (A, live panel) ================= */
+.sheet { position: absolute; z-index: 7; background: #fff; display: flex; flex-direction: column; overflow-y: auto; box-shadow: 0 12px 48px rgba(0,0,0,.22); transition: transform 260ms cubic-bezier(.2,.8,.2,1) }
+.sheet .top { display: flex; justify-content: space-between; align-items: center; gap: 12px }
+.sheet .person { font-weight: 700; color: #464C50 }
+.sheet .ttlf { width: 100%; border: 2px solid transparent; background: #ECEFEA; font-weight: 700; padding: 8px 12px; border-radius: 14px; resize: none; outline: none; line-height: 1.15; font-family: inherit }
+.sheet .lab { font-weight: 700; color: #464C50 }
+.sheet .row { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); gap: 10px }
+.sheet .row .btn { padding: 0 } .sheet .row .mid { flex-direction: column; gap: 0 } .sheet .row .mid small { font-weight: 400; color: #464C50; font-size: .7em }
+.sheet .ro { background: #EEF1F4; border-radius: 14px; line-height: 1.35 }
+.face.wall .sheet { --tap: 80px; top: 0; right: 0; bottom: 0; width: 500px; border-radius: 22px 0 0 22px; padding: 18px 26px; gap: 10px }
+.face.wall .sheet.hide { transform: translateX(104%) }
+.face.wall .sheet .btn { min-height: 80px; font-size: 26px } .face.wall .sheet .top .btn { min-height: 64px; padding: 0 22px }
+.face.wall .sheet .person { font-size: 24px } .face.wall .sheet .ttlf { font-size: 32px } .face.wall .sheet .lab { font-size: 19px; margin-bottom: -4px }
+.face.wall .sheet .row .mid { font-size: 28px } .face.wall .sheet .row .arr { font-size: 40px } .face.wall .sheet .ro { padding: 16px 20px; font-size: 24px }
+.face.phone .sheet { --tap: 50px; left: 0; right: 0; bottom: 0; max-height: 86%; border-radius: 22px 22px 0 0; padding: 14px 16px 26px; gap: 9px }
+.face.phone .sheet.hide { transform: translateY(104%) }
+.face.phone .sheet .btn { min-height: 50px; font-size: 16px } .face.phone .sheet .top .btn { min-height: 44px; padding: 0 14px }
+.face.phone .sheet .person { font-size: 15px } .face.phone .sheet .ttlf { font-size: 22px } .face.phone .sheet .lab { font-size: 13px; margin-bottom: -3px }
+.face.phone .sheet .row .mid { font-size: 18px } .face.phone .sheet .row .arr { font-size: 26px } .face.phone .sheet .ro { padding: 12px 14px; font-size: 15px }
+
+@media (prefers-reduced-motion: reduce) {
+  .abar, .bcard, .dpanel, .sheet, .kbd, .echo { transition: opacity 150ms linear !important }
+  .face .abar.hide, .face .bcard.hide, .face .dpanel.hide, .face .sheet.hide, .kbd.hide { transform: none !important; opacity: 0 }
+  .face .spin { animation: none }
+}
+</style>
+</head>
+<body>
+<h1>Adding something, four ways</h1>
+<p class="intro">Tap + (or a day), type one rough line, and Clover files it and says back what landed where, with Undo. Made-up household; it's Saturday, Oct 31, 1:10 pm. The bar switches the way of adding (A to D), the screen (wall or phone) and a task to try. The keyboard is a drawn stand-in so you can see what it covers; its keys type, or type on your own keyboard.</p>
+<div class="task" id="task"><span class="tt" id="tasktxt"></span><button id="typeit">Type the line for me</button><span class="cnt" id="cnt"></span></div>
+<div class="stage"><div class="frame" id="frame"></div></div>
+<div class="meta" id="meta"></div>
+<p class="about" id="about"></p>
+<nav class="switcher" aria-label="Prototype controls">
+  <div class="grp"><button id="prev" aria-label="Previous way">&#8249;</button><span class="name" id="vname"></span><button id="next" aria-label="Next way">&#8250;</button></div>
+  <div class="grp" id="devs"></div>
+  <div class="grp"><select id="scen" aria-label="Task"></select></div>
+  <div class="grp"><button id="fail" aria-pressed="false">Clover doesn't answer</button><button id="reset">Reset</button></div>
+</nav>
+<script>
+// ---------- made-up household: Saturday, Oct 31, 1:10 pm ----------
+const hm = (h, m = 0) => h * 60 + m;
+const NOW = hm(13, 10), TODAY_DOW = 6;
+const P = { will: { name: 'Will', c: '#005A8C' }, jenn: { name: 'Jenn', c: '#D55E00' }, us: { name: 'Us', c: '#007A5A' } };
+const SEED = () => ({
+  events: [
+    { id: 'oil', p: 'will', d: 0, s: hm(9), e: hm(10), t: 'Oil change' },
+    { id: 'hallo', p: 'us', d: 0, allDay: true, t: 'Halloween: candy bowl by the door' },
+    { id: 'hair', p: 'jenn', d: 0, s: hm(17, 30), e: hm(18, 30), t: 'Haircut', ro: true },
+    { id: 'date', p: 'us', d: 0, s: hm(19), e: hm(21, 30), t: 'Date night: dinner and a movie' },
+    { id: 'clocks', p: 'us', d: 1, allDay: true, t: 'Clocks fall back an hour' },
+    { id: 'trash', p: 'us', d: 1, s: hm(19, 30), e: hm(19, 45), t: 'Trash night: bins to the curb' },
+    { id: 'gymm', p: 'will', d: 2, s: hm(6, 15), e: hm(7, 15), t: 'Gym' },
+    { id: 'shift', p: 'jenn', d: 2, s: hm(7), e: hm(15, 30), t: 'Work shift', ro: true },
+    { id: 'work2', p: 'will', d: 2, s: hm(8, 30), e: hm(16, 30), t: 'At work', work: true },
+    { id: 'pkg', p: 'us', d: 2, s: hm(17), e: hm(17, 30), t: 'Package pickup at the post office' },
+    { id: 'call', p: 'jenn', d: 3, s: hm(10), e: hm(10, 45), t: 'Team call', ro: true },
+    { id: 'vet', p: 'us', d: 3, s: hm(17), e: hm(18), t: 'Vet: both cats, checkup and shots' },
+    { id: 'yoga', p: 'jenn', d: 4, s: hm(16, 45), e: hm(17, 45), t: 'Yoga', ro: true },
+    { id: 'book', p: 'us', d: 5, s: hm(19), e: hm(20), t: 'Book club at the library' },
+    { id: 'work6', p: 'will', d: 6, s: hm(8, 30), e: hm(16, 30), t: 'At work', work: true },
+  ],
+  notes: [{ id: 'gut', d: 0, t: 'Call about the gutter quote' }],
+  later: ['Look into a new mailbox', 'Find the spare key', 'Frame the wedding photo'],
+  grocery: { jenn: ['Coffee', 'Bananas'], will: ['Light bulbs'] },
+  dinners: ['Out for date night', 'Chili', 'Lasagna', 'Salmon and rice', 'Leftovers', 'Pizza night', ''],
+});
+const SCEN = {
+  free: { label: 'Free play', task: 'Free play: add anything. Try “dentist tue 3”, “milk”, “tacos monday”, “call the vet”, or “someday: new couches”.', line: 'dentist tue 3' },
+  dentist: { label: '1 · Dentist Tuesday at 3', task: 'Task: Will’s dentist is Tuesday at 3. Get it on the board.', line: 'dentist tue 3' },
+  vet: { label: '2 · Call the vet, on Monday', task: 'Task: someone needs to call the vet on Monday. Put it on Monday.', line: 'call the vet' },
+  gym: { label: '3 · Gym, and the guess is wrong', task: 'Task: Will’s going to the gym tomorrow at 6 in the morning. Type “gym 6 tomorrow” and make sure it ends up at 6 am.', line: 'gym 6 tomorrow' },
+  several: { label: '4 · Three things at once', task: 'Task: in one go, add milk and eggs to the shopping, and a reminder to call the plumber.', line: 'milk, eggs, call the plumber' },
+  dinner: { label: '5 · Tacos on Monday, then undo', task: 'Task: make Monday’s dinner tacos. Then change your mind and put it back the way it was.', line: 'tacos monday' },
+  plumber: { label: '6 · Plumber Tuesday 10 to 12', task: 'Task: the plumber is coming Tuesday from 10 to 12. Add it, and notice what it bumps into.', line: 'plumber tue 10 to 12' },
+  someday: { label: '7 · Someday: new couches', task: 'Task: you’d like to look at new couches someday, no rush. Get it off your mind.', line: 'someday: look at new couches' },
+  fail: { label: '8 · Clover doesn’t answer', task: 'Task: Home Assistant is restarting, so Clover won’t answer. Try to add “oil change sat 9” and see what happens to your words.', line: 'oil change sat 9', fail: true },
+};
+const VARIANTS = {
+  a: { name: 'A · One line, then the echo', about: '<b>A. One line, then the echo.</b> + (or tapping a day) drops one big line from the top on the wall, or above the keyboard on a phone. Type, press Add; Clover files it at once. The line closes, the new thing lights up where it landed, and the echo at the bottom says what landed where and what was guessed, with Undo, a one-tap fix for a likely wrong guess (“6:00 am instead”), and Change (the event sheet) for anything else. The capture research’s pick: add first, say it back, offer Undo.' },
+  b: { name: 'B · Clover’s reading first', about: '<b>B. Clover’s reading first.</b> As you type, Clover’s reading shows under the line, part by part: what kind of thing, the day, the time, the list. Guessed parts are outlined in amber; tap any part to change it before anything is added. Nothing lands until you press Add. Fixes happen before the fact, at the cost of a look and a touch on every add.' },
+  c: { name: 'C · It lands where you tapped', about: '<b>C. It lands where you tapped.</b> Tap a day and the line opens inside that day (+ opens it in today). Type, press Add, and the new thing appears in place as a highlighted card that names what was guessed, with Undo and the one-tap fix right on it. If Clover files it on another day, the card shows up there instead. No bar at the bottom: the thing itself is the echo.' },
+  d: { name: 'D · Tell Clover, fix it in words', about: '<b>D. Tell Clover, fix it in words.</b> + opens a short conversation with Clover beside the board. Type a line; Clover answers with what it added and what it guessed, with Undo and a one-tap fix. To correct it, just say so: “no, morning”, “make it Wednesday”, “undo that”. Several things can go in one after another without reopening. Close it with Done.' },
+};
+const DEVS = { wall: { label: 'Wall', w: 1200, h: 800 }, phone: { label: 'Phone', w: 390, h: 844 } };
+
+// ---------- helpers ----------
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], DOWL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateOf = d => new Date(2026, 9, 31 + d);
+const dShort = d => { const x = dateOf(d); return `${DOW[x.getDay()]}, ${MON[x.getMonth()]} ${x.getDate()}`; };
+const dRel = d => d === 0 ? `today (${dShort(d)})` : d === 1 ? `tomorrow (${dShort(d)})` : dShort(d);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const ap = m => (Math.floor(m / 60) % 24) < 12 ? 'am' : 'pm';
+const hh = m => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}`; };
+const tm = m => `${hh(m)} ${ap(m)}`;
+const tmS = m => `${hh(m)}<small class="ap">${ap(m)}</small>`;
+const range = (s, e) => ap(s) === ap(e) ? `${hh(s)} to ${hh(e)} ${ap(e)}` : `${tm(s)} to ${tm(e)}`;
+const clone = x => JSON.parse(JSON.stringify(x));
+const cap = s => { s = s.replace(/\s+/g, ' ').trim(); return s ? s[0].toUpperCase() + s.slice(1) : s; };
+const $ = id => document.getElementById(id);
+const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>';
+const OVL = '<svg class="ovl" viewBox="0 0 24 24" aria-label="overlaps"><path fill="#464C50" d="M9,5A7,7 0 0,0 2,12A7,7 0 0,0 9,19C10.04,19 11.06,18.76 12,18.32C12.94,18.76 13.96,19 15,19A7,7 0 0,0 22,12A7,7 0 0,0 15,5C13.96,5 12.94,5.24 12,5.68C11.06,5.24 10.04,5 9,5M9,7C9.34,7 9.67,7.03 10,7.1C8.72,8.41 8,10.17 8,12C8,13.83 8.72,15.59 10,16.89C9.67,16.96 9.34,17 9,17A5,5 0 0,1 4,12A5,5 0 0,1 9,7M15,7A5,5 0 0,1 20,12A5,5 0 0,1 15,17C14.66,17 14.33,16.97 14,16.9C15.28,15.59 16,13.83 16,12C16,10.17 15.28,8.41 14,7.11C14.33,7.04 14.66,7 15,7Z"/></svg>';
+const MIC = '<svg viewBox="0 0 24 24"><path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.39,17.44 13,17.93V21H11V17.93C7.61,17.44 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z"/></svg>';
+const GEAR = '<svg viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>';
+
+// ---------- a stand-in Clover: sorts a rough line the way the real one does (J006, Ask Clover) ----------
+// Timed things go to the Us calendar; groceries to Jenn's AnyList list (Will's when named); dishes with a day
+// to the meal plan; "someday" to Later; anything else is a note (today, or the day you tapped).
+const FOOD = ['milk', 'eggs', 'bread', 'butter', 'cheese', 'coffee', 'sparkling water', 'bananas', 'apples', 'cat litter', 'cat food', 'paper towels',
+  'toilet paper', 'dish soap', 'batteries', 'yogurt', 'cereal', 'chicken', 'onions', 'lettuce', 'tomatoes', 'salt', 'pepper', 'flour', 'sugar', 'trash bags'];
+const DISH = ['tacos', 'pizza', 'chili', 'lasagna', 'salmon', 'pasta', 'spaghetti', 'soup', 'burgers', 'stir fry', 'leftovers', 'meatloaf', 'curry', 'casserole', 'grilled cheese', 'enchiladas'];
+const WD = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+const has = (list, s) => list.find(w => new RegExp(`\\b${w}\\b`, 'i').test(s));
+function readLine(line, fromDay) {
+  const parts = line.split(/\s*[,;]\s*/).flatMap(p => /\bwith\b/i.test(p) ? [p] : p.split(/\s+and\s+/i)).map(s => s.trim()).filter(Boolean);
+  return parts.map(p => readPart(p, fromDay));
+}
+function findDay(rest) {
+  let m;
+  const tests = [
+    [/\btonight\b/i, () => 0], [/\btoday\b/i, () => 0], [/\btomorrow\b/i, () => 1],
+    [/\b(?:on\s+)?(?:next\s+)?(sunday|sun|monday|mon|tuesday|tues|tue|wednesday|weds|wed|thursday|thurs|thur|thu|friday|fri|saturday|sat)\b/i, m => (WD[m[1].slice(0, 3).toLowerCase()] - TODAY_DOW + 7) % 7],
+    [/\b(?:on\s+)?nov(?:ember)?\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b/i, m => +m[1]],
+    [/\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b/i, m => +m[1] === 31 ? 0 : +m[1]],
+  ];
+  for (const [re, f] of tests) if ((m = rest.match(re))) return { d: f(m), re, night: /tonight/i.test(m[0]) };
+  return null;
+}
+function readPart(raw, fromDay) {
+  let rest = ` ${raw.trim().replace(/[.!?]+$/, '')} `;
+  const take = re => { const m = rest.match(re); if (m) rest = rest.replace(re, ' '); return m; };
+  const it = { words: raw.trim(), guessed: {} };
+  const tidy = () => cap(rest.replace(/^\s*(add|put|remind us to|remember to)\s+/i, ' ').replace(/[,:;]+/g, ' ').replace(/\s+(on|at|for|by|in|to)\s*$/i, ' ').replace(/^\s*(on|at|for)\s+/i, ' '));
+  if (take(/\b(someday|some day|eventually|sometime)\b[:,]?/i)) { it.kind = 'later'; it.title = tidy(); return it; }
+  const fd = findDay(rest); let d = null;
+  if (fd) { d = fd.d; take(fd.re); }
+  // a time: a range, "noon", or a number with am/pm, after "at", or ending the line
+  const T = '(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|a\\.m\\.|p\\.m\\.)?';
+  let s = null, e = null, apGiven = null, m;
+  const per = x => x ? (x[0].toLowerCase() === 'a' ? 'am' : 'pm') : null;
+  const toMin = (h, mm, a) => (h % 12 + (a === 'pm' ? 12 : 0)) * 60 + (+mm || 0);
+  let morning = !!take(/\b(in the\s+)?morning\b/i), evening = !!take(/\b(in the\s+)?(evening|night|afternoon)\b/i);
+  if ((m = take(new RegExp(`\\b(?:at\\s+|from\\s+)?${T}\\s*(?:to|-|until|till)\\s*${T}\\b`, 'i')))) {
+    apGiven = per(m[3]) || per(m[6]);
+    const a1 = apGiven || (morning ? 'am' : evening || fd?.night ? 'pm' : null) || guessAp(+m[1], raw);
+    if (!apGiven && !morning && !evening) it.guessed.ap = a1;
+    s = toMin(+m[1], m[2], per(m[3]) || a1);
+    e = toMin(+m[4], m[5], per(m[6]) || ap(s));
+    if (e <= s) e += 720;
+  } else if (take(/\bnoon\b/i)) { s = hm(12); }
+  else if ((m = rest.match(new RegExp(`\\b(at\\s+)?${T}(?=\\s*$|\\s)`, 'i'))) && (m[1] || m[4] || /^\s*$/.test(rest.slice(m.index + m[0].length)))) {
+    rest = rest.slice(0, m.index) + ' ' + rest.slice(m.index + m[0].length);
+    apGiven = per(m[4]);
+    const a1 = apGiven || (morning ? 'am' : evening || fd?.night ? 'pm' : null);
+    if (!a1) it.guessed.ap = guessAp(+m[2], raw);
+    s = toMin(+m[2], m[3], a1 || it.guessed.ap);
+  }
+  if (s != null) {
+    it.kind = 'event'; it.s = s; it.e = e ?? s + 60; if (e == null) it.guessed.len = true;
+    it.d = d ?? fromDay ?? (s > NOW ? 0 : 1); if (d == null && fromDay == null) it.guessed.day = true;
+    it.title = tidy() || 'Event'; return it;
+  }
+  const dish = has(DISH, rest), saysDinner = /\b(for\s+)?dinner\b/i.test(rest);
+  if (saysDinner || (dish && (d != null || fromDay != null))) {
+    take(/\b(for\s+)?dinner\b:?/i);
+    it.kind = 'dinner'; it.d = d ?? fromDay ?? 0; it.title = tidy(); if (!saysDinner) it.guessed.kind = true;
+    it.replaces = M.dinners[it.d] || ''; return it;
+  }
+  if (d == null && has(FOOD, rest)) {
+    it.kind = 'grocery'; it.list = /\bwill'?s\b/i.test(rest) ? 'will' : 'jenn';
+    take(/\b(on|to)?\s*(will|jenn)'?s(\s+(grocery\s+)?list)?\b/i); it.title = tidy(); return it;
+  }
+  it.kind = 'note'; it.d = d ?? fromDay ?? 0; if (d == null && fromDay == null) it.guessed.day = true;
+  it.title = tidy() || cap(raw); return it;
+}
+// Clover's guess for a bare hour: mornings 7 to 11, otherwise afternoon and evening; dinner words mean evening.
+function guessAp(h, raw) { if (/\b(dinner|supper|drinks|date|movie|party|concert)\b/i.test(raw)) return 'pm'; return h >= 7 && h <= 11 ? 'am' : 'pm'; }
+// D only: a follow-up that corrects the last thing ("no, morning", "make it wednesday", "undo that").
+function readFix(line, it) {
+  const l = ` ${line.toLowerCase().replace(/[.!?,;:]/g, ' ')} `;
+  if (/\b(undo|never ?mind|take (it|that) (off|back|away)|remove (it|that)|cancel|scratch that|delete (it|that))\b/.test(l)) return { undo: true };
+  if (!it || it.undone) return null;
+  const fd = findDay(l);
+  let rest = l.replace(/\b(no|nope|not|actually|i meant|i mean|make it|change it to|move it to|instead|it'?s|it is|wrong|sorry|the|to|in|on|at|please)\b/g, ' ');
+  if (fd) rest = rest.replace(fd.re, ' ');
+  const am = /\b(am|morning|a\.m)\b/.test(rest), pm = /\b(pm|evening|night|afternoon|p\.m)\b/.test(rest);
+  rest = rest.replace(/\b(am|morning|a\.m|pm|evening|night|afternoon|p\.m)\b/g, ' ');
+  const t = rest.match(/\b(\d{1,2})(?::(\d{2}))?\b/);
+  if (t) rest = rest.replace(t[0], ' ');
+  const note = /\bnote\b/.test(rest); rest = rest.replace(/\b(a|note)\b/g, ' ');
+  if (rest.trim()) return null;                         // other words: it's a new thing, not a fix
+  if (!fd && !am && !pm && !t && !note) return null;
+  return { d: fd ? fd.d : null, ap: am ? 'am' : pm ? 'pm' : null, h: t ? +t[1] : null, mm: t ? +(t[2] || 0) : 0, note };
+}
+
+// ---------- state ----------
+let M = SEED();
+const S = { v: 'a', dev: 'wall', scen: 'free', shot: false, fail: false, taps: 0, log: [],
+  add: null,     // the open add: { from, col, phase: 'typing'|'reading'|'filing'|'failed', preview, grid, convo, counted }
+  echo: null,    // { items } after an add, or { text, before } after a sheet change
+  cards: [],     // C: the landing cards
+  flash: new Set(), sheet: null, items: [] };
+let echoTimer = null, cardTimer = null, readTimer = null;
+const evById = id => M.events.find(e => e.id === id);
+const wall = () => S.dev === 'wall';
+const FILE_MS = 1400, FAIL_MS = 3000;   // a stand-in for Clover's wait; the real one is unmeasured
+
+function clashesOf(e) {
+  if (!e || e.allDay) return [];
+  return M.events.filter(b => b !== e && !b.allDay && b.d === e.d && Math.min(e.e, b.e) - Math.max(e.s, b.s) > 15 &&
+    ((e.p === 'us') !== (b.p === 'us') || (e.p === b.p && e.p !== 'us' && !e.work && !b.work)));
+}
+let seq = 0;
+function file(it) {
+  it.id = `x${++seq}`; it.undone = false;
+  if (it.kind === 'event') M.events.push({ id: it.id, p: 'us', d: it.d, s: it.s, e: it.e, t: it.title, added: true });
+  else if (it.kind === 'note') M.notes.push({ id: it.id, d: it.d, t: it.title });
+  else if (it.kind === 'later') M.later.push(it.title);
+  else if (it.kind === 'grocery') M.grocery[it.list].push(it.title);
+  else if (it.kind === 'dinner') { it.replaces = M.dinners[it.d] || ''; M.dinners[it.d] = it.title; }
+  if (!S.items.includes(it)) S.items.push(it);
+  S.flash.add(flashKey(it));
+  writeLog(writeLine(it));
+  return it;
+}
+function unfile(it) {
+  if (it.undone) return;
+  if (it.kind === 'event') M.events = M.events.filter(e => e.id !== it.id);
+  else if (it.kind === 'note') M.notes = M.notes.filter(n => n.id !== it.id);
+  else if (it.kind === 'later') M.later.splice(M.later.lastIndexOf(it.title), 1);
+  else if (it.kind === 'grocery') M.grocery[it.list].splice(M.grocery[it.list].lastIndexOf(it.title), 1);
+  else if (it.kind === 'dinner') M.dinners[it.d] = it.replaces;
+  S.flash.delete(flashKey(it)); it.undone = true;
+  writeLog(`Undo: ${undoLine(it)}`);
+}
+const flashKey = it => it.kind === 'dinner' ? `dinner${it.d}` : it.kind === 'later' ? 'later' : it.id;
+function flip(it) {           // the one-tap fix for a guessed am or pm
+  const ev = evById(it.id), dlt = ap(it.s) === 'pm' ? -720 : 720;
+  it.s += dlt; it.e += dlt; if (ev) { ev.s = it.s; ev.e = it.e; }
+  delete it.guessed.ap; it.fixed = true; writeLog(`Change: “${it.title}” to ${dShort(it.d)}, ${range(it.s, it.e)} (the board's write path)`);
+}
+function toNote(it) {         // the one-tap fix for a guessed dinner
+  unfile(it); it.kind = 'note'; delete it.guessed.kind; it.fixed = true; file(it);
+}
+function applyFix(it, f) {
+  if (f.note && it.kind !== 'note') { toNote(it); return; }
+  if (it.kind === 'event') {
+    const ev = evById(it.id), len = it.e - it.s;
+    if (f.d != null) it.d = f.d;
+    if (f.h != null) { const a = f.ap || ap(it.s); it.s = (f.h % 12 + (a === 'pm' ? 12 : 0)) * 60 + f.mm; it.e = it.s + len; }
+    else if (f.ap && f.ap !== ap(it.s)) { const dl = f.ap === 'pm' ? 720 : -720; it.s += dl; it.e += dl; }
+    if (ev) { ev.d = it.d; ev.s = it.s; ev.e = it.e; }
+    it.guessed = {}; it.fixed = true;
+    writeLog(`Change: “${it.title}” to ${dShort(it.d)}, ${range(it.s, it.e)} (the board's write path)`);
+  } else if ((it.kind === 'note' || it.kind === 'dinner') && f.d != null) {
+    unfile(it); it.d = f.d; it.guessed = {}; it.fixed = true; file(it);
+  }
+}
+
+// What the board would write, shown under the screen.
+function writeLine(it) {
+  switch (it.kind) {
+    case 'event': return `Us calendar: new event “${it.title}”, ${dShort(it.d)}, ${range(it.s, it.e)}`;
+    case 'note': return `Us notes: new note “${it.title}”, from ${dShort(it.d)}`;
+    case 'later': return `Us notes: new note “${it.title}”, added as someday (Later)`;
+    case 'grocery': return `AnyList, ${P[it.list].name}'s Grocery: add “${it.title}”`;
+    case 'dinner': return `Meal plan: dinner ${dShort(it.d)} “${it.title}”${it.replaces ? ` (replaces “${it.replaces}”)` : ''}`;
+  }
+}
+function undoLine(it) {
+  switch (it.kind) {
+    case 'event': return `delete “${it.title}” (${dShort(it.d)}, ${tm(it.s)}) from Us through the board's write path`;
+    case 'dinner': return it.replaces ? `put “${it.replaces}” back as dinner ${dShort(it.d)}` : `clear dinner ${dShort(it.d)}`;
+    case 'grocery': return `remove “${it.title}” from ${P[it.list].name}'s Grocery`;
+    default: return `remove the note “${it.title}”`;
+  }
+}
+
+// ---------- what landed, in words (the echo, C's cards and D's answers share these) ----------
+function what(it) {
+  switch (it.kind) {
+    case 'event': return it.fixed ? `<b>${esc(it.title)}</b> is now ${dShort(it.d)} · ${range(it.s, it.e)}` : `Added <b>${esc(it.title)}</b> to Us · ${dShort(it.d)} · ${range(it.s, it.e)}`;
+    case 'note': return `Note for ${dShort(it.d)}: <b>${esc(it.title)}</b>`;
+    case 'later': return `<b>${esc(it.title)}</b> went to Later`;
+    case 'grocery': return `<b>${esc(it.title)}</b> is on ${P[it.list].name}'s Grocery list`;
+    case 'dinner': return `Dinner ${dShort(it.d)}: <b>${esc(it.title)}</b>${it.replaces ? ` (was ${esc(it.replaces)})` : ''}`;
+  }
+}
+function guessTxt(it) {
+  const g = [];
+  if (it.guessed.ap) g.push(it.guessed.ap);
+  if (it.guessed.len) g.push('1 hour');
+  if (it.guessed.day) g.push(it.d === 0 ? 'today' : it.d === 1 ? 'tomorrow' : dShort(it.d));
+  if (it.guessed.kind) g.push('that it’s dinner');
+  return g.length ? `Guessed ${g.length > 1 ? `${g.slice(0, -1).join(', ')} and ${g[g.length - 1]}` : g[0]}.` : '';
+}
+function clashTxt(it) {
+  if (it.kind !== 'event' || it.undone) return '';
+  const o = clashesOf(evById(it.id))[0];
+  return o ? `Overlaps ${o.p === 'us' ? esc(o.t) : `${P[o.p].name}’s ${esc(o.work ? 'work' : o.t)}`}, ${range(o.s, o.e)}.` : '';
+}
+function alts(it) {
+  if (it.undone) return [];
+  if (it.kind === 'event' && it.guessed.ap) return [{ act: 'flip', label: `${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'} instead` }];
+  if (it.kind === 'dinner' && it.guessed.kind) return [{ act: 'tonote', label: 'A note instead' }];
+  return [];
+}
+const undoneTxt = it => it.kind === 'dinner' ? (it.replaces ? `Dinner ${dShort(it.d)} is <b>${esc(it.replaces)}</b> again.` : `Took <b>${esc(it.title)}</b> off ${dShort(it.d)}.`) : `Took <b>${esc(it.title)}</b> off.`;
+const canChange = it => !it.undone && (it.kind === 'event' || it.kind === 'note');
+const ix = it => S.items.indexOf(it);
+function itemButtons(it, cls) {
+  if (it.undone) return '';
+  return alts(it).map(a => `<button class="${cls} a alt" data-act="${a.act}" data-arg="${ix(it)}">${a.label}</button>`).join('') +
+    (canChange(it) ? `<button class="${cls} o" data-act="change" data-arg="${ix(it)}">Change</button>` : '') +
+    `<button class="${cls}" data-act="undo" data-arg="${ix(it)}">Undo</button>`;
+}
+
+// ---------- the board ----------
+function rowHTML(e, extra = '') {
+  const fl = S.flash.has(e.id) ? ' flash' : '';
+  const when = e.work ? `${hh(e.s)} to ${hh(e.e)}` : tmS(e.s);
+  return `<button class="ev${e.work ? ' work' : ''}${fl}" data-act="open" data-arg="${e.id}" ${fl ? 'data-keep' : ''} style="--c:${P[e.p].c}"><span class="barc"></span>
+    <span><span class="tm">${when}<span class="who">${P[e.p].name}</span>${clashesOf(e).length ? OVL : ''}${extra}</span><span class="tt clamp2">${esc(e.work ? 'At work' : e.t)}</span></span></button>`;
+}
+const adHTML = e => `<button class="ev ad" data-act="open" data-arg="${e.id}" data-keep style="--c:${P[e.p].c}"><span class="barc"></span><span class="tt clamp2">${esc(e.t)}</span></button>`;
+const noteHTML = n => `<div class="note${S.flash.has(n.id) ? ' flash' : ''}" data-act="open" data-arg="${n.id}"><span class="ring"></span><span class="clamp2">${esc(n.t)}</span></div>`;
+const laterHTML = () => M.later.length ? `<div class="laterln${S.flash.has('later') ? ' flash' : ''}">Later (${M.later.length}) ›</div>` : '';
+const dayEvents = d => M.events.filter(e => !e.allDay && e.d === d && (d > 0 || e.e > NOW)).sort((a, b) => a.s - b.s);
+
+// C: the field inside a day, and the cards that land in place
+function cField(d) {
+  const ph = wall() ? (d === 0 ? 'Add to today…' : `Add to ${DOWL[dateOf(d).getDay()]}…`) : (d === 0 ? 'Add to today…' : `Add to ${DOWL[dateOf(d).getDay()]}…`);
+  return `<div class="cfield" data-act="noop"><textarea class="fld" id="fld" rows="2" enterkeyhint="go" placeholder="${ph}" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+    <div class="stat" id="stat">${statTxt()}</div>
+    <div class="crow"><button class="btn" data-act="cancel">Cancel</button><button class="btn dark" data-act="send">Add</button></div></div>`;
+}
+function cardHTML(it) {
+  const g = guessTxt(it), c = clashTxt(it);
+  if (it.undone) return `<div class="card" data-act="noop" data-keep><span class="cw">${undoneTxt(it)}</span></div>`;
+  const head = it.kind === 'event' ? 'Added to Us' : it.kind === 'note' ? 'New note' : it.kind === 'dinner' ? 'Dinner' : it.kind === 'later' ? 'Went to Later' : `On ${P[it.list].name}'s Grocery list`;
+  const when = it.kind === 'event' ? `${dShort(it.d)} · ${range(it.s, it.e)}` : it.kind === 'note' || it.kind === 'dinner' ? dShort(it.d) : '';
+  return `<div class="card" data-act="noop" data-keep><span class="ch">${head}${it.fixed ? ' · changed' : ''}</span><span class="ct">${esc(it.title)}</span>
+    ${when ? `<span class="cw">${when}${it.kind === 'dinner' && it.replaces ? `, in place of ${esc(it.replaces)}` : ''}</span>` : ''}
+    ${g ? `<span class="g">${g}</span>` : ''}${c ? `<span class="cl">${c}</span>` : ''}
+    <div class="bts">${itemButtons(it, 'btn')}</div></div>`;
+}
+// Where a C card shows: on its own day if that day is on screen, else where you typed.
+function cardsFor(d, place) {
+  const days = wall() ? 4 : 7;
+  return S.cards.filter(c => {
+    const it = c.it, onScreen = (it.kind === 'event' || it.kind === 'note' || it.kind === 'dinner') && it.d < days;
+    if (place === 'top') return (onScreen ? false : c.src === d);
+    if (!onScreen || it.d !== d) return false;
+    return place === 'note' ? it.kind === 'note' : place === 'dinner' ? it.kind === 'dinner' : place === it.id && !it.undone;
+  });
+}
+function rowsWithCards(d, rowFn) {
+  const cardIds = new Set(S.cards.filter(c => !c.it.undone).map(c => c.it.id));
+  return dayEvents(d).map(e => cardIds.has(e.id) ? cardsFor(d, e.id).map(c => cardHTML(c.it)).join('') : rowFn(e)).join('') +
+    S.cards.filter(c => c.it.undone && c.it.kind === 'event' && c.it.d === d && c.it.d < (wall() ? 4 : 7)).map(c => cardHTML(c.it)).join('');
+}
+function wallBoard() {
+  const today = dayEvents(0), next = today.find(e => e.s > NOW);
+  const band = next ? `<button class="band" data-act="open" data-arg="${next.id}" style="--c:${P[next.p].c}"><span class="barc"></span>
+      <span><span class="lab">Next · ${P[next.p].name}</span><span class="line clamp2"><span class="t">${tmS(next.s)}</span>${esc(next.t)}</span></span>
+      <span class="side"><span class="clock">${tmS(NOW)}</span><span class="date">Sat, Oct 31</span><span class="wx">55° <span class="lo">40°</span></span></span></button>`
+    : `<div class="band"><span></span><span class="line">Nothing else today</span><span class="side"><span class="clock">${tmS(NOW)}</span></span></div>`;
+  const cols = [0, 1, 2, 3].map(d => {
+    const C = S.v === 'c', field = C && S.add && S.add.col === d ? cField(d) : '';
+    const top = C ? cardsFor(d, 'top').map(c => cardHTML(c.it)).join('') : '';
+    const notes = M.notes.filter(n => n.d === d && !(C && cardsFor(d, 'note').some(c => c.it.id === n.id))).map(noteHTML).join('') +
+      (C ? cardsFor(d, 'note').map(c => cardHTML(c.it)).join('') : '') + (d === 0 ? laterHTML() : '');
+    const ad = M.events.filter(e => e.allDay && e.d === d).map(adHTML).join('');
+    const rows = C ? rowsWithCards(d, e => rowHTML(e)) : dayEvents(d).map(e => rowHTML(e)).join('');
+    const dcard = C ? cardsFor(d, 'dinner').map(c => cardHTML(c.it)).join('') : '';
+    const dfl = S.flash.has(`dinner${d}`) ? ' flash' : '';
+    return `<div class="col" data-act="addday" data-arg="${d}"><div class="hd"><span class="dn">${d === 0 ? 'Today' : `${DOW[dateOf(d).getDay()]} ${dateOf(d).getDate()}`}</span><span class="hl">${[55, 58, 63, 60][d]}° ${[40, 39, 45, 42][d]}°</span></div>
+      ${field}${top}${notes}<div class="list" data-fit>${ad}${rows}${dcard}</div>
+      <div class="dinner${dfl}"><span class="lab">Dinner</span><span class="clamp1">${esc(M.dinners[d] || 'Not planned')}</span></div></div>`;
+  }).join('');
+  return `<div class="wb">${band}<div class="cols">${cols}</div></div><button class="fab" data-act="plus" aria-label="Add">${PLUS}</button>`;
+}
+function phoneBoard() {
+  const strip = [0, 1, 2, 3, 4, 5, 6].map(d => {
+    const evs = M.events.filter(e => e.d === d && !e.work).slice(0, 4);
+    return `<button class="sd${d === (S.stripDay || 0) ? ' on' : ''}" data-act="jump" data-arg="${d}">${DOW[dateOf(d).getDay()]}<span class="num">${dateOf(d).getDate()}</span><span class="dots">${evs.map(e => `<i style="--c:${P[e.p].c}"></i>`).join('')}</span></button>`;
+  }).join('');
+  const C = S.v === 'c';
+  const days = [0, 1, 2, 3, 4, 5, 6].map(d => {
+    const field = C && S.add && S.add.col === d ? cField(d) : '';
+    const top = C ? cardsFor(d, 'top').map(c => cardHTML(c.it)).join('') : '';
+    const notes = M.notes.filter(n => n.d === d && !(C && cardsFor(d, 'note').some(c => c.it.id === n.id))).map(noteHTML).join('') +
+      (C ? cardsFor(d, 'note').map(c => cardHTML(c.it)).join('') : '') + (d === 0 ? laterHTML() : '');
+    const ad = M.events.filter(e => e.allDay && e.d === d).map(adHTML).join('');
+    const rows = C ? rowsWithCards(d, e => rowHTML(e)) : dayEvents(d).map(e => rowHTML(e)).join('');
+    const dcard = C ? cardsFor(d, 'dinner').map(c => cardHTML(c.it)).join('') : '';
+    const din = M.dinners[d] ? `<div class="dinner${S.flash.has(`dinner${d}`) ? ' flash' : ''}">Dinner · <b>${esc(M.dinners[d])}</b></div>` : '';
+    const label = d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : DOWL[dateOf(d).getDay()];
+    return `<div class="day" id="day${d}" data-act="${C ? 'addday' : 'noop'}" data-arg="${d}"><div class="dh"><span>${label}<span class="dd">${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</span></span>${C ? `<button class="plus" data-act="addday" data-arg="${d}" aria-label="Add to ${label}">${PLUS}</button>` : ''}</div>
+      ${field}${top}<div class="rows">${notes}${ad}${rows}${dcard}</div>${din}</div>`;
+  }).join('');
+  return `<div class="pb"><div class="app"><span>☰ <span>House board</span></span>${GEAR}</div><div class="strip">${strip}</div>
+    <div class="lst" id="lst">${days}</div><div class="tabs"><span class="on"><i></i>Upcoming</span><span><i></i>Month</span><span><i></i>Lists</span></div></div>
+    <button class="fab" data-act="plus" aria-label="Add">${PLUS}</button>`;
+}
+function renderBoard() {
+  const b = $('board'); if (!b) return;
+  const keepScroll = $('lst') ? $('lst').scrollTop : 0;
+  b.innerHTML = wall() ? wallBoard() : phoneBoard();
+  if ($('lst')) $('lst').scrollTop = keepScroll;
+  fitColumns(b);
+}
+// Full day columns drop rows from the end ("+N more"), never the one just added.
+function fitColumns(root) {
+  for (const box of root.querySelectorAll('[data-fit]')) {
+    const rows = [...box.children].filter(el => el.classList.contains('ev') && !el.hasAttribute('data-keep'));
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1 && rows.length) {
+      rows.pop().remove(); hidden++;
+      if (!more.isConnected) box.appendChild(more);
+      more.textContent = `+${hidden} more`;
+    }
+  }
+}
+
+// ---------- the add surfaces ----------
+const chip = () => S.add && S.add.from != null ? `<div class="daychip">Adding to ${dShort(S.add.from)}, unless you say another day</div>` : '';
+function statTxt() {
+  const a = S.add; if (!a) return '';
+  if (a.phase === 'filing') return '<span class="spin"></span>Clover is filing it…';
+  if (a.phase === 'failed') return 'Clover didn’t answer, so nothing was added. Your words are still here: press Add to try again.';
+  if (S.v === 'c') return '';
+  return wall() ? 'Type it the way you’d say it: “dentist tue 3”, “milk”, “tacos monday”.' : 'Type it the way you’d say it: “dentist tue 3”, “milk”.';
+}
+const FLD = (hint, ph) => `<textarea class="fld" id="fld" rows="1" enterkeyhint="${hint}" placeholder="${ph}" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>`;
+function surfA() {
+  return `<div class="scrim light" data-act="cancel"></div><div class="abar hide" id="surf">${chip()}
+    <div class="arow">${FLD('go', 'What should Clover add?')}<button class="btn dark" data-act="send">Add</button><button class="btn x" data-act="cancel" aria-label="Close">✕</button></div>
+    <div class="stat" id="stat">${statTxt()}</div></div>`;
+}
+function surfB() {
+  return `<div class="scrim light" data-act="cancel"></div><div class="bcard hide" id="surf">
+    <div class="arow">${FLD('go', 'What should Clover add?')}<button class="btn x" data-act="cancel" aria-label="Close">✕</button></div>${chip()}
+    <div class="pv" id="pv">${pvHTML()}</div>
+    <button class="btn dark" id="addb" data-act="send">${addLabel()}</button></div>`;
+}
+function addLabel() { const n = S.add?.preview?.length || 0; return n > 1 ? `Add all ${n}` : 'Add'; }
+function pvHTML() {
+  const a = S.add; if (!a) return '';
+  if (a.phase === 'failed') return `<div class="stat bad">Clover didn’t answer, so nothing was added. Your words are still here: press Add to try again.</div>`;
+  if (a.phase === 'filing') return `<div class="stat"><span class="spin"></span>Clover is filing it…</div>`;
+  if (a.grid) return pvGrid();
+  if (a.phase === 'reading') return `<div class="stat"><span class="spin"></span>Reading…</div>`;
+  if (!a.preview || !a.preview.length) return `<div class="stat">Clover’s reading shows here before anything is added. Tap any part to change it.</div>`;
+  return `<div class="pvh">Clover reads it as</div>` + a.preview.map((it, i) => {
+    const kind = it.kind === 'event' ? 'An event on Us' : it.kind === 'note' ? 'A note' : it.kind === 'dinner' ? (it.guessed.kind ? 'Dinner (guessed)' : 'Dinner') : it.kind === 'later' ? 'Later, no day' : `${P[it.list].name}'s Grocery list`;
+    let parts = `<span class="kind">${kind}</span><span class="ttl">${esc(it.title)}</span>`;
+    if (it.kind === 'event' || it.kind === 'note' || it.kind === 'dinner')
+      parts += `<button class="chip${it.guessed.day ? ' gs' : ''}" data-act="pvday" data-arg="${i}">${dShort(it.d)}${it.guessed.day ? '<small>guessed</small>' : ''}</button>`;
+    if (it.kind === 'event')
+      parts += `<button class="chip${it.guessed.ap || it.guessed.len ? ' gs' : ''}" data-act="pvtime" data-arg="${i}">${range(it.s, it.e)}${it.guessed.ap || it.guessed.len ? `<small>guessed ${[it.guessed.ap, it.guessed.len ? '1 hr' : ''].filter(Boolean).join(', ')}</small>` : ''}</button>`;
+    if (it.kind === 'dinner' && it.replaces) parts += `<span class="g">in place of ${esc(it.replaces)}</span>`;
+    if (it.kind === 'event' && it.guessed.ap) parts += `<button class="btn alt" data-act="pvflip" data-arg="${i}">${hh(it.s)} ${ap(it.s) === 'pm' ? 'am' : 'pm'} instead</button>`;
+    if (it.kind === 'dinner' && it.guessed.kind) parts += `<button class="btn alt" data-act="pvnote" data-arg="${i}">A note instead</button>`;
+    const c = it.kind === 'event' ? previewClash(it) : '';
+    return `<div class="pvi">${parts}${c ? `<span class="cl">${c}</span>` : ''}</div>`;
+  }).join('');
+}
+function previewClash(it) {
+  const o = clashesOf({ p: 'us', d: it.d, s: it.s, e: it.e })[0];
+  return o ? `Would overlap ${P[o.p].name}’s ${esc(o.work ? 'work' : o.t)}, ${range(o.s, o.e)}.` : '';
+}
+function pvGrid() {
+  const g = S.add.grid, it = S.add.preview[g.i];
+  if (g.kind === 'day') return dayGridHTML(it.d, 'pvpickday', 'Which day?', 'pvgridx');
+  if (g.kind === 'hour') return hourGridHTML(Math.floor(it.s / 60), 'pvpickhour', 'pvgridx');
+  return minGridHTML(g.h, it.s % 60, 'pvpickmin', 'pvgridx');
+}
+function surfD() {
+  return `<div class="scrim light" data-act="cancel"></div><div class="dpanel hide" id="surf"><div class="dhd"><span>Clover</span><button class="btn" data-act="cancel">Done</button></div>${chip()}
+    <div class="tx" id="tx">${txHTML()}</div>
+    <div class="dcomp">${FLD('send', 'Tell Clover…')}<button class="btn dark" data-act="send">Send</button></div></div>`;
+}
+function txHTML() {
+  const c = S.add?.convo || [];
+  if (!c.length) return `<div class="hint">Tell Clover what to add, the way you’d say it. If Clover gets it wrong, just say so: “no, morning”, “make it Wednesday”, “undo that”.</div>`;
+  const seen = new Set(), live = new Map();
+  for (let i = c.length - 1; i >= 0; i--) for (const it of c[i].items || []) if (!seen.has(it)) { seen.add(it); live.set(c[i], [...(live.get(c[i]) || []), it]); }
+  return c.map(m => {
+    if (m.who === 'you') return `<div class="you">${esc(m.text)}</div>`;
+    if (m.pending) return `<div class="cv"><span><span class="spin"></span>…</span></div>`;
+    if (m.bad) return `<div class="cv bad">${m.text}</div>`;
+    if (m.text) return `<div class="cv">${m.text}</div>`;
+    return m.items.map((it, k) => {
+      if (!(live.get(m) || []).includes(it)) return `<div class="cv">${m.snap[k]}</div>`;
+      const g = guessTxt(it), cl = clashTxt(it);
+      if (it.undone) return `<div class="cv"><span>${undoneTxt(it)}</span></div>`;
+      return `<div class="cv"><span>${m.fix ? 'Changed it: ' : ''}${what(it)}.</span>${g ? `<span class="sub">${g}${it.guessed.ap ? ' Say “morning” or “evening” to switch.' : ''}</span>` : ''}${cl ? `<span class="sub cl">${cl}</span>` : ''}<div class="bts">${itemButtons(it, 'btn')}</div></div>`;
+    }).join('');
+  }).join('');
+}
+
+// ---------- the event sheet: a stand-in for the decided one (A, live panel; owner, 2026-10-31) ----------
+function sheetHTML() {
+  const sh = S.sheet; if (!sh) return '';
+  const isNote = sh.kind === 'note', x = isNote ? M.notes.find(n => n.id === sh.id) : evById(sh.id);
+  if (!x) return '';
+  let body;
+  if (!isNote && (x.ro || x.work)) body = `<div class="ro">${x.work ? 'Will shows work as a block. The details are on Will’s phone.' : 'This is on <b>Jenn’s Google calendar</b>, which the board can only read. Change it in Google Calendar on Jenn’s phone.'}</div>`;
+  else if (sh.grid === 'day') body = dayGridHTML(x.d, 'spickday', 'Which day?', 'sgridx');
+  else if (sh.grid === 'hour') body = hourGridHTML(Math.floor(x.s / 60), 'spickhour', 'sgridx');
+  else if (sh.grid === 'min') body = minGridHTML(sh.h, x.s % 60, 'spickmin', 'sgridx');
+  else body = `<div class="lab">${isNote ? 'Note' : 'Title'}</div><textarea class="ttlf" id="sttl" rows="1">${esc(x.t)}</textarea>
+    <div class="lab">Day</div><div class="row"><button class="btn arr" data-act="sday" data-arg="-1" aria-label="A day earlier">‹</button><button class="btn mid" data-act="sgrid" data-arg="day">${dShort(x.d)}</button><button class="btn arr" data-act="sday" data-arg="1" aria-label="A day later">›</button></div>
+    ${isNote ? '' : `<div class="lab">Starts (‹ › move it 15 min)</div><div class="row"><button class="btn arr" data-act="stime" data-arg="-15" aria-label="15 minutes earlier">‹</button><button class="btn mid" data-act="sgrid" data-arg="hour">${tm(x.s)}<small>to ${tm(x.e)}</small></button><button class="btn arr" data-act="stime" data-arg="15" aria-label="15 minutes later">›</button></div>`}
+    <button class="btn danger" data-act="sdel">${isNote ? 'Clear the note' : 'Delete from the calendar'}</button>${isNote ? '' : '<button class="btn plain" data-act="sclose">Hide from the board</button>'}`;
+  return `<div class="scrim" data-act="sclose"></div><div class="sheet hide" id="sheet"><div class="top"><span class="person">${isNote ? 'Us notes' : P[x.p].name}</span><button class="btn" data-act="sclose">Done</button></div>${body}</div>`;
+}
+function dayGridHTML(cur, act, title, back) {
+  return `<div class="grid"><div class="gt">${title}<button class="btn" data-act="${back}" style="min-height:var(--gb);padding:0 16px">Back</button></div><div class="cells" style="grid-template-columns:repeat(7,1fr)">${
+    Array.from({ length: 14 }, (_, d) => `<button class="cell${d === cur ? ' cur' : ''}" data-act="${act}" data-arg="${d}">${d === 0 ? 'Today' : DOW[dateOf(d).getDay()]}<small>${MON[dateOf(d).getMonth()]} ${dateOf(d).getDate()}</small></button>`).join('')}</div></div>`;
+}
+function hourGridHTML(curH, act, back) {
+  return `<div class="grid"><div class="gt">What time?<button class="btn" data-act="${back}" style="min-height:var(--gb);padding:0 16px">Back</button></div><div class="cells" style="grid-template-columns:repeat(6,1fr)">${
+    Array.from({ length: 18 }, (_, i) => i + 6).map(h => `<button class="cell${h === curH ? ' cur' : ''}" data-act="${act}" data-arg="${h}">${h % 12 || 12}<small>${h < 12 ? 'am' : 'pm'}</small></button>`).join('')}</div></div>`;
+}
+function minGridHTML(h, curM, act, back) {
+  return `<div class="grid"><div class="gt">${h % 12 || 12} ${h < 12 ? 'am' : 'pm'}, and minutes?<button class="btn" data-act="${back}" style="min-height:var(--gb);padding:0 16px">Back</button></div><div class="cells" style="grid-template-columns:repeat(4,1fr)">${
+    [0, 15, 30, 45].map(mm => `<button class="cell${mm === curM ? ' cur' : ''}" data-act="${act}" data-arg="${mm}">${h % 12 || 12}:${String(mm).padStart(2, '0')}</button>`).join('')}</div></div>`;
+}
+
+// ---------- the stand-in keyboard ----------
+function kbdHTML() {
+  const row = keys => `<div class="r">${keys.split('').map(k => k === '<' ? `<button class="k w gray" data-key="back" aria-label="Delete">⌫</button>` : `<button class="k" data-key="${k}">${k}</button>`).join('')}</div>`;
+  const go = S.v === 'd' ? 'Send' : 'Go';
+  return `<span class="lbl">${wall() ? 'Tablet' : 'iPhone'} keyboard (drawn stand-in)</span>${row('1234567890')}${row('qwertyuiop')}${row('asdfghjkl')}${row('zxcvbnm<')}
+    <div class="r"><button class="k w gray" data-key="mic" aria-label="Dictate">${MIC}</button><button class="k" data-key=",">,</button><button class="k sp" data-key=" ">space</button><button class="k" data-key=":">:</button><button class="k go" data-key="enter">${go}</button></div>`;
+}
+
+// ---------- rendering ----------
+function renderAll() {
+  const frame = $('frame');
+  frame.innerHTML = `<div class="face ${S.dev}" id="face" style="--gb:${wall() ? 56 : 40}px"><div id="board"></div><div id="layer"></div><div id="sheetl"></div><div class="kbd hide" id="kbd">${kbdHTML()}</div><div class="echo hide" id="echo"></div></div>`;
+  layout(); renderBoard(); renderLayer(); renderSheet(); renderKbd(); renderEcho(); renderMeta();
+}
+function reveal(el) { if (!el) return; requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('hide'))); }
+function renderLayer() {
+  const l = $('layer'); if (!l) return;
+  const a = S.add;
+  if (!a || S.v === 'c') { l.innerHTML = ''; return; }
+  const fresh = !$('surf');
+  if (!fresh) return;                 // already up: parts update in place so typing isn't interrupted
+  l.innerHTML = S.v === 'a' ? surfA() : S.v === 'b' ? surfB() : surfD();
+  reveal($('surf'));
+  wireField();
+}
+function closeLayer() { const l = $('layer'); if (l) l.innerHTML = ''; }
+function renderSheet() { const l = $('sheetl'); if (!l) return; const had = !!$('sheet'); l.innerHTML = sheetHTML(); if ($('sheet') && !had) reveal($('sheet')); else if ($('sheet')) $('sheet').classList.remove('hide'); }
+function renderKbd() { const k = $('kbd'); if (k) k.classList.toggle('hide', !S.add); }
+function updateParts() {
+  if ($('stat')) { $('stat').innerHTML = statTxt(); $('stat').classList.toggle('bad', S.add?.phase === 'failed'); }
+  if ($('pv')) $('pv').innerHTML = pvHTML();
+  if ($('addb')) { $('addb').textContent = addLabel(); }
+  if ($('tx')) { $('tx').innerHTML = txHTML(); $('tx').scrollTop = 1e6; }
+}
+function renderEcho() {
+  const el = $('echo'); if (!el) return;
+  const E = S.echo;
+  $('face').classList.toggle('echoing', !!E);
+  if (!E) { el.classList.add('hide'); return; }
+  el.classList.toggle('multi', !!(E.items && E.items.length > 1));
+  if (E.items) {
+    const multi = E.items.length > 1, cls = 'ub';
+    const line = it => {
+      if (it.undone) return `<span class="w">${undoneTxt(it)}</span>`;
+      const g = guessTxt(it), c = clashTxt(it);
+      return `<span class="w">${what(it)}${g ? `<span class="sub">${g}</span>` : ''}${c ? `<span class="sub cl">${c}</span>` : ''}</span>`;
+    };
+    el.innerHTML = multi
+      ? `<div class="lines">${E.items.map(it => `<div class="ln">${line(it)}<span class="bts">${itemButtons(it, cls)}</span></div>`).join('')}</div>`
+      : `<div class="lines"><div class="ln">${line(E.items[0])}</div></div><span class="bts">${itemButtons(E.items[0], cls)}</span>`;
+  } else {
+    el.innerHTML = `<div class="lines"><div class="ln"><span class="w">${E.text}</span></div></div>${E.before ? '<span class="bts"><button class="ub" data-act="sundo">Undo</button></span>' : ''}`;
+  }
+  el.classList.remove('hide');
+}
+function say(E) {
+  S.echo = E; renderEcho(); armEcho();
+}
+function armEcho() {
+  clearTimeout(echoTimer);
+  echoTimer = setTimeout(() => { S.echo = null; S.flash.clear(); renderEcho(); if (!S.add) renderBoard(); }, 10000);
+}
+function writeLog(line) { S.log.unshift(line); S.log = S.log.slice(0, 6); renderMeta(); }
+function renderMeta() {
+  const el = $('meta'); if (!el) return;
+  $('cnt').textContent = S.scen === 'free' ? '' : `Touches: ${S.taps}`;
+  el.innerHTML = `<b>What the board would write</b> (made-up data; nothing is saved):${S.log.length ? `<ol>${S.log.map(l => `<li>${esc(l)}</li>`).join('')}</ol>` : ' nothing yet.'}`;
+  const tb = $('typeit'); if (tb) { tb.disabled = !S.add || S.add.phase === 'filing'; tb.textContent = S.add ? `Type “${SCEN[S.scen].line}” for me` : 'Tap + or a day first'; }
+}
+
+// ---------- the field ----------
+const touch = matchMedia('(pointer: coarse)').matches;
+function wireField() {
+  const f = $('fld'); if (!f) return;
+  if (touch) f.setAttribute('inputmode', 'none');   // the drawn keyboard stands in; the phone's own stays down
+  f.value = S.add.text || '';
+  grow(f);
+  f.addEventListener('input', () => { S.add.text = f.value; grow(f); onTyped(); });
+  f.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); S.taps++; send(); } });
+  if (!touch) setTimeout(() => f.focus({ preventScroll: true }), 30);
+}
+function grow(f) { f.style.height = 'auto'; f.style.height = `${f.scrollHeight + 6}px`; }
+function onTyped() {
+  const a = S.add; if (!a) return;
+  if (a.phase === 'failed') { a.phase = 'typing'; updateParts(); }
+  if (S.v !== 'b') return;
+  a.grid = null;
+  clearTimeout(readTimer);
+  if (!a.text.trim()) { a.preview = null; a.phase = 'typing'; updateParts(); return; }
+  a.phase = 'reading'; updateParts();
+  readTimer = setTimeout(() => { if (!S.add) return; a.preview = readLine(a.text, a.from); a.phase = 'typing'; updateParts(); }, 700);
+}
+function typeKey(k) {
+  const f = $('fld'); if (!f || !S.add) return;
+  if (k === 'enter') { S.taps++; send(); return; }
+  if (k === 'mic') { const st = $('stat') || $('pv'); if (st && S.v !== 'd') st.innerHTML = 'Dictation goes through the keyboard’s own microphone key (not drawn here).'; return; }
+  f.value = k === 'back' ? f.value.slice(0, -1) : f.value + k;
+  S.add.text = f.value; grow(f); onTyped();
+}
+
+// ---------- adding ----------
+function openAdd(from) {
+  if (S.sheet) return;
+  if (S.add) { if (S.v === 'c' && from !== S.add.col && S.add.phase !== 'filing') { closeAdd(); } else return; }
+  S.echo = null; renderEcho();
+  S.add = { from: S.v === 'c' ? (from ?? 0) : from, col: from ?? 0, phase: 'typing', text: '', preview: null, grid: null, convo: [], counted: '' };
+  if (S.v === 'c') {
+    renderBoard(); wireField();
+    if (!wall()) scrollToDay(S.add.col);
+  } else renderLayer();
+  renderKbd(); renderMeta();
+}
+function closeAdd() {
+  clearTimeout(readTimer);
+  const surf = $('surf');
+  S.add = null; renderKbd(); renderMeta();
+  if (S.v === 'c') renderBoard();
+  else if (surf) { surf.classList.add('hide'); setTimeout(closeLayer, 200); }
+}
+function send() {
+  const a = S.add; if (!a) return;
+  const f = $('fld'), text = (f ? f.value : a.text).trim();
+  if (!text || a.phase === 'filing') return;
+  if (a.counted !== text) { S.taps++; a.counted = text; }      // the typed line counts as one touch
+  if (S.v === 'd') return sendD(text);
+  const items = S.v === 'b' && a.preview && a.phase !== 'reading' ? a.preview : null;
+  a.phase = 'filing'; a.grid = null; updateParts(); renderMeta();
+  setTimeout(() => {
+    if (S.add !== a) return;
+    if (S.fail) { a.phase = 'failed'; updateParts(); renderMeta(); writeLog(`Clover: no answer; nothing written, “${text}” kept in the box`); return; }
+    const filed = (items || readLine(text, a.from)).map(file);
+    landed(filed, a);
+  }, S.fail ? FAIL_MS : FILE_MS);
+}
+function landed(filed, a) {
+  if (S.v === 'c') {
+    S.cards = filed.map(it => ({ it, src: a.col }));
+    S.add = null; renderKbd(); renderBoard(); renderMeta();
+    scrollToCard();
+    clearTimeout(cardTimer); cardTimer = setTimeout(() => { S.cards = []; S.flash.clear(); renderBoard(); }, 10000);
+    return;
+  }
+  closeAdd(); renderBoard();
+  say({ items: filed });
+}
+function scrollToDay(d) { const day = $(`day${d}`), lst = $('lst'); if (day && lst) lst.scrollTop = day.offsetTop - lst.offsetTop - 4; }
+function scrollToCard() {
+  if (wall()) return;
+  const card = document.querySelector('.pb .card'); const lst = $('lst');
+  let y = 0; for (let el = card; el && el !== lst; el = el.offsetParent) y += el.offsetTop;
+  if (card && lst) lst.scrollTop = Math.max(0, y - lst.offsetTop - 90);
+}
+function sendD(text) {
+  const a = S.add, f = $('fld');
+  a.convo.push({ who: 'you', text }); const reply = { who: 'clover', pending: true }; a.convo.push(reply);
+  if (f) { f.value = ''; a.text = ''; grow(f); }
+  a.phase = 'filing'; updateParts();
+  setTimeout(() => {
+    if (S.add !== a) return;
+    reply.pending = false; a.phase = 'typing';
+    if (S.fail) {
+      reply.bad = true; reply.text = 'I couldn’t reach the board, so nothing was added. Your words are back in the box: press Send to try again.';
+      if ($('fld')) { $('fld').value = text; a.text = text; grow($('fld')); }
+      writeLog(`Clover: no answer; nothing written, “${text}” kept in the box`);
+      updateParts(); return;
+    }
+    const last = [...S.items].reverse().find(it => a.convo.some(m => m.items && m.items.includes(it)));
+    const fix = readFix(text, last);
+    if (fix && fix.undo) {
+      if (last && !last.undone) { unfile(last); reply.text = undoneTxt(last); } else reply.text = 'There’s nothing to undo.';
+    } else if (fix && last) { applyFix(last, fix); reply.items = [last]; reply.fix = true; S.flash.add(flashKey(last)); }
+    else reply.items = readLine(text, a.from).map(file);
+    if (reply.items) reply.snap = reply.items.map(it => `<span>${what(it)}.</span>${guessTxt(it) ? `<span class="sub">${guessTxt(it)}</span>` : ''}`);
+    renderBoard(); updateParts();
+  }, S.fail ? FAIL_MS : FILE_MS);
+}
+
+// ---------- the sheet ----------
+function openSheet(id) {
+  if (S.add) return;
+  const isNote = M.notes.some(n => n.id === id);
+  if (!isNote && !evById(id)) return;
+  S.sheet = { id, kind: isNote ? 'note' : 'event', before: clone(M), grid: null };
+  S.echo = null; renderEcho(); renderSheet();
+}
+function sheetObj() { return S.sheet.kind === 'note' ? M.notes.find(n => n.id === S.sheet.id) : evById(S.sheet.id); }
+function closeSheet() {
+  const sh = S.sheet; if (!sh) return;
+  const x = sheetObj(), t = $('sttl');
+  if (x && t && t.value.trim() && t.value.trim() !== x.t) x.t = t.value.trim();
+  const before = sh.before, changed = JSON.stringify(before) !== JSON.stringify(M);
+  S.sheet = null;
+  const el = $('sheet'); if (el) el.classList.add('hide');
+  setTimeout(renderSheet, 200);
+  renderBoard();
+  if (changed && x) {
+    if (sh.kind === 'event') {
+      const it = S.items.find(i => i.id === x.id); if (it) { it.d = x.d; it.s = x.s; it.e = x.e; it.title = x.t; it.guessed = {}; it.fixed = true; }
+      writeLog(`Change: “${x.t}” to ${dShort(x.d)}, ${range(x.s, x.e)} (the board's write path)`);
+      S.flash.add(x.id); renderBoard();
+      say({ text: `Changed <b>${esc(x.t)}</b>: ${dShort(x.d)}, ${range(x.s, x.e)}`, before });
+    } else { writeLog(`Change: note “${x.t}” to ${dShort(x.d)}`); say({ text: `Changed the note <b>${esc(x.t)}</b>: ${dShort(x.d)}`, before }); }
+  } else if (changed && !x) say({ text: 'Deleted.', before });
+}
+
+// ---------- taps ----------
+const ACT = {
+  noop() {},
+  plus() { openAdd(!wall() && S.stripDay ? S.stripDay : null); },   // on a phone, + adds to the day picked in the strip
+  addday(d) { if (S.add && S.v !== 'c') return; openAdd(+d); },
+  jump(d) { S.stripDay = +d; scrollToDay(+d); for (const b of document.querySelectorAll('.sd')) b.classList.toggle('on', b.dataset.arg === d); },
+  cancel() { closeAdd(); },
+  send() { send(); },
+  open(id) { if (S.add) { if (S.v === 'c') closeAdd(); return; } openSheet(id); },
+  undo(i) { const it = S.items[+i]; unfile(it); afterItemChange(); },
+  flip(i) { const it = S.items[+i]; flip(it); S.flash.add(flashKey(it)); afterItemChange(); },
+  tonote(i) { const it = S.items[+i]; toNote(it); afterItemChange(); },
+  change(i) {
+    const it = S.items[+i]; if (S.add && S.v === 'd') closeAdd();
+    S.cards = []; S.echo = null; renderEcho(); renderBoard(); openSheet(it.id);
+  },
+  // B's chips
+  pvflip(i) { const it = S.add.preview[+i]; const dl = ap(it.s) === 'pm' ? -720 : 720; it.s += dl; it.e += dl; delete it.guessed.ap; updateParts(); },
+  pvnote(i) { const it = S.add.preview[+i]; it.kind = 'note'; delete it.guessed.kind; updateParts(); },
+  pvday(i) { S.add.grid = { kind: 'day', i: +i }; updateParts(); },
+  pvtime(i) { S.add.grid = { kind: 'hour', i: +i }; updateParts(); },
+  pvgridx() { S.add.grid = null; updateParts(); },
+  pvpickday(d) { const it = S.add.preview[S.add.grid.i]; it.d = +d; delete it.guessed.day; if (it.kind === 'dinner') it.replaces = M.dinners[it.d] || ''; S.add.grid = null; updateParts(); },
+  pvpickhour(h) { S.add.grid = { kind: 'min', i: S.add.grid.i, h: +h }; updateParts(); },
+  pvpickmin(mm) { const it = S.add.preview[S.add.grid.i], len = it.e - it.s; it.s = S.add.grid.h * 60 + +mm; it.e = it.s + len; delete it.guessed.ap; S.add.grid = null; updateParts(); },
+  // the sheet
+  sclose() { closeSheet(); },
+  sday(n) { const x = sheetObj(); x.d = Math.max(0, x.d + +n); renderSheet(); renderBoard(); },
+  stime(n) { const x = sheetObj(); x.s += +n; x.e += +n; renderSheet(); renderBoard(); },
+  sgrid(k) { S.sheet.grid = k; renderSheet(); },
+  sgridx() { S.sheet.grid = null; renderSheet(); },
+  spickday(d) { sheetObj().d = +d; S.sheet.grid = null; renderSheet(); renderBoard(); },
+  spickhour(h) { S.sheet.grid = 'min'; S.sheet.h = +h; renderSheet(); },
+  spickmin(mm) { const x = sheetObj(), len = x.e - x.s; x.s = S.sheet.h * 60 + +mm; x.e = x.s + len; S.sheet.grid = null; renderSheet(); renderBoard(); },
+  sdel() {
+    const sh = S.sheet, x = sheetObj();
+    if (sh.kind === 'note') M.notes = M.notes.filter(n => n.id !== sh.id); else M.events = M.events.filter(e => e.id !== sh.id);
+    const it = S.items.find(i => i.id === sh.id); if (it) it.undone = true;
+    writeLog(sh.kind === 'note' ? `Clear the note “${x.t}”` : `Delete “${x.t}” through the board's write path`);
+    S.sheet = null; renderSheet(); renderBoard(); say({ text: `Deleted <b>${esc(x.t)}</b>, ${dShort(x.d)}${sh.kind === 'note' ? '' : `, ${tm(x.s)}`}`, before: sh.before });
+  },
+  sundo() { if (S.echo?.before) { M = S.echo.before; writeLog('Undo: put it back as it was'); } S.echo = null; renderEcho(); renderBoard(); },
+};
+function afterItemChange() {
+  renderBoard(); renderMeta();
+  if (S.echo?.items) { renderEcho(); armEcho(); }
+  if ($('tx')) updateParts();
+  if (S.v === 'c' && S.cards.length) { clearTimeout(cardTimer); cardTimer = setTimeout(() => { S.cards = []; S.flash.clear(); renderBoard(); }, 10000); }
+}
+function onTap(ev) {
+  const k = ev.target.closest('[data-key]');
+  if (k) { ev.preventDefault(); typeKey(k.dataset.key); return; }
+  const el = ev.target.closest('[data-act]'); if (!el || !$('face').contains(el)) return;
+  const act = el.dataset.act;
+  if (act !== 'noop' && !(act === 'addday' && S.add && S.v !== 'c')) S.taps++;
+  ACT[act]?.(el.dataset.arg);
+  renderMeta();
+}
+
+// ---------- viewer ----------
+function readHash() {
+  const parts = (location.hash || '').replace('#', '').split('-');
+  if (VARIANTS[parts[0]]) S.v = parts[0];
+  if (DEVS[parts[1]]) S.dev = parts[1];
+  if (SCEN[parts[2]]) S.scen = parts[2];
+  S.shot = parts.includes('shot');
+}
+function writeHash() { const h = `#${S.v}-${S.dev}-${S.scen}${S.shot ? '-shot' : ''}`; if (location.hash !== h) history.replaceState(null, '', h); }
+function layout() {
+  const frame = $('frame'), face = $('face'); if (!face) return;
+  const D = DEVS[S.dev];
+  const avail = Math.max(280, Math.min(document.documentElement.clientWidth - 28, D.w));
+  const s = S.shot ? 1 : avail / D.w;
+  frame.style.width = `${Math.round(D.w * s)}px`; frame.style.height = `${Math.round(D.h * s)}px`;
+  face.style.transform = `scale(${s})`;
+}
+function resetAll() {
+  clearTimeout(echoTimer); clearTimeout(cardTimer); clearTimeout(readTimer);
+  M = SEED(); seq = 0;
+  Object.assign(S, { add: null, echo: null, cards: [], flash: new Set(), sheet: null, items: [], taps: 0, log: [], stripDay: 0 });
+  S.fail = !!SCEN[S.scen].fail;
+  $('tasktxt').textContent = SCEN[S.scen].task;
+  $('vname').textContent = VARIANTS[S.v].name;
+  $('about').innerHTML = VARIANTS[S.v].about;
+  for (const b of document.querySelectorAll('#devs button')) b.setAttribute('aria-pressed', b.dataset.k === S.dev);
+  $('scen').value = S.scen; $('fail').setAttribute('aria-pressed', S.fail);
+  document.body.classList.toggle('shot', S.shot);
+  writeHash(); renderAll();
+}
+$('devs').innerHTML = Object.entries(DEVS).map(([k, o]) => `<button data-k="${k}" aria-pressed="false">${o.label}</button>`).join('');
+$('devs').addEventListener('click', e0 => { const b = e0.target.closest('button'); if (b) { S.dev = b.dataset.k; resetAll(); } });
+$('scen').innerHTML = Object.entries(SCEN).map(([k, o]) => `<option value="${k}">${o.label}</option>`).join('');
+$('scen').addEventListener('change', e0 => { S.scen = e0.target.value; resetAll(); });
+$('fail').onclick = () => { S.fail = !S.fail; $('fail').setAttribute('aria-pressed', S.fail); };
+$('reset').onclick = () => resetAll();
+$('typeit').onclick = () => {
+  const f = $('fld'); if (!f || !S.add) return;
+  f.value = SCEN[S.scen].line; S.add.text = f.value; grow(f); onTyped();
+};
+$('frame').addEventListener('click', onTap);
+$('frame').addEventListener('pointerdown', e => { if (e.target.closest('[data-key]')) e.preventDefault(); });
+const keys = Object.keys(VARIANTS);
+const step = n => { S.v = keys[(keys.indexOf(S.v) + n + keys.length) % keys.length]; resetAll(); };
+$('prev').onclick = () => step(-1);
+$('next').onclick = () => step(1);
+document.addEventListener('keydown', e0 => {
+  if (e0.target.closest('input, textarea, select, [contenteditable]')) return;
+  if (e0.key === 'ArrowLeft') step(-1); if (e0.key === 'ArrowRight') step(1);
+});
+window.addEventListener('resize', layout);
+window.addEventListener('hashchange', () => { readHash(); resetAll(); });
+if (!location.hash && document.documentElement.clientWidth < 700) S.dev = 'phone';
+readHash(); resetAll();
+</script>
+</body>
+</html>
