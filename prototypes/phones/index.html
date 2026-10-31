@@ -275,6 +275,13 @@ body.shot .phone { border-radius: 0; box-shadow: none }
 .large .M .c { min-height: 42px }
 .large .cell .n { width: 26px; height: 26px; font-size: 16px }
 .large .cell .w { font-size: 10px }
+.large .cell { min-height: 0; padding: 3px 0 4px }
+.large .dots i { width: 4px; height: 4px }
+.large .dots { height: 5px; gap: 2px }
+.large .cnew { width: 5px; height: 5px; top: 1px; right: 1px }
+.large .stripwrap { padding: 4px 4px 4px }
+.large .striphd { padding-bottom: 2px }
+.large .striphd .m { font-size: 16px }
 
 @media (prefers-reduced-motion: reduce) { .sheet, .scrim, .todaychip { transition: opacity .15s !important } .sheet { transform: none; opacity: 0; pointer-events: none } .sheet.on { opacity: 1; pointer-events: auto } }
 </style>
@@ -365,7 +372,7 @@ const REMINDERS = [['Furnace filter: check it', 'today'], ['Smoke and CO detecto
 const TIMES = {
   morning: { label: '7:40 am', now: hm(7, 40), needs: { t: 'Furnace filter: check it today', rem: true }, rain: 'Rain from 2 pm' },
   afternoon: { label: '3:10 pm', now: hm(15, 10), needs: { t: 'Furnace filter: check it today', rem: true }, rain: 'Rain until 9 pm' },
-  evening: { label: '8:50 pm', now: hm(20, 50), needs: { t: 'Tomorrow at 7: Date night and Jenn\'s Dinner with friends overlap' }, rain: null },
+  evening: { label: '8:50 pm', now: hm(20, 50), needs: { t: 'Tomorrow at 7: Date night and Jenn\'s Dinner with friends overlap' }, also: { t: 'Furnace filter: check it today', rem: true }, rain: null },
 };
 const VARIANTS = {
   a: { name: 'A · Upcoming', tabs: ['home', 'month', 'lists'], home: 'Upcoming', icon: 'tab_home',
@@ -431,7 +438,8 @@ function moment() {
   const done = today.filter(e => e.e <= now);
   const handoff = ahead.length === 0 && nowEv.filter(e => !e.work).length === 0 && now >= hm(18);
   const next = handoff ? evsOn(1).find(mine) : ahead.find(mine);
-  const needs = T.needs && !(T.needs.rem && S.needsDone) ? T.needs : null;
+  // On a phone every item that qualifies shows (usually none, sometimes two); the wall shows one.
+  const needs = [T.needs, T.also].filter(n => n && !(n.rem && S.needsDone));
   return { T, now, nowEv, ahead, done, handoff, next, needs, focus: handoff ? 1 : 0 };
 }
 const isNew = e => e.fresh && e.by && e.by !== S.phone;
@@ -441,10 +449,9 @@ const newNotes = () => NOTES.map((n, k) => ({ ...n, k })).filter(n => n.fresh &&
 
 // ---------- shared pieces ----------
 function needsHTML(M) {
-  if (!M.needs) return '';
-  return M.needs.rem
-    ? `<div class="needs rem"><span>${esc(M.needs.t)}</span><button class="ndone" data-needs-done>Mark done</button></div>`
-    : `<div class="needs">${esc(M.needs.t)}</div>`;
+  return M.needs.map(n => n.rem
+    ? `<div class="needs rem"><span>${esc(n.t)}</span><button class="ndone" data-needs-done>Mark done</button></div>`
+    : `<div class="needs">${esc(n.t)}</div>`).join('');
 }
 function newLine() {
   const n = newEvents().length + newNotes().length;
@@ -471,7 +478,7 @@ function mealsRows(i) {
   const m = MEALS[i] || {}, out = [];
   if (m.breakfast) out.push(['Breakfast', m.breakfast]);
   if (m.lunch) out.push(['Lunch', m.lunch]);
-  out.push(['Dinner', m.dinner || '<span class="soft">Not planned</span>']);
+  if (m.dinner || i <= 1) out.push(['Dinner', m.dinner || '<span class="soft">Not planned</span>']);
   return out.map(([k, v], n) => `<div class="meal"${n ? ' style="border-top:0;padding-top:2px"' : ''}><span class="k">${k}</span><span class="v">${v.startsWith('<') ? v : esc(v)}</span></div>`).join('');
 }
 const noteRow = (n, k) => `<button class="note${S.notesDone[k] ? ' done' : ''}" data-note="${k}"><span class="ring"></span>${n.fresh && n.by !== S.phone ? '<span class="newdot"></span>' : ''}${esc(n.t)}</button>`;
@@ -595,7 +602,7 @@ function renderLists() {
   return `<div class="L pad"><div class="hd"><h2>Lists</h2>${gearBtn()}</div>
     <div class="card"><h3>Notes <span class="soft">for both of you</span></h3>${NOTES.map(noteRow).join('')}${laterRows()}</div>
     <div class="card"><h3>Shopping list <span class="soft">${SHOPPING.length} items</span></h3>${SHOPPING.map(s => `<div class="note"><span class="ring"></span>${s}</div>`).join('')}</div>
-    <div class="card"><h3>House reminders</h3>${REMINDERS.map(([t, w], k) => `<div class="row"><span>${t}</span><span class="soft">${k === 0 && S.needsDone ? 'done' : w}</span></div>`).join('')}</div>
+    <div class="card"><h3>House reminders</h3>${REMINDERS.map(([t, w], k) => `<button class="note${k === 0 && S.needsDone ? ' done' : ''}"${k === 0 ? ' data-rem' : ''}><span class="ring"></span><span style="flex:1">${t}</span><span class="soft" style="font-size:14px">${k === 0 && S.needsDone ? 'done' : w}</span></button>`).join('')}</div>
     <div class="pnote">Prototype: what each list holds, and whether the shopping list lives here or in the Home Assistant app's own To-do widget, is the lists question on the map.</div></div>`;
 }
 
@@ -632,7 +639,7 @@ function toast(msg, undo) {
 }
 
 // ---------- the app frame ----------
-const S = { variant: 'e', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, msel: null, mpage: 0, estart: 0, ecur: 0,
+const S = { variant: 'b', time: 'morning', phone: 'will', look: 'light', size: 'normal', tab: null, shot: false, sel: null, msel: null, mpage: 0, estart: 0, ecur: 0,
   notesDone: {}, needsDone: false, laterOpen: false, earlierOpen: false, undo: null };
 const tabOf = () => S.tab || VARIANTS[S.variant].tabs[0];
 function frame() {
@@ -714,6 +721,7 @@ document.addEventListener('click', e => {
     if (!was) toast(`Ticked off: ${NOTES[k].t}`, () => { S.notesDone[k] = false; });
     return;
   }
+  if ('rem' in d) { S.needsDone = !S.needsDone; renderView(); return; }
   if ('needsDone' in d) { S.needsDone = true; renderView(); toast('Furnace filter: marked done', () => { S.needsDone = false; }); return; }
   if ('later' in d) { S.laterOpen = !S.laterOpen; renderView(); return; }
   if ('earlier' in d) { S.earlierOpen = !S.earlierOpen; renderView(); return; }
