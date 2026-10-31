@@ -902,6 +902,7 @@ window.addEventListener('resize', () => { layout(); if (S.ui && S.v === 'b' && S
 window.addEventListener('hashchange', () => { readHash(); resetAll(); });
 // For screenshots: #...-open=<id> opens that event's sheet at load.
 const openAtLoad = (location.hash.match(/open=(\w+)/) || [])[1];
+if (!location.hash && document.documentElement.clientWidth < 700) S.dev = 'phone'; // on a phone, start on the phone screen
 readHash(); resetAll();
 if (openAtLoad) openSheet(openAtLoad);
 </script>
