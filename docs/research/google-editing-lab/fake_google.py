@@ -16,7 +16,12 @@ in the note tests each one): the instance id is <series id>_<UTC start>
 series' etag; insert with a caller's iCalUID keeps it and makes the calendar
 the organizer; an iCalUID that exists only as a tombstone blocks a new
 insert (409); deleting a series cancels its exceptions; changing a series
-leaves its exceptions alone. Switch `exceptions_first` to list a series'
+leaves its exceptions alone; a patched `recurrence` keeps the event's id
+and iCalUID; restoring a deleted event with sendUpdates mails its guests
+again. `mail` records the update emails Google's help says guests who
+don't use Google Calendar get ("Invite people to your Calendar event",
+fetched 2026-11-01): one per guest per write sent with sendUpdates=all
+or externalOnly, none with none. Switch `exceptions_first` to list a series'
 exceptions before the series itself (Google promises no order).
 """
 from __future__ import annotations
@@ -68,6 +73,7 @@ class FakeGoogle:
         self.rev = 0
         self.exceptions_first = False
         self.log = []  # (method, path, query, If-Match)
+        self.mail = []  # (to, METHOD, uid, sequence): what Will's inbox would get
         self.fail_next = {}  # (method, kind) -> status, to simulate a failure
         app = web.Application()
         p = "/calendar/v3/calendars/{cal}/events"
@@ -136,6 +142,14 @@ class FakeGoogle:
     def _fail(self, request, kind):
         status = self.fail_next.pop((request.method, kind), None)
         return _error(status, "simulated failure") if status else None
+
+    def _mail(self, request, ev):
+        if request.query.get("sendUpdates") not in ("all", "externalOnly"):
+            return
+        method = "CANCEL" if ev["status"] == "cancelled" else "REQUEST"
+        for a in ev.get("attendees") or []:
+            if not a.get("self"):
+                self.mail.append((a["email"], method, ev.get("iCalUID"), ev["sequence"]))
 
     def _record(self, request):
         self.log.append((request.method, request.path, dict(request.query), request.headers.get("If-Match")))
@@ -207,6 +221,7 @@ class FakeGoogle:
                     self._touch(e)
         self._touch(ev)
         self.cals[cal][ev["id"]] = ev
+        self._mail(request, ev)
         return web.json_response(self._out(ev))
 
     async def delete(self, request):
@@ -228,6 +243,7 @@ class FakeGoogle:
             if e.get("recurringEventId") == ev["id"] and e["status"] != "cancelled":
                 e["status"], e["_with_series"] = "cancelled", True
                 self._touch(e)
+        self._mail(request, ev)
         return web.Response(status=204)
 
     async def insert(self, request):

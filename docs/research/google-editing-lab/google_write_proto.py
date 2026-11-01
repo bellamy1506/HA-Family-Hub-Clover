@@ -19,8 +19,10 @@ from zoneinfo import ZoneInfo
 
 import icalendar
 
-QUIET = {"sendUpdates": "none"}  # never mail anyone; the board refuses events with guests anyway
+QUIET = {"sendUpdates": "none"}  # every write except a shared plan's: never mail anyone
+SHARED = {"sendUpdates": "all"}  # a plan between Jenn and Will: Google's update email reaches his iCloud copy
 TEXT = ("summary", "description", "location")
+REPEATS = {"week": "FREQ=WEEKLY", "2weeks": "FREQ=WEEKLY;INTERVAL=2", "month": "FREQ=MONTHLY", "year": "FREQ=YEARLY"}
 DAYS = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
 
 
@@ -60,27 +62,36 @@ def _when(v, tz, was=None):
     return out
 
 
-def check(ev):
+def check(ev, partners=frozenset()):
     """Refuse what Jenn didn't make herself, as the iCloud path refuses
-    invitations: Google would mail guests about a change (sendUpdates)."""
+    invitations. A plan Jenn organized whose only other guests are Will's
+    addresses (partners) is a shared plan (owner, #104 decision 1): allowed,
+    and True is returned so the write tells Google to send its update."""
     if ev.get("eventType", "default") != "default" or ev.get("locked"):
         raise NotEditable("not an ordinary event")
     if not (ev.get("organizer") or {}).get("self"):
-        raise NotEditable("an invitation")
-    if any(not a.get("self") for a in ev.get("attendees") or []):
+        raise NotEditable("an invitation")  # Jenn is a guest: the organizer's copy is the one to change
+    others = [a for a in ev.get("attendees") or [] if not a.get("self")]
+    if ev.get("attendeesOmitted") or any(
+            a.get("resource") or (a.get("email") or "").lower() not in partners for a in others):
         raise NotEditable("has guests")
+    return bool(others)
 
 
 @dataclass
 class Undo:
-    steps: list = field(default_factory=list)  # (event id, body, etag or None for "read it fresh")
+    steps: list = field(default_factory=list)  # (event id, body, etag or None for "read it fresh", params)
 
 
 class GoogleWriter:
-    def __init__(self, request, calendar_id, default_tz="America/New_York"):
+    def __init__(self, request, calendar_id, default_tz="America/New_York", partners=()):
         self._request = request
         self.cal = calendar_id
         self.tz = default_tz
+        self.partners = frozenset(a.lower() for a in partners)  # Will's addresses, from Family Hub's settings
+
+    def _send(self, ev):
+        return SHARED if check(ev, self.partners) else QUIET
 
     async def call(self, method, path, *, params=None, body=None, etag=None, ok=(200, 204)):
         status, data = await self._request(
@@ -99,10 +110,11 @@ class GoogleWriter:
         data = await self.call("GET", "events", params={"iCalUID": uid, "showDeleted": str(deleted).lower()})
         return data.get("items", [])
 
-    async def instance(self, series_id, orig):
+    async def instance(self, series_id, orig, deleted=False):
         when = orig.isoformat() if isinstance(orig, date) and not isinstance(orig, datetime) else \
             orig.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-        data = await self.call("GET", f"events/{series_id}/instances", params={"originalStart": when})
+        data = await self.call("GET", f"events/{series_id}/instances",
+                               params={"originalStart": when, "showDeleted": str(deleted).lower()})
         if not data.get("items"):
             raise GoogleError(404, "no such occurrence")
         return data["items"][0]
@@ -115,13 +127,13 @@ class GoogleWriter:
         if series is None:
             if single is None:
                 raise GoogleError(404, "not on this calendar")
-            check(single)
+            check(single, self.partners)
             return None, single, []
-        check(series)
+        check(series, self.partners)
         exceptions = [i for i in everything if i.get("recurringEventId") == series["id"]]
         for e in exceptions:
             if e.get("status") != "cancelled":
-                check(e)
+                check(e, self.partners)
         if rid is None:
             if scope != "all":
                 raise NotEditable("which occurrence?")
@@ -149,8 +161,11 @@ class GoogleWriter:
         for k in ("start", "end"):
             if k in body and old[k]:
                 old[k] = _when(value(old[k]), old[k].get("timeZone") or self.tz, body[k])
-        new = await self.call("PATCH", f"events/{ev['id']}", params=QUIET, body=body, etag=ev["etag"])
-        undo.steps.insert(0, (ev["id"], old, new.get("etag")))
+        if "recurrence" in old and not old["recurrence"]:
+            old["recurrence"] = []  # Undo of a one-off made repeating: back to no rule
+        params = self._send(ev)
+        new = await self.call("PATCH", f"events/{ev['id']}", params=params, body=body, etag=ev["etag"])
+        undo.steps.insert(0, (ev["id"], old, new.get("etag"), params))
         return new
 
     async def update(self, uid, fields, recurrence_id=None, scope="this"):
@@ -189,18 +204,59 @@ class GoogleWriter:
         if series is not None and scope == "this":
             await self._patch(target, {"status": "cancelled"}, undo)  # as gcal_sync does
             return undo
-        await self.call("DELETE", f"events/{target['id']}", params=QUIET, etag=target["etag"])
-        undo.steps.append((target["id"], {"status": "confirmed"}, None))  # Google keeps a restorable tombstone
+        params = self._send(target)  # a shared plan: Google sends Will its cancellation
+        await self.call("DELETE", f"events/{target['id']}", params=params, etag=target["etag"])
+        undo.steps.append((target["id"], {"status": "confirmed"}, None, params))  # Google keeps a restorable tombstone
         for e in exceptions:
             if e.get("status") != "cancelled":
-                undo.steps.append((e["id"], {"status": "confirmed"}, None))
+                undo.steps.append((e["id"], {"status": "confirmed"}, None, params))
         return undo
 
     async def undo(self, undo):
-        for eid, body, etag in undo.steps:
+        for eid, body, etag, params in undo.steps:
             if etag is None:
                 etag = (await self.call("GET", f"events/{eid}"))["etag"]
-            await self.call("PATCH", f"events/{eid}", params=QUIET, body=body, etag=etag)
+            await self.call("PATCH", f"events/{eid}", params=params, body=body, etag=etag)
+
+    # ---- the Repeats row (owner, #104 decision 8) ---------------------------
+    async def set_repeat(self, uid, repeat, recurrence_id=None, until=None):
+        """repeat: a REPEATS key, or "never". until: a last day (date), as
+        said to Clover. A one-off becomes a series in place (same id, same
+        iCalUID, so the same uid); "never" on an occurrence ends the series
+        after it, earlier ones kept; a new rule replaces the old one."""
+        series, target, exceptions = await self.find(uid, recurrence_id, "this" if recurrence_id else "all")
+        undo = Undo()
+        if series is None:
+            if repeat != "never":
+                start, tz = value(target["start"]), self._tz(target)
+                body = {"recurrence": ["RRULE:" + REPEATS[repeat] + _until(until, start, tz)]}
+                if isinstance(start, datetime):  # Google needs a named zone on a repeating event
+                    body["start"], body["end"] = _when(start, tz), _when(value(target["end"]), tz)
+                await self._patch(target, body, undo)
+            return undo
+        rule, rest = _split(series["recurrence"])
+        if repeat == "never":
+            if recurrence_id is None:
+                raise NotEditable("which occurrence?")
+            cut = value(target["originalStartTime"])
+            later = Undo()
+            for e in exceptions:  # changed occurrences after the cut go too, explicitly
+                if e.get("status") != "cancelled" and _norm(value(e["originalStartTime"])) > _norm(cut):
+                    await self._patch(e, {"status": "cancelled"}, later)
+            rule.pop("COUNT", None)
+            rule["UNTIL"] = _stamp(cut)  # inclusive (RFC 5545 3.3.10): this one is the last
+            await self._patch(series, {"recurrence": [_join(rule)] + rest}, undo)
+            undo.steps += later.steps  # Undo: the rule back first, then the occurrences
+            return undo
+        if exceptions:
+            raise NotEditable("change the repeat in Google Calendar")  # as for a time change on All
+        new = dict(p.split("=", 1) for p in REPEATS[repeat].split(";"))
+        if until:
+            new["UNTIL"] = _until(until, value(series["start"]), self._tz(series))[7:]
+        else:
+            new.update({k: rule[k] for k in ("UNTIL", "COUNT") if k in rule})
+        await self._patch(series, {"recurrence": [_join(new)] + rest}, undo)
+        return undo
 
     # ---- the Whose row: Google <-> CalDAV, keeping the uid ---------------
     async def occurrences(self, uid, start, end):
@@ -219,6 +275,8 @@ class GoogleWriter:
         Google's; any failure leaves exactly one copy."""
         series, master, exceptions = await self.find(uid, None, "all")
         for ev in [master] + exceptions:
+            if ev.get("status") != "cancelled" and self._send(ev) is SHARED:
+                raise NotEditable("a shared plan stays where it is")  # owner, #104 decision 1
             if ev.get("conferenceData") or ev.get("attachments"):
                 raise NotEditable("has a call link or files; move it in Google Calendar")
         before = await self.occurrences(uid, start, end)
@@ -232,15 +290,15 @@ class GoogleWriter:
         except Exception:
             obj.delete()
             raise
-        undo = Undo([(master["id"], {"status": "confirmed"}, None)] + [
-            (e["id"], {"status": "confirmed"}, None) for e in exceptions if e.get("status") != "cancelled"])
+        undo = Undo([(master["id"], {"status": "confirmed"}, None, QUIET)] + [
+            (e["id"], {"status": "confirmed"}, None, QUIET) for e in exceptions if e.get("status") != "cancelled"])
         return undo, obj
 
     async def from_caldav(self, obj, start, end):
         """Will or Us -> Jenn. Same order: Google's copy first, under the
         same iCalUID, then delete the CalDAV object."""
         text = obj.data
-        body, exceptions = ical_to_google(text, self.tz)
+        body, exceptions, cancels = ical_to_google(text, self.tz)
         uid = body["iCalUID"]
         before = caldav_occurrences(obj.parent, uid, start, end)
         old = await self.items(uid, deleted=True)
@@ -256,6 +314,11 @@ class GoogleWriter:
             for orig, fields in exceptions:
                 inst = await self.instance(new["id"], orig)
                 await self.call("PATCH", f"events/{inst['id']}", params=QUIET, body=fields, etag=inst["etag"])
+            for orig in cancels:  # EXDATEs as cancelled occurrences, as Google Calendar itself keeps them
+                inst = await self.instance(new["id"], orig, deleted=True)
+                if inst.get("status") != "cancelled":
+                    await self.call("PATCH", f"events/{inst['id']}", params=QUIET, body={"status": "cancelled"},
+                                    etag=inst["etag"])
             if await self.occurrences(uid, start, end) != before:
                 raise GoogleError(0, "the copy doesn't match")
             obj.delete()
@@ -266,6 +329,29 @@ class GoogleWriter:
 
 
 # ---- helpers ---------------------------------------------------------------
+def _split(recurrence):
+    rule = next(line for line in recurrence if line.startswith("RRULE:"))
+    return dict(p.split("=", 1) for p in rule[6:].split(";")), [l for l in recurrence if l != rule]
+
+
+def _join(parts):
+    return "RRULE:" + ";".join(f"{k}={v}" for k, v in parts.items())
+
+
+def _stamp(v):
+    """UNTIL in UTC for a timed series, a date for all-day (RFC 5545 3.3.10)."""
+    return f"{v.astimezone(timezone.utc):%Y%m%dT%H%M%SZ}" if isinstance(v, datetime) else f"{v:%Y%m%d}"
+
+
+def _until(day, start, tz):
+    """';UNTIL=...' for "until <day>", the whole day included."""
+    if day is None:
+        return ""
+    if isinstance(start, datetime):
+        return ";UNTIL=" + _stamp(datetime.combine(day, datetime.max.time().replace(microsecond=0), ZoneInfo(tz)))
+    return ";UNTIL=" + _stamp(day)
+
+
 def _day(v):
     return v.date() if isinstance(v, datetime) else v
 
@@ -406,15 +492,47 @@ def ical_to_google(text, tz):
         raise NotEditable("an invitation")
     master = next(c for c in events if "RECURRENCE-ID" not in c)
     body = {"iCalUID": str(master["UID"]), **_gfields(master, tz)}
-    rec = []
+    rec, cancels = [], []
     if master.get("RRULE"):
         rec.append("RRULE:" + master["RRULE"].to_ical().decode())
-    for key in ("EXDATE", "RDATE"):
-        props = master.get(key, [])
-        for p in props if isinstance(props, list) else [props]:
-            rec += [_gline(key, d.dt, tz) for d in p.dts]
+    props = master.get("RDATE", [])
+    for p in props if isinstance(props, list) else [props]:
+        rec += [_gline("RDATE", d.dt, tz) for d in p.dts]
+    props = master.get("EXDATE", [])
+    for p in props if isinstance(props, list) else [props]:
+        cancels += [d.dt for d in p.dts]  # one RRULE line, so Home Assistant still reports the rule
     if rec:
         body["recurrence"] = rec
     exceptions = [(c["RECURRENCE-ID"].dt, {k: v for k, v in _gfields(c, tz).items() if k != "transparency"})
                   for c in events if "RECURRENCE-ID" in c]
-    return body, exceptions
+    return body, exceptions, cancels
+
+
+def caldav_set_repeat(obj, repeat, cut=None, until=None, tz="America/New_York"):
+    """iCloud's side of the Repeats row (#104 adds it to #39's check): the
+    same three cases on the calendar object. obj: freshly read by URL, so
+    its save carries If-Match. Returns the old text, which Undo saves back."""
+    old = obj.data
+    cal = obj.icalendar_instance
+    master = next(c for c in cal.subcomponents if isinstance(c, icalendar.Event) and "RECURRENCE-ID" not in c)
+    start = master["DTSTART"].dt
+    if "RRULE" not in master:
+        if repeat != "never":
+            master.add("RRULE", icalendar.vRecur.from_ical(REPEATS[repeat] + _until(until, start, tz)))
+    elif repeat == "never":
+        rule = master["RRULE"]
+        rule.pop("COUNT", None)
+        rule["UNTIL"] = [cut.astimezone(timezone.utc) if isinstance(cut, datetime) else cut]
+        for c in list(cal.subcomponents):
+            if "RECURRENCE-ID" in c and _norm(c["RECURRENCE-ID"].dt) > _norm(cut):
+                cal.subcomponents.remove(c)
+    else:
+        if any("RECURRENCE-ID" in c for c in cal.subcomponents) or master.get("EXDATE"):
+            raise NotEditable("change the repeat on the iPhone")
+        new = icalendar.vRecur.from_ical(REPEATS[repeat] + _until(until, start, tz))
+        for k in ("UNTIL", "COUNT"):
+            if k in master["RRULE"] and k not in new:
+                new[k] = master["RRULE"][k]
+        master["RRULE"] = new
+    obj.save(only_this_recurrence=False)
+    return old

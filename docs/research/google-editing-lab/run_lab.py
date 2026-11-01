@@ -9,7 +9,7 @@ Run, in a throwaway venv:
       "vobject==0.9.9" aiohttp httpx radicale
   python -m radicale --config radicale.conf &
   NO_PROXY=127.0.0.1 python run_lab.py . try1
-Expect "... passed" with no FAIL lines."""
+Expect "56/56 passed"."""
 import asyncio
 import sys
 from datetime import date, datetime, timedelta
@@ -48,8 +48,11 @@ class LabAuth(AbstractAuth):
 def ha_event(e):
     """Home Assistant 2026.10.4, components/google/calendar.py,
     _get_calendar_event: the fields the board keys on."""
+    rrule = None
+    if len(e.recurrence) == 1 and e.recurrence[0].startswith("RRULE:"):
+        rrule = e.recurrence[0].removeprefix("RRULE:")
     return {"uid": e.ical_uuid, "recurrence_id": e.id if e.recurring_event_id else None,
-            "summary": e.summary, "start": e.start.value}
+            "summary": e.summary, "start": e.start.value, "rrule": rrule}
 
 
 def ha_visible(e):
@@ -153,7 +156,8 @@ async def main():
             body = await r.json() if r.content_type == "application/json" else None
             return r.status, body
 
-    w = g.GoogleWriter(request, CAL)
+    WILL = "will@example.com"  # made up; in the house, Will's iCloud address(es) from Family Hub's settings
+    w = g.GoogleWriter(request, CAL, partners={WILL})
     service = GoogleCalendarService(LabAuth(session, host=BASE))
     read = HARead(service)
 
@@ -329,6 +333,10 @@ async def main():
     check("O2 same uid on Google (Apple's UID as iCalUID), alarm as a popup",
           all(e["uid"] == au for e in evs) and new["reminders"]["overrides"][0]["minutes"] == 10)
     check("O3 gone from Us, not doubled", not g.caldav_find(us, au, *WIN))
+    check("O4 Home Assistant still reports the rule (EXDATE written as a cancelled occurrence); "
+          "the changed occurrence reports none",
+          evs and all(e["rrule"] == ("FREQ=WEEKLY;COUNT=8" if e["summary"] == "Run club (made up)" else None) for e in evs),
+          sorted({str(e["rrule"]) for e in evs}))
     us.save_event(text)  # Undo: put Apple's own text back first, then remove Google's copy
     await w.call("DELETE", f"events/{new['id']}", params=g.QUIET)
     check("P Undo: Us has Apple's original text again (X-APPLE field kept), Google has none",
@@ -355,9 +363,120 @@ async def main():
         check("S2 Google delete refused after the copy: the copy is removed, still on Jenn's only",
               not g.caldav_find(will, cu, *WIN) and len(await read(cu)) == 7)
 
+    # ---- RP. Repeats on Jenn's Google (owner, #104 decision 8) --------------
+    art = fake.add(CAL, {"summary": "Art class (made up)", "start": {"dateTime": ny(2026, 11, 2, 17).isoformat()},
+                         "end": {"dateTime": ny(2026, 11, 2, 18).isoformat()}})
+    au2 = art["iCalUID"]
+    u_rp = await w.set_repeat(au2, "week", until=date(2026, 12, 14))
+    evs = await read(au2)
+    check("RP1 one-off to Every week until Dec 14: same id and uid, Mondays to Dec 14, rule reported",
+          len(evs) == 7 and all(e["uid"] == au2 and e["recurrence_id"].startswith(art["id"] + "_") for e in evs)
+          and evs[0]["rrule"] == "FREQ=WEEKLY;UNTIL=20261215T045959Z" and max(e["start"] for e in evs).day == 14,
+          evs and evs[0]["rrule"])
+    await w.undo(u_rp)
+    evs = await read(au2)
+    check("RP2 Undo: one event again, same uid, no recurrence_id",
+          len(evs) == 1 and evs[0]["recurrence_id"] is None and evs[0]["uid"] == au2)
+    band = fake.add(CAL, weekly("Band (made up)", ny(2026, 10, 27, 20), 1, "TU", count=8))
+    bu = band["iCalUID"]
+    await w.update(bu, {"summary": "Band, gig (made up)", "dtstart": ny(2026, 11, 26, 20),
+                        "dtend": ny(2026, 11, 26, 22)}, f"{band['id']}_20261125T010000Z", "this")
+    before_band = starts(await read(bu))
+    try:
+        await w.set_repeat(bu, "2weeks", f"{band['id']}_20261104T010000Z")
+        check("RP3 a new rule on a series with a changed occurrence is refused", False)
+    except g.NotEditable as err:
+        check("RP3 a new rule on a series with a changed occurrence is refused", True, str(err))
+    u_nv = await w.set_repeat(bu, "never", f"{band['id']}_20261111T010000Z")
+    evs = await read(bu)
+    check("RP4 Never on Nov 10: Oct 27 to Nov 10 stay, the rest go, the changed Nov 25 one too",
+          sorted(e["start"].day for e in evs) == [3, 10, 27] and all(e["summary"] == "Band (made up)" for e in evs)
+          and "UNTIL=20261111T010000Z" in fake.cals[CAL][band["id"]]["recurrence"][0], fake.cals[CAL][band["id"]]["recurrence"])
+    await w.undo(u_nv)
+    check("RP5 Undo: the whole series back, the changed occurrence included", starts(await read(bu)) == before_band)
+    pottery = fake.add(CAL, weekly("Pottery (made up)", ny(2026, 10, 29, 10), 2, "TH", count=6))
+    pu = pottery["iCalUID"]
+    u_rc = await w.set_repeat(pu, "2weeks", f"{pottery['id']}_20261105T150000Z")
+    evs = await read(pu)
+    check("RP6 Every week to Every 2 weeks (COUNT kept): every 14 days",
+          len(evs) == 6 and all((b["start"] - a["start"]).days == 14 for a, b in zip(evs, evs[1:])),
+          fake.cals[CAL][pottery["id"]]["recurrence"])
+    await w.undo(u_rc)
+    check("RP7 Undo: weekly again", len(await read(pu)) == 6 and fake.cals[CAL][pottery["id"]]["recurrence"]
+          == ["RRULE:FREQ=WEEKLY;COUNT=6;BYDAY=TH"])
+    rent = fake.add(CAL, {"summary": "Pay rent (made up)", "start": {"date": "2026-10-31"}, "end": {"date": "2026-11-01"}})
+    await w.set_repeat(rent["iCalUID"], "month")
+    days = [e["start"] for e in await read(rent["iCalUID"])]
+    check("RP8 Every month on the 31st, all-day: November is skipped (RFC 5545, as dateutil reads it)",
+          days[:2] == [date(2026, 10, 31), date(2026, 12, 31)], [str(d) for d in days[:3]])
+
+    # ---- RC. The same on iCloud's side (CalDAV) ---------------------------
+    lesson = will.save_event("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//lab//EN\r\nBEGIN:VEVENT\r\n"
+                             "UID:lesson-made-up-1\r\nDTSTAMP:20261020T120000Z\r\n"
+                             "DTSTART;TZID=America/New_York:20261104T160000\r\n"
+                             "DTEND;TZID=America/New_York:20261104T170000\r\nSUMMARY:Lesson (made up)\r\n"
+                             "END:VEVENT\r\nEND:VCALENDAR\r\n")
+    lesson = will.event_by_url(lesson.url)
+    old_text = g.caldav_set_repeat(lesson, "week", until=date(2026, 12, 2))
+    occ = g.caldav_occurrences(will, "lesson-made-up-1", *WIN)
+    check("RC1 iCloud side: one-off to Every week until Dec 2, same UID", len(occ) == 5, len(occ))
+    lesson = will.event_by_url(lesson.url)
+    g.caldav_set_repeat(lesson, "never", cut=ny(2026, 11, 11, 16))
+    occ = g.caldav_occurrences(will, "lesson-made-up-1", *WIN)
+    check("RC2 iCloud side: Never on Nov 11 keeps Nov 4 and 11", sorted(o[0].day for o in occ) == [4, 11])
+    lesson = will.event_by_url(lesson.url)
+    lesson.data = old_text
+    lesson.save()
+    check("RC3 iCloud side: Undo saves the old text back, one event again",
+          len(g.caldav_occurrences(will, "lesson-made-up-1", *WIN)) == 1)
+
+    # ---- SH. A shared plan between Jenn and Will (owner, #104 decision 1) ----
+    plan = fake.add(CAL, {"summary": "Dinner at Rosa's (made up)", "start": {"dateTime": ny(2026, 11, 13, 19).isoformat()},
+                          "end": {"dateTime": ny(2026, 11, 13, 21).isoformat()},
+                          "attendees": [{"email": CAL, "self": True, "organizer": True, "responseStatus": "accepted"},
+                                        {"email": "Will@Example.com", "responseStatus": "accepted"}]})
+    fake.mail.clear()
+    n = len(fake.log)
+    u_sh = await w.update(plan["iCalUID"], {"dtstart": ny(2026, 11, 13, 19, 30), "dtend": ny(2026, 11, 13, 21, 30)})
+    check("SH1 Jenn's plan with Will as the only guest is changeable; the PATCH says sendUpdates=all",
+          [l[2].get("sendUpdates") for l in fake.log[n:] if l[0] == "PATCH"] == ["all"])
+    check("SH2 Google mails Will one update (REQUEST, sequence up)",
+          fake.mail == [("Will@Example.com", "REQUEST", plan["iCalUID"], 1)], fake.mail)
+    await w.undo(u_sh)
+    back = (await read(plan["iCalUID"]))[0]["start"] == ny(2026, 11, 13, 19)
+    u_shd = await w.delete(plan["iCalUID"])
+    check("SH3 Delete sends Will a cancellation", fake.mail[-1][:2] == ("Will@Example.com", "CANCEL"))
+    await w.undo(u_shd)
+    evs = await read(plan["iCalUID"])
+    check("SH4 Undo of the change and of the delete each put it back, and each mails Will",
+          back and evs and evs[0]["start"] == ny(2026, 11, 13, 19)
+          and [m[1] for m in fake.mail] == ["REQUEST", "REQUEST", "CANCEL", "REQUEST"], [m[1] for m in fake.mail])
+    try:
+        await w.to_caldav(plan["iCalUID"], will, *WIN)
+        check("SH5 Whose doesn't move a shared plan", False)
+    except g.NotEditable as err:
+        check("SH5 Whose doesn't move a shared plan", True, str(err))
+    third = fake.add(CAL, {**{k: plan[k] for k in ("summary", "start", "end")}, "summary": "Dinner, three (made up)",
+                           "attendees": plan["attendees"] + [{"email": "friend@example.com"}]})
+    wills = fake.add(CAL, {**{k: plan[k] for k in ("start", "end")}, "summary": "Will's plan (made up)",
+                           "organizer": {"email": WILL},
+                           "attendees": [{"email": WILL, "organizer": True}, {"email": CAL, "self": True}]})
+    room = fake.add(CAL, {**{k: plan[k] for k in ("start", "end")}, "summary": "Room booked (made up)",
+                          "attendees": [{"email": CAL, "self": True, "organizer": True},
+                                        {"email": WILL, "resource": True}]})
+    for name, ev in (("a third guest", third), ("Jenn only a guest of Will's invitation", wills), ("a resource", room)):
+        try:
+            await w.update(ev["iCalUID"], {"summary": "x"})
+            check(f"SH6 still refused: {name}", False)
+        except g.NotEditable as err:
+            check(f"SH6 still refused: {name}", True, str(err))
+
+    shared_ids = {plan["id"]}
     writes = [l for l in kept + fake.log if l[0] in ("PATCH", "DELETE", "POST")]
-    check("T every write the board sent said sendUpdates=none", all(l[2].get("sendUpdates") == "none" for l in writes),
+    check("T every write said sendUpdates=none, except the shared plan's, which said all",
+          all(l[2].get("sendUpdates") == ("all" if l[1].rsplit("/", 1)[-1] in shared_ids else "none") for l in writes),
           f"{len(writes)} writes")
+    check("T2 nobody but Will was ever mailed", all(m[0].lower() == WILL for m in fake.mail))
 
     await session.close()
     await runner.cleanup()
