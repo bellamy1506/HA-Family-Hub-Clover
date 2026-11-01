@@ -59,12 +59,39 @@ Her calendars then show in her column on the week card, and as Jenn's on the hou
 - Start read only, and add write access when the sheet can use it. 0.20
 - A separate Google calendar Jenn shares just for the house, so the board never touches her own. 0.10
 
+## Before slice 1, beside it: Google Weather
+
+**Who:**
+- Will: the billing steps in Google Cloud, from a checklist.
+- Agent: everything in Home Assistant.
+
+**Does.** Adds Home Assistant's Google Weather integration for the board's weather, since the house forecast gives 6 days and no chance of rain ([card features](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/104#issuecomment-6564600586), decision 7). The steps:
+1. In the Google Cloud project made for Jenn's calendar, turn on the Weather API.
+2. Link a billing account, which needs a card, and cap the Weather API at 300 requests a day. That stays under the free 10,000 a month; Home Assistant uses about 150 a day *(inferred)*.
+3. Make an API key that works only for the Weather API, and add it to Home Assistant.
+4. The board reads only the new weather entity: hourly for the next 24 hours, daily after that. The house forecast stays for everything else in Home Assistant.
+
+**Gains.**
+- Month's full 10 days of weather, as Skylight shows.
+- A chance of rain under each rainy day's icon on the face and the phones.
+
+**Costs.**
+- A card on a Google Cloud billing account. If the card lapses, the board's weather goes blank until it's renewed.
+- The key is kept in Home Assistant and its backups.
+- About 15 minutes of Will's time *(estimate)*.
+
+**Changes you could make:**
+- A $1 budget alert on the billing account as well, so any charge at all emails Will. 0.50
+- The National Weather Service instead: no card or account, but 7 days. 0.15
+
 ## Slice 1: the resting face on the wall, Upcoming on the phones (read only)
 
 **Code:**
 - the face;
 - the phones' Upcoming, read only;
 - Guest mode as decided ([guests](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/68#issuecomment-6537655788));
+- a weather icon on every day, and a chance of rain under rainy days once Google Weather is in ([card features](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/104#issuecomment-6564600586));
+- person blocks with their color put back (1.5 times), each pick from the 12 stored by its name;
 - the board refreshes the calendar copy itself;
 - each copy records its open times and last errors in Home Assistant;
 - Family Hub's 11 unused card files retire.
@@ -119,7 +146,8 @@ Then each adult swipes the Home Assistant app closed once, so it doesn't reopen 
 **Code:**
 - tap a day or an empty dinner, then speak at the wall or type on a phone;
 - Tell Clover on the rail;
-- the echo, with its fix, Change and Undo.
+- the echo, with its fix, Change and Undo;
+- a repeat said in the line ("every Tuesday", "until June") lands as a repeat.
 
 Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 
@@ -149,13 +177,24 @@ Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 
 **Records:** the voice guide's line about fixing a wrong filing is rewritten, and Will reprints the sheet.
 
+### 2c. Repeats in Clover's add (agent)
+
+**Does.** Clover's Add event action (`script.board_add_event`) calls `calendar.create_event`, which can't take a repeat. It moves to a house action that can, and Clover's instructions gain the repeat words ([card features](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/104#issuecomment-6564600586), decision 8).
+
+**Gains.** "Yoga every Tuesday at 6", said at the wall, lands as a repeating event, as Skylight's Repeats switch would make it.
+
+**Costs.** A Home Assistant change to a script Clover relies on, so the 10/31 voice tests run again after it, with 2b's.
+
+**Changes you could make:** none suggested.
+
 ## Slice 3: Month and Lists, notes, the dinner sheet
 
 **Code:**
 - the wall rail's Upcoming, Month and Lists, and the phones' tabs;
 - Lists with AnyList, Notes and House;
 - ticking notes off, and Later;
-- the dinner sheet: the dish, ‹ › day, Every week, Clear, and an empty dinner tapped to add.
+- the dinner sheet: the dish, ‹ › day, Every week, Clear, and an empty dinner tapped to add;
+- weather on Month's 10 days.
 
 ### 3a. The notes change (agent, in one step)
 
@@ -173,7 +212,8 @@ Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 ## Slice 4: the event sheet, and Us moves to iCloud
 
 **Code:**
-- the event sheet: title, day and time, Place, Details, Whose, Count down, "This one / All", Delete, and Hide;
+- the event sheet: title, day and time, Repeats, Place, Details, Whose, Count down, "This one / All", Delete, and Hide, with the forecast for the event's hour and, on the phones, Open in Maps ([card features](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/104#issuecomment-6564600586));
+- a shared plan on two calendars changed and deleted on every copy, invitations between Will and Jenn included;
 - the iCloud write path as its own house command.
 
 ### 4a. The supervised iCloud check, first (agent, with Will watching)
@@ -181,6 +221,8 @@ Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 **Does.** Runs the write path against a throwaway iCloud calendar Will makes, with made-up events ([iCloud editing](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/39#issuecomment-6512584295)):
 - it changes, moves and deletes one-off and repeating events;
 - it moves an event to Us and back;
+- it adds a repeating event, and turns a one-off into a repeat and back;
+- it moves and then deletes an invitation from Will to a Google address the household owns, and that copy is checked for Apple's update and cancellation. If Apple sends neither, invitations stay refused, and a shared plan from one says where to change it;
 - then Will deletes the calendar.
 
 **Gains.** The write path is proven on the real iCloud before it touches Us or Will's calendar.
@@ -230,7 +272,7 @@ Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 
 **Code:**
 - the house preferences service;
-- Settings on the wall and the phones: text size, Guest mode, Show days as, how your calendars show, Hidden by you, and the house setup;
+- Settings on the wall and the phones: text size, Guest mode, Show days as, how your calendars show, Weather beside events, Hidden by you, and the house setup;
 - new dots;
 - Hide;
 - countdowns;
@@ -267,10 +309,11 @@ After this slice nothing sends anyone to the week card, so the week card retires
 ## Slice 6, whenever it's ready: Jenn's events in the sheet
 
 **Code.** [The Google write path](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/100):
-- Jenn's events get the full sheet.
+- Jenn's events get the full sheet, Repeats included.
 - Whose moves events to and from her calendar.
+- A plan Jenn invites Will to changes as one, Google's update reaching his copy.
 
-Before it goes up, there's a supervised check on a throwaway Google calendar, explained first. It holds up nothing above.
+Before it goes up, there's a supervised check on a throwaway Google calendar, explained first, with the repeat and invitation tests of 4a from her side. It holds up nothing above.
 
 ## If the house board fails
 

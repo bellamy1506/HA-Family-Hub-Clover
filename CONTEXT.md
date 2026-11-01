@@ -63,7 +63,7 @@ Clover's answer after a capture or a change: what landed or changed, where, and 
 _Avoid_: confirmation, toast, receipt
 
 **Event sheet**:
-The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), its place and details, whose it is, a Count down switch, Delete from the calendar, and Hide from the board last. It saves when it closes, and the echo offers Undo (owner, 2026-10-31 and 11-01).
+The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), how often it repeats, its place and details, whose it is, a Count down switch, Delete from the calendar, and Hide from the board last. It also gives the forecast for the event's hour, and on the phones a way to open its place in Maps. It saves when it closes, and the echo offers Undo (owner, 2026-10-31 and 11-01).
 _Avoid_: popup, modal, dialog, edit form
 
 **Details**:
@@ -160,7 +160,7 @@ How much of a calendar the house board shows: titles, a labeled block ("At work 
 _Avoid_: privacy level, busy blocks
 
 **Shared plan**:
-A plan both of you are in: on Us, or on both your calendars. When the same plan sits on two calendars, the house board shows it once.
+A plan both of you are in: on Us, or on both your calendars. When the same plan sits on two calendars, the house board shows it once, and changing or deleting it there changes every copy, an invitation between the two of you included (owner, 2026-11-01).
 _Avoid_: joint event, duplicate
 
 **Clash**:
