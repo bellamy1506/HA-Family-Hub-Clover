@@ -66,6 +66,14 @@ _Avoid_: to-do, shopping list (it's one part of Lists), checklist
 The microphone button at the foot of the wall's rail: say anything, and Clover files it as an event, a grocery, a note or a dinner. Adding to one day or one list starts from that day or list instead (owner, 2026-10-31).
 _Avoid_: the + (the wall has none of its own), voice button, Assist
 
+**Settings**:
+The house board's one page for what can be adjusted: the gear at the top right of every phone tab, and the foot of the wall's rail. Your own settings are on your phone; the wall holds only its own text size and the house setup (owner, 2026-11-01).
+_Avoid_: preferences, options, admin, configuration
+
+**House setup**:
+The part of Settings either adult changes for everyone, at the wall or on a phone: each person's color, and each calendar's person, work flag and block words (owner, 2026-11-01).
+_Avoid_: admin settings, configuration
+
 **Copy**:
 One browser storage at one address, belonging to whoever last signed in on it; what Family Hub's code calls a "device". One phone can hold several (the owner's iPhone has one for home and one for Home Assistant Cloud), and a user's view settings and theme follow them between their copies, while each copy keeps its own name.
 _Avoid_: device (except when quoting the code), browser, session
@@ -124,7 +132,7 @@ _Avoid_: More, To-do, the house tab
 ## Whose it is, and what the board notices
 
 **Person**:
-Will, Jenn, or Us. Every calendar belongs to one person, and the house board names and colors events by person, never by calendar; whether a calendar is work is kept only behind the scenes, for hiding (owner, 2026-10-30).
+Will, Jenn, or Us. Every calendar belongs to one person, and the house board names and colors events by person, never by calendar; whether a calendar is work is kept only behind the scenes, for hiding (owner, 2026-10-30). Each person has one color, chosen in the house setup (owner, 2026-11-01).
 _Avoid_: calendar group; a calendar's name when you mean whose it is
 
 **Detail**:
@@ -145,7 +153,7 @@ _Avoid_: badge, unread, notification
 
 **Guest mode**:
 The household switch, turned on from a phone, for when visitors are over. On the house board, shared plans keep their titles, each adult's own events show as blocks, Work hides, and anyone at the wall can only add things and tick notes off (owner, 2026-10-30). Home Assistant itself stays reachable at the wall.
-_Avoid_: privacy mode (Family Hub's lock), Board private (the Hide work calendars switch Guest mode turns on)
+_Avoid_: privacy mode (Family Hub's lock), Board private (the Hide work calendars switch Guest mode turns on; it retires at the switch-over)
 
 **Hide**:
 Taking one event off the house board everywhere, the wall and both phones, without changing its calendar. Only whoever hid it can bring it back (owner, 2026-10-30).
