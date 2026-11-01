@@ -50,6 +50,14 @@ _Avoid_: phase, release, wave (the synthesis's build groups)
 The weeks in which the wall and both phones move from the week card to the house board, slice by slice, each change going with the slice that needs it; it ends when the week card retires (owner, 2026-11-01).
 _Avoid_: switch-over day (there isn't one), cutover, launch
 
+**v0.1**:
+The house board's first build: all six slices up on the wall and both phones, house reminders reaching the board, and the week card retired (owner, 2026-11-01). A name for the work, not a version number in the code.
+_Avoid_: release, launch, version 0.1
+
+**Done gate**:
+What the house board passes after v0.1: blind reviewers walk it, round after round, until they find nothing blocking or painful; then Jenn, after two weeks of daily use, would keep it over a Skylight (owner, 2026-11-01).
+_Avoid_: acceptance test, sign-off
+
 **Resting face**:
 What the board shows when nobody is touching it, read from across the room.
 _Avoid_: screensaver, idle screen, home screen

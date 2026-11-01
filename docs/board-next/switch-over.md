@@ -2,6 +2,8 @@
 
 **Approved by the owner 2026-11-01**, with one change to the tablet step (1c), for [How does each copy move to the house board, and back if it fails?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/99), on the [map](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/37). The steps come from [What still depends on the week card, and what changes when it goes?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/96#issuecomment-6558258606) (its [checklist](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/research/week-card-dependencies/docs/research/week-card-dependencies.md) has every entity and line number). Approving this plan approves every Home Assistant and tablet change in it. Anything that has changed by the time a step runs is explained again.
 
+**Being built** as [Map v0.1: the house board built and up on the wall and both phones, the week card retired](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/107) (owner, 2026-11-01): v0.1 is slices 1 to 6 up and the week card retired, and the done gate follows it.
+
 Each Home Assistant or tablet change is set out as **Does**, **Gains**, **Costs**, and **Changes you could make**, each rated 0.00 (never) to 1.00 (should have been in the proposal).
 
 ## How it moves (owner, 2026-11-01)
@@ -14,7 +16,7 @@ Each Home Assistant or tablet change is set out as **Does**, **Gains**, **Costs*
   - the week card retires with the last slice that still sends anyone to it.
 - **No fallback switch.** If the house board fails, a session puts it right (see [If the house board fails](#if-the-house-board-fails)).
 
-**Until the house board can do something, that thing opens the week card** where it would have been, on the wall and on the phones. The wall comes back to the house board after two minutes untouched.
+**Until the house board can do something, that thing opens the week card** on the wall and on the phones. The week card reads nothing from its address, so it opens as it always does (on the wall, Week from today), never on a chosen day or view (2026-11-01). The wall comes back to the house board after 5 minutes untouched ([1c](#1c-the-walls-fully-settings-agent-through-home-assistants-fully-kiosk-integration)). In Guest mode nothing opens the week card, so visitors can't change things there.
 
 Slices are numbered in build order. A slice that's done early goes up early, unless it needs an earlier one: Us needs the event sheet, and the notes change needs Lists.
 
@@ -22,7 +24,7 @@ Slices are numbered in build order. A slice that's done early goes up early, unl
 
 | Step | Who |
 |---|---|
-| 1. Tests (`bash tests/run_all.sh`), the sandbox open-time check ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)), frame stats on the tablet ([motion](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/72#issuecomment-6537563054)), and a code review | Agent |
+| 1. Tests (`bash tests/run_all.sh`), the sandbox open-time check ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)), frame stats on the tablet ([motion](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/72#issuecomment-6537563054)), a one-day soak on the tablet ([A16](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/house/board-next/docs/research/calendar-card-pro/gaps.md#3-the-agents-calls)), and a code review. Then one blind first-time reviewer ([reviewers](reviewers.md)) walks the slice in the sandbox, and its fixes go in before Will is asked (owner, 2026-11-01) | Agent |
 | 2. Will approves the merge to `main`, and CI runs once on the final head | Will |
 | 3. A full Home Assistant backup | Agent |
 | 4. HACS update and restart, then the slice's Home Assistant and tablet steps below | Agent |
@@ -94,7 +96,11 @@ Her calendars then show in her column on the week card, and as Jenn's on the hou
 - person blocks with their color put back (1.5 times), each pick from the 12 stored by its name;
 - the board refreshes the calendar copy itself;
 - each copy records its open times and last errors in Home Assistant;
-- Family Hub's 11 unused card files retire.
+- Family Hub's 11 unused card files retire;
+- the needs-you line, which the face's layout holds ([what counts](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/61#issuecomment-6536913728)); a house reminder shows on it once the reminders sync fills the list (before slice 3);
+- a calendar that stops answering: its last events stay, a quiet line names it after 10 minutes, and its events pale after an hour ([Calendar Card Pro research](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/103#issuecomment-6564223814), owner);
+- open notes where they fall: the week card's rollover keeps them on today until the notes change, so there's no Later line and no tick until slice 3 (owner, 2026-11-01);
+- the wall's rail at its final width, holding Upcoming, and Month opening the week card; the phones' tabs with Upcoming, a Month tab opening the week card, and the + opening its add. The other buttons join with their slices (owner, 2026-11-01).
 
 ### 1a. A House board dashboard (agent)
 
@@ -189,8 +195,10 @@ Undo on Home Assistant's Us uses Family Hub's own delete until Us moves.
 
 ## Slice 3: Month and Lists, notes, the dinner sheet
 
+**Before it:** the house reminders sync in the house repo ([J008](https://github.com/bellamy1506/Clover-Home/blob/main/records/projects/J008-family-hub.md#build-order), build step 4), so Lists' House section and the needs-you line have reminders to show (owner, 2026-11-01).
+
 **Code:**
-- the wall rail's Upcoming, Month and Lists, and the phones' tabs;
+- Month and Lists on the wall's rail and the phones' tabs, now the house board's own;
 - Lists with AnyList, Notes and House;
 - ticking notes off, and Later;
 - the dinner sheet: the dish, ‹ › day, Every week, Clear, and an empty dinner tapped to add;
@@ -304,16 +312,16 @@ After this slice nothing sends anyone to the week card, so the week card retires
 **Changes you could make:**
 - Hide `/family-hub` from the side menu for two weeks before deleting it. 0.15 (you chose no fallback period)
 
-**Jenn's two weeks** (the map's done gate) start the day the week card retires.
+**v0.1 ends** when slices 5 and 6 are both up (owner, 2026-11-01). The done gate follows as its own effort: the blind reviewer rounds, and **Jenn's two weeks**, which start once slice 6 is up as well (owner, 2026-11-01).
 
-## Slice 6, whenever it's ready: Jenn's events in the sheet
+## Slice 6, after the event sheet: Jenn's events in the sheet
 
 **Code.** [The Google write path](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/100):
 - Jenn's events get the full sheet, Repeats included.
 - Whose moves events to and from her calendar.
 - A plan Jenn invites Will to changes as one, Google's update reaching his copy.
 
-Before it goes up, there's a supervised check on a throwaway Google calendar, explained first, with the repeat and invitation tests of 4a from her side. It holds up nothing above.
+Before it goes up, there's a supervised check on a throwaway Google calendar, explained first, with the repeat and invitation tests of 4a from her side. It holds up no earlier slice, but v0.1 and Jenn's two weeks wait for it (owner, 2026-11-01).
 
 ## If the house board fails
 
