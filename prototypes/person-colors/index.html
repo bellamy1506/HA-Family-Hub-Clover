@@ -13,7 +13,7 @@
   (both dark rules side by side), and Settings' People and colors with the 12, More colors and the close-color note.
   Tapping a color in Settings changes it everywhere on the page. The bar switches the set (A to C), the view and
   the distance; the address's #hash holds the state, and "shot" in it drops the page's own text for screenshots.
-  Made-up data only. Color math (WCAG contrast, OKLCH, CIELAB, CIEDE2000, Szafir 2018 at 0.3 degrees) is the
+  Owner's pick (2026-11-01): A, with Will starting on Cornflower; the page opens on it. Made-up data only. Color math (WCAG contrast, OKLCH, CIELAB, CIEDE2000, Szafir 2018 at 0.3 degrees) is the
   research's (docs/research/person-colors.md on branch research/person-colors), re-done here in plain JavaScript.
   Icons: Material Design Icons 7.4.47 by Pictogrammers, Apache License 2.0; the paths below are inlined unmodified.
 -->
@@ -235,7 +235,8 @@ const SETS = {
     about: '<b>C. Softer:</b> A\'s 12 at 60% of their colorfulness, each standing off the wall as far as before. Dustier and calmer, closer to a designed-room look, and today\'s three change with it (Will slate, Jenn terracotta, Us sage). The cost: the pale blocks nearly merge, so most pairs get the note, Will and Us included.' },
 };
 const keys = Object.keys(SETS);
-const START = { will: 'Blue', jenn: 'Vermillion', us: 'Green' };
+// Owner's pick (2026-11-01): set A, Will starting on Cornflower (was today's Blue), Jenn on Vermillion, Us on Green.
+const START = { will: 'Cornflower', jenn: 'Vermillion', us: 'Green' };
 const PEOPLE = ['will', 'jenn', 'us'], WHO = { will: 'Will', jenn: 'Jenn', us: 'Us' };
 const POSS = { will: 'Will\'s', jenn: 'Jenn\'s', us: 'the Us color' };
 
@@ -398,10 +399,10 @@ function legend() {
     <b>The three in use now:</b> Will and Jenn ${szafir(W, J).toFixed(2)}, Jenn and Us ${szafir(J, U).toFixed(2)}, Will and Us ${szafir(W, U).toFixed(2)}.</p>`;
 }
 const VIEW_ABOUT = {
-  wall: 'The wall\'s resting face at 3:10 pm with the three starting colors, as decided in the marks ticket (pale blocks, a green Us). Try <b>9 ft</b> for across the room. Change anyone\'s color in <b>Settings</b>; it shows here.',
+  wall: 'The wall\'s resting face at 3:10 pm with the three starting colors, as decided in the marks ticket (pale blocks, a green Us), Will on Cornflower as the owner picked. Try <b>9 ft</b> for across the room. Change anyone\'s color in <b>Settings</b>; it shows here.',
   all: 'The same face with one event in each of the 12, in hue order, so the pairs most alike sit side by side. The label on each row is the color\'s name. Try <b>9 ft</b>: this is where close pairs blur.',
   phones: 'The same rows on a phone. <b>Light</b>, then two ways a dark phone could draw them: <b>mirror</b> (the research\'s pick: each color stands off the dark as far as it does on the wall, so deep colors turn light) and <b>minimal</b> (each color kept as picked unless it would sink into the dark, then lightened just enough).',
-  will: 'Will\'s starting color three ways, with Jenn and Us as they start: today\'s Blue, Indigo and Cornflower, each at about 9 ft and at full size. The number is how far apart Will\'s and Us\'s blocks are on the 9 ft scale (under 0.45 gets the note; Will and Jenn stay 1.1 or more in all three).',
+  will: 'Will\'s starting color three ways, with Jenn and Us as they start: Blue (the week card\'s), Indigo and Cornflower (the owner\'s pick), each at about 9 ft and at full size. The number is how far apart Will\'s and Us\'s blocks are on the 9 ft scale (under 0.45 gets the note; Will and Jenn stay 1.1 or more in all three).',
   compare: 'All three sets, each with one event in each of its 12, at about 9 ft: what you\'d make out from across the room. The switcher\'s set doesn\'t matter here.',
   colors: 'Settings, The house, People and colors, on a phone (the wall\'s Settings panel holds the same). Tap Will, Jenn or Us to open the 12; tap one to choose it. <b>More colors</b> opens your phone\'s own color picker for any color. A note shows under the swatch when a choice is hard to tell from someone else\'s, or would be adjusted. The face beside it is the wall at 9 ft, live.',
 };
@@ -410,7 +411,7 @@ function render() {
   let html = '';
   if (state.view === 'wall') html = box('The wall <span>· the starting three</span>', face(HOUSE), 1200, 800);
   if (state.view === 'all') html = box('The wall <span>· all 12</span>', twelveFace(), 1200, 800);
-  if (state.view === 'phones') html = [[PHONE_LIGHT, 'mirror', 'Light'], [PHONE_DARK, 'mirror', 'Dark, mirror'], [PHONE_DARK, 'minimal', 'Dark, minimal']]
+  if (state.view === 'phones') html = [[PHONE_LIGHT, 'mirror', 'Light'], [PHONE_DARK, 'mirror', 'Dark, mirror <span>· taken</span>'], [PHONE_DARK, 'minimal', 'Dark, minimal']]
     .map(([bg, rule, cap]) => box(cap, phone(bg, rule, cap), 390, 0)).join('');
   if (state.view === 'compare') { const v = state.v; html = keys.map(k => { state.v = k; return box(`${SETS[k].name} <span>· all 12 at 9 ft</span>`, twelveFace(), 1200, 800); }).join(''); state.v = v; }
   if (state.view === 'will') { const w = state.pick.will; html = ['Blue', 'Indigo', 'Cornflower'].map(n => { const k = S().colors.findIndex(([m]) => m === n); if (k < 0) return ''; state.pick.will = k; const b = szafir(wallBlock(hex2rgb(pickHex('will'))), wallBlock(hex2rgb(pickHex('us')))).toFixed(2); return box(`Will in ${n} <span>· 9 ft · Will to Us ${b}</span>`, face(HOUSE), 1200, 800).replace('class="frame"', 'class="frame" data-far="1"') + box(`Will in ${n} <span>· full size</span>`, face(HOUSE), 1200, 800); }).join(''); if (w === undefined) delete state.pick.will; else state.pick.will = w; }
