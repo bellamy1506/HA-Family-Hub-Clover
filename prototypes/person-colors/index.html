@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Person Colors Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap">
+<!--
+  PROTOTYPE, throwaway. Map ticket "Which 12 colors does each person choose from, and which does each start with?"
+  (HA-Family-Hub-Clover #92). Three candidate sets of 12 person colors, each drawn the way it will be seen:
+  the wall's resting face with the starting three, the same face with all 12, rows on a phone in light and in dark
+  (both dark rules side by side), and Settings' People and colors with the 12, More colors and the close-color note.
+  Tapping a color in Settings changes it everywhere on the page. The bar switches the set (A to C), the view and
+  the distance; the address's #hash holds the state, and "shot" in it drops the page's own text for screenshots.
+  Made-up data only. Color math (WCAG contrast, OKLCH, CIELAB, CIEDE2000, Szafir 2018 at 0.3 degrees) is the
+  research's (docs/research/person-colors.md on branch research/person-colors), re-done here in plain JavaScript.
+  Icons: Material Design Icons 7.4.47 by Pictogrammers, Apache License 2.0; the paths below are inlined unmodified.
+-->
+<style>
+:root { --page: #EEF0EC; --ink: #16191B; --soft: #4A5054; --line: #CDD2CC; --bar: #16191B; --bar-ink: #F4F5F2;
+  --ui: Roboto, Inter, system-ui, -apple-system, "Segoe UI", sans-serif }
+@media (prefers-color-scheme: dark) { :root { --page: #141719; --ink: #E8EAE6; --soft: #A9B0B4; --line: #2E3438; --bar: #E8EAE6; --bar-ink: #141719; color-scheme: dark } }
+html, body { background: var(--page); color: var(--ink); font-family: var(--ui); margin: 0 }
+body { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 200px max(16px, env(safe-area-inset-left, 0px)) }
+h1 { font-size: 20px; margin: 0 0 4px; font-weight: 700 }
+.intro { margin: 0 0 14px; color: var(--soft); max-width: 76ch; line-height: 1.45 }
+.stage { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start }
+.stage.pairs { display: grid; grid-template-columns: auto auto; align-items: end; justify-content: center }
+.cap { font: 700 15px var(--ui); margin: 0 0 6px; color: var(--ink) } .cap span { font-weight: 500; color: var(--soft) }
+.frame { position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 0 1px var(--line), 0 6px 24px rgba(0,0,0,.12) }
+.frame > .face, .frame > .P, .frame > .S { position: absolute; top: 0; left: 0; transform-origin: 0 0 }
+.about { max-width: 76ch; margin: 16px auto 0; color: var(--soft); line-height: 1.45 }
+.about b { color: var(--ink) }
+.legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin: 10px 0 }
+.legend .it { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 14px; line-height: 1.2 }
+.legend .sw { flex: none; width: 34px; height: 26px; border-radius: 5px; box-shadow: inset 6px 0 0 var(--c); background: var(--blk) }
+.legend small { display: block; color: var(--soft); font-size: 12px }
+
+/* The switcher: not part of the design being judged. */
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 5;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: min(860px, calc(100vw - 20px)); box-sizing: border-box;
+  background: var(--bar); color: var(--bar-ink); padding: 8px; border-radius: 18px; box-shadow: 0 8px 30px rgba(0,0,0,.35) }
+.switcher .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; background: rgba(127,127,127,.2); border-radius: 12px; padding: 3px }
+.switcher button { font: 600 14px var(--ui); color: inherit; background: transparent; border: 0; border-radius: 9px; padding: 7px 9px; cursor: pointer; min-height: 36px }
+.switcher button[aria-pressed="true"] { background: var(--bar-ink); color: var(--bar) }
+.switcher button:focus-visible { outline: 2px solid #E69F00; outline-offset: 1px }
+.switcher .name { min-width: 170px; text-align: center; font: 700 14px var(--ui) }
+body.shot { padding: 0; background: #FFFFFF }
+body.shot h1, body.shot .intro, body.shot .about, body.shot .switcher { display: none }
+body.shot .stage { display: inline-flex; padding: 12px; justify-content: flex-start }
+body.shot .cap { color: #16191B } body.shot .cap span { color: #4A5054 }
+
+/* ---------- The wall's face: layout D with E's marks (7:1 text, weights 500+) ---------- */
+.face { box-sizing: border-box; overflow: hidden; background: #F4F5F2; color: #16191B;
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased }
+.face * { box-sizing: border-box }
+.face .clamp1, .face .clamp2, .face .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden }
+.face .clamp1 { -webkit-line-clamp: 1 } .face .clamp2 { -webkit-line-clamp: 2 } .face .clamp3 { -webkit-line-clamp: 3 }
+.face small.ap { font-size: .5em; font-weight: 600; margin-left: .08em; letter-spacing: .02em }
+.face .wx { display: flex; align-items: center; gap: 8px; font-weight: 700 }
+.face .wx svg { flex: none } .face .lo { color: #464C50; font-weight: 600 }
+.face .needs { display: flex; align-items: center; background: #FFF0C7; border-left: 12px solid #E69F00; border-radius: 6px 14px 14px 6px; padding: 6px 24px; font-weight: 600 }
+.ev { display: grid; grid-template-columns: .3em minmax(0, 1fr) auto; column-gap: .42em; align-items: start;
+  border-radius: .25em; padding: .03em .3em .05em 0; background: var(--blk) }
+.ev .barc { align-self: stretch; margin: -.03em 0 -.05em; border-radius: .25em 0 0 .25em; background: var(--c); min-height: 1.9em }
+.ev .tm { font-size: .76em; font-weight: 600; color: var(--soft-b); white-space: nowrap; overflow-x: clip; overflow-y: visible; line-height: 1.35 }
+.ev .tt { font-weight: 600; line-height: 1.15 }
+.ev .ico { width: 1.2em; height: 1.2em; fill: var(--soft-b); margin-top: .05em }
+.ev.work { background: var(--wk) } .ev.work .barc { min-height: 0 }
+.ev .who { margin-left: .45em; font-weight: 600; color: var(--soft-b) }
+.face { --soft-b: #3A3E41 }
+.face .note { display: flex; align-items: flex-start; gap: .4em; font-weight: 600; line-height: 1.15 }
+.face .note .ring { flex: none; width: .82em; height: .82em; border: .11em solid #464C50; border-radius: 50%; margin-top: .14em }
+.face .laterln, .face .more { font-size: .76em; font-weight: 600; color: #464C50 }
+.D { width: 1200px; height: 800px; display: flex; flex-direction: column; gap: 14px; padding: 24px 32px 22px }
+.D .band { display: grid; grid-template-columns: 20px 1fr auto; column-gap: 22px; align-items: start }
+.D .band .barc { border-radius: 10px; align-self: stretch; background: var(--c) }
+.D .band .lab { font-size: 28px; font-weight: 700; color: #464C50 }
+.D .band .line { font-size: 84px; font-weight: 700; line-height: 1.04; letter-spacing: -.01em }
+.D .band .line .t { margin-right: .26em }
+.D .band .side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px }
+.D .clock { font-size: 60px; font-weight: 700; line-height: 1 }
+.D .wx { font-size: 32px }
+.D .side .date { font-size: 24px; font-weight: 600; color: #464C50 }
+.D .bring { font-size: 24px; font-weight: 600; display: flex; gap: 8px; align-items: center; white-space: nowrap }
+.D .needs { min-height: 58px; font-size: 34px; line-height: 1.15 }
+.D .cols { flex: 1; display: grid; grid-template-columns: 1.45fr 1fr 1fr 1fr; grid-template-rows: minmax(0, 1fr); min-height: 0 }
+.D .col { display: flex; flex-direction: column; gap: 10px; padding: 0 16px; min-width: 0; min-height: 0; overflow: hidden; border-left: 2px solid #D5D9D3; font-size: 26px }
+.D .col:first-child { border-left: 0; padding-left: 0; font-size: 28px }
+.D .col .note { font-size: .93em }
+.D .col .hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.D .col .dn { font-size: 30px; font-weight: 700 }
+.D .col .hl { font-size: 22px; font-weight: 600; color: #464C50; white-space: nowrap }
+.D .list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden }
+.D .dinner { margin-top: auto; border-top: 2px solid #D5D9D3; padding-top: 6px; font-size: 22px; font-weight: 600; line-height: 1.15 }
+.D .dinner .lab { display: block; font-size: 18px; font-weight: 700; color: #464C50 }
+.D .col:first-child .dinner { font-size: 26px }
+
+/* ---------- A phone: rows only, light or dark ---------- */
+.P { box-sizing: border-box; width: 390px; padding: 20px 16px 24px; background: var(--bg); color: var(--ink2);
+  font-family: Roboto, Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased }
+.P.light { --bg: #F6F7F4; --ink2: #16191B; --soft2: #4A5054; --soft-b: #3A3E41; --line2: #DADDD8 }
+.P.dark { --bg: #111111; --ink2: #E1E1E1; --soft2: #B5B5B5; --soft-b: #B5B5B5; --line2: #2D3337 }
+.P h2 { font-size: 21px; font-weight: 700; margin: 14px 0 8px; display: flex; justify-content: space-between; align-items: baseline }
+.P h2:first-child { margin-top: 0 }
+.P h2 span { font-size: 14px; font-weight: 600; color: var(--soft2) }
+.P .list { display: flex; flex-direction: column; gap: 7px; font-size: 17px }
+.P .ev .tm { font-size: .82em } .P .ev .barc { min-height: 2.2em }
+
+/* ---------- Settings: People and colors (phone, light) ---------- */
+.S { box-sizing: border-box; width: 390px; height: 844px; padding: 54px 16px 24px; background: #F6F7F4; color: #16191B; overflow: hidden;
+  font-family: Roboto, Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; --soft2: #4A5054 }
+.S .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px }
+.S .top b { font-size: 24px } .S .top span { font-size: 17px; font-weight: 600; padding: 10px 4px; min-height: 40px; box-sizing: border-box }
+.S h3 { font-size: 14px; font-weight: 700; color: var(--soft2); margin: 16px 4px 6px; text-transform: uppercase; letter-spacing: .04em }
+.S .card { background: #FFFFFF; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px #E2E5E0 }
+.S .card > .hd { font-size: 17px; font-weight: 700; padding: 14px 16px 4px }
+.S .prow { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; width: 100%; min-height: 64px; padding: 8px 16px; cursor: pointer }
+.S .prow + .pnote, .S .prow { border-top: 0 } .S .pwrap + .pwrap { border-top: 1px solid #E2E5E0 }
+.S .prow .nm { font-size: 18px; font-weight: 600 } .S .prow .nm small { display: block; font-size: 15px; font-weight: 500; color: var(--soft2) }
+.S .prow .chev { font-size: 26px; color: var(--soft2) }
+.S .pnote { margin: -4px 16px 10px 94px; font-size: 15px; font-weight: 500; color: #16191B; line-height: 1.3 }
+.S .crow { display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 0 16px; font-size: 17px; font-weight: 600 }
+.S .crow span { color: var(--soft2); font-size: 26px; font-weight: 400 }
+.S .mini { width: 64px; height: 44px; border-radius: 7px; background: var(--blk); box-shadow: inset 9px 0 0 var(--c); position: relative }
+.S .mini.sel { outline: 3px solid #16191B; outline-offset: 2px }
+.S .mini.sel::after { content: "✓"; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font: 700 20px var(--ui); color: #16191B }
+.S .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.35) }
+.S .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-radius: 18px 18px 0 0; padding: 14px 16px 26px; box-shadow: 0 -6px 30px rgba(0,0,0,.2) }
+.S .sheet .sh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px }
+.S .sheet .sh b { font-size: 20px }
+.S .sheet .done { all: unset; font-size: 17px; font-weight: 700; padding: 10px 16px; border-radius: 22px; background: #E7EAE5; min-height: 44px; box-sizing: border-box; cursor: pointer }
+.S .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 8px }
+.S .grid button { all: unset; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; min-height: 56px; padding: 2px 0 }
+.S .grid .mini { width: 72px; height: 44px }
+.S .grid .lbl { font-size: 14px; font-weight: 600; text-align: center; line-height: 1.15 }
+.S .grid .lbl small { display: block; font-weight: 500; color: var(--soft2); font-size: 12.5px }
+.S .more { display: flex; align-items: center; gap: 12px; margin-top: 16px; min-height: 56px; border-radius: 12px; background: #F1F3EF; padding: 0 14px; font-size: 17px; font-weight: 700; cursor: pointer; position: relative }
+.S .more .rb { width: 36px; height: 36px; border-radius: 50%; background: conic-gradient(#E03131, #E69F00, #548C03, #007A5A, #0091C8, #3944A9, #A86DD5, #CD677B, #E03131) }
+.S .more input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer }
+.S .more small { display: block; font-size: 13px; font-weight: 500; color: var(--soft2) }
+.S .snote { margin-top: 12px; font-size: 15px; font-weight: 500; line-height: 1.35; min-height: 20px }
+.S .snote div + div { margin-top: 4px } .S .snote .ok { color: var(--soft2) }
+</style>
+
+<h1>The 12 person colors</h1>
+<p class="intro" id="intro"></p>
+<div class="stage" id="stage"></div>
+<div class="about" id="about"></div>
+
+<nav class="switcher" aria-label="Prototype controls">
+  <div class="grp"><button id="prev" aria-label="Previous set">&#8249;</button><span class="name" id="vname"></span><button id="next" aria-label="Next set">&#8250;</button></div>
+  <div class="grp" id="views"></div>
+  <div class="grp" id="dists"></div>
+</nav>
+
+<script>
+// ---------- color math: WCAG contrast, OKLCH, CIELAB, CIEDE2000, Szafir 2018 ----------
+const hex2rgb = h => { h = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255); };
+const rgb2hex = c => '#' + c.map(v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+const lin = v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+const gam = v => v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055;
+const lum = c => { const [r, g, b] = c.map(lin); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+function oklch(c) {
+  const [r, g, b] = c.map(lin);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b), s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  const L = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  return [L, Math.hypot(A, B), (Math.atan2(B, A) * 180 / Math.PI + 360) % 360];
+}
+// OKLCH to sRGB; where the screen can't show that much colorfulness, it drops until it fits, hue and lightness kept.
+function fromOklch(L, C, h) {
+  const at = c => { const a = c * Math.cos(h * Math.PI / 180), b = c * Math.sin(h * Math.PI / 180);
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3, m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3, s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+    return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s]; };
+  const ok = lr => lr.every(v => v >= -1e-4 && v <= 1 + 1e-4);
+  let lr = at(C);
+  if (!ok(lr)) { let lo = 0, hi = C; for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (ok(at(mid))) lo = mid; else hi = mid; } lr = at(lo); }
+  return lr.map(v => gam(Math.min(1, Math.max(0, v))));
+}
+function lab(c) {
+  const [r, g, b] = c.map(lin), f = t => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+  const X = (0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 0.95047, Y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b, Z = (0.0193339 * r + 0.1191920 * g + 0.9503041 * b) / 1.08883;
+  return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))];
+}
+function de2000(c1, c2) {
+  const [L1, a1, b1] = lab(c1), [L2, a2, b2] = lab(c2), rad = Math.PI / 180;
+  const Cb = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2, G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+  const ap1 = a1 * (1 + G), ap2 = a2 * (1 + G), Cp1 = Math.hypot(ap1, b1), Cp2 = Math.hypot(ap2, b2);
+  const hp = (b, a) => (a === 0 && b === 0) ? 0 : (Math.atan2(b, a) / rad + 360) % 360, h1 = hp(b1, ap1), h2 = hp(b2, ap2);
+  let dh = 0; if (Cp1 * Cp2) { dh = h2 - h1; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
+  const dL = L2 - L1, dC = Cp2 - Cp1, dH = 2 * Math.sqrt(Cp1 * Cp2) * Math.sin(dh * rad / 2), Lb = (L1 + L2) / 2, Cpb = (Cp1 + Cp2) / 2;
+  let hb = h1 + h2; if (Cp1 * Cp2) hb = Math.abs(h1 - h2) > 180 ? (h1 + h2 + (h1 + h2 < 360 ? 360 : -360)) / 2 : (h1 + h2) / 2;
+  const T = 1 - 0.17 * Math.cos((hb - 30) * rad) + 0.24 * Math.cos(2 * hb * rad) + 0.32 * Math.cos((3 * hb + 6) * rad) - 0.20 * Math.cos((4 * hb - 63) * rad);
+  const SL = 1 + 0.015 * (Lb - 50) ** 2 / Math.sqrt(20 + (Lb - 50) ** 2), SC = 1 + 0.045 * Cpb, SH = 1 + 0.015 * Cpb * T;
+  const RT = -2 * Math.sqrt(Cpb ** 7 / (Cpb ** 7 + 25 ** 7)) * Math.sin(60 * Math.exp(-(((hb - 275) / 25) ** 2)) * rad);
+  return Math.sqrt((dL / SL) ** 2 + (dC / SC) ** 2 + (dH / SH) ** 2 + RT * (dC / SC) * (dH / SH));
+}
+const mix = (c, bg, p) => c.map((v, i) => v * p + bg[i] * (1 - p)); // color-mix(in srgb)
+// Szafir 2018: two marks 0.3 degrees across (a block row at 9 ft); 1.0 means half of viewers notice any difference.
+const SZ = [5.095 + 0.80 / 0.3, 5.089 + 2.69 / 0.3, 6.786 + 3.20 / 0.3];
+const szafir = (c1, c2) => { const A = lab(c1), B = lab(c2); return Math.sqrt(A.reduce((s, v, i) => s + ((v - B[i]) / SZ[i]) ** 2, 0)); };
+
+const WALL = hex2rgb('#F4F5F2'), PHONE_LIGHT = hex2rgb('#F6F7F4'), PHONE_DARK = hex2rgb('#111111');
+const AMBER = hex2rgb('#E69F00'), RED = hex2rgb('#E03131');
+const isDark = bg => lum(bg) < 0.18;
+function barFor(C, h, bg, ratio) {
+  const dark = isDark(bg); let lo = dark ? oklch(bg)[0] : 0, hi = dark ? 1 : oklch(bg)[0];
+  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2, k = contrast(fromOklch(mid, C, h), bg); if ((k < ratio) === dark) lo = mid; else hi = mid; }
+  return fromOklch(dark ? hi : lo, C, h);
+}
+// Each person's color is kept as picked. Its stand-off from the wall, held to 3:1 to 7.5:1, is what every look keeps.
+const stored = pick => Math.min(7.5, Math.max(3, contrast(pick, WALL)));
+function bar(pick, bg, rule = 'mirror') {
+  const k = contrast(pick, bg), [, C, h] = oklch(pick);
+  if (!isDark(bg)) return (k >= 3 && k <= 7.5 && bg === WALL) ? pick : barFor(C, h, bg, stored(pick));
+  if (rule === 'minimal') return k >= 4.5 ? pick : barFor(C, h, bg, 4.5);
+  return barFor(C, h, bg, Math.max(4.5, stored(pick)));
+}
+const marks = (pick, bg, rule) => { const b = bar(pick, bg, rule); return { c: rgb2hex(b), blk: rgb2hex(mix(b, bg, 0.17)), wk: rgb2hex(mix(b, bg, 0.08)) }; };
+const wallBlock = pick => mix(bar(pick, WALL), WALL, 0.17);
+const tooClose = (p, q) => szafir(wallBlock(p), wallBlock(q)) < 0.45;
+
+// ---------- the three candidate sets (hue order, as the picker shows them) ----------
+const SETS = {
+  a: { name: 'A · The proposed 12', colors: [['Rose', '#CD677B'], ['Rust', '#923716'], ['Vermillion', '#D55E00'], ['Leaf', '#548C03'], ['Forest', '#286209'], ['Green', '#007A5A'],
+      ['Sky', '#0091C8'], ['Blue', '#005A8C'], ['Cornflower', '#4385E4'], ['Indigo', '#3944A9'], ['Lilac', '#A86DD5'], ['Plum', '#8D2875']],
+    about: '<b>A. The proposed 12</b>, from the research: the 12 calm hues that stand farthest apart with today\'s three kept, chosen by computer search. Four blues and three greens.' },
+  b: { name: 'B · Teal and brown', colors: [['Rose', '#CD677B'], ['Rust', '#923716'], ['Vermillion', '#D55E00'], ['Brown', '#9C7A47'], ['Leaf', '#548C03'], ['Green', '#007A5A'],
+      ['Teal', '#3595A4'], ['Blue', '#005A8C'], ['Cornflower', '#4385E4'], ['Indigo', '#3944A9'], ['Lilac', '#A86DD5'], ['Plum', '#8D2875']],
+    about: '<b>B. Teal and brown</b> in place of A\'s Sky and Forest; the other ten are A\'s. One blue fewer, one green fewer, and two families most family calendars offer. Half as many close pairs as A. Brown\'s block is a beige that sits nearer the board\'s grays than any other.' },
+  c: { name: 'C · Softer', colors: [['Rose', '#B37680'], ['Rust', '#7B4635'], ['Vermillion', '#B6704C'], ['Leaf', '#66874A'], ['Forest', '#3D5E32'], ['Green', '#417561'],
+      ['Sky', '#548EAF'], ['Blue', '#335977'], ['Cornflower', '#6187BF'], ['Indigo', '#404B85'], ['Lilac', '#9A79B6'], ['Plum', '#783F67']],
+    about: '<b>C. Softer:</b> A\'s 12 at 60% of their colorfulness, each standing off the wall as far as before. Dustier and calmer, closer to a designed-room look, and today\'s three change with it (Will slate, Jenn terracotta, Us sage). The cost: the pale blocks nearly merge, so most pairs get the note, Will and Us included.' },
+};
+const keys = Object.keys(SETS);
+const START = { will: 'Blue', jenn: 'Vermillion', us: 'Green' };
+const PEOPLE = ['will', 'jenn', 'us'], WHO = { will: 'Will', jenn: 'Jenn', us: 'Us' };
+const POSS = { will: 'Will\'s', jenn: 'Jenn\'s', us: 'the Us color' };
+
+// ---------- state: set, view, distance, each person's pick (an index into the set, or any hex) ----------
+const VIEWS = { wall: { label: 'Wall' }, all: { label: 'Wall, all 12' }, phones: { label: 'Phones' }, colors: { label: 'Settings' }, compare: { label: 'A B C at 9 ft' }, will: { label: 'Will\'s start' } };
+const DISTS = { fit: { label: 'Fit' }, '9ft': { label: '9 ft', w: Math.round(11.9 * 14 / 108 * 153) } };
+const state = { v: 'a', view: 'wall', d: 'fit', pick: {}, open: null, shot: false };
+const S = () => SETS[state.v];
+const startIdx = p => S().colors.findIndex(([n]) => n === START[p]);
+const pickHex = p => { const x = state.pick[p] ?? startIdx(p); return typeof x === 'number' ? S().colors[x][1] : x; };
+const pickName = p => { const x = state.pick[p] ?? startIdx(p); return typeof x === 'number' ? S().colors[x][0] : 'Your own color'; };
+function readHash() {
+  const parts = (location.hash || '').replace('#', '').split('-');
+  Object.assign(state, { v: 'a', view: 'wall', d: 'fit', pick: {}, open: null });
+  for (const p of parts) {
+    if (SETS[p]) state.v = p; else if (VIEWS[p]) state.view = p; else if (DISTS[p]) state.d = p;
+    else if (/^[wju]\d{1,2}$/.test(p)) state.pick[{ w: 'will', j: 'jenn', u: 'us' }[p[0]]] = +p.slice(1);
+    else if (/^[wju][0-9a-f]{6}$/i.test(p)) state.pick[{ w: 'will', j: 'jenn', u: 'us' }[p[0]]] = '#' + p.slice(1).toUpperCase();
+    else if (/^open(will|jenn|us)$/.test(p)) state.open = p.slice(4);
+  }
+  state.shot = parts.includes('shot');
+}
+function writeHash() {
+  const pk = PEOPLE.filter(p => p in state.pick).map(p => p[0] + String(state.pick[p]).replace('#', '').toLowerCase());
+  const h = '#' + [state.v, state.view, state.d, ...pk, ...(state.open ? ['open' + state.open] : [])].join('-');
+  if (location.hash !== h) history.replaceState(null, '', h);
+}
+
+// ---------- made-up household data (Friday, Oct 30, 3:10 pm) ----------
+const hm = (h, m = 0) => h * 60 + m;
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const tm = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}<small class="ap">${h < 12 ? 'am' : 'pm'}</small>`; };
+const tmS = m => { const h = Math.floor(m / 60), mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, '0')}`; };
+const MDI = {
+  paw: 'M8.35,3C9.53,2.83 10.78,4.12 11.14,5.9C11.5,7.67 10.85,9.25 9.67,9.43C8.5,9.61 7.24,8.32 6.87,6.54C6.5,4.77 7.17,3.19 8.35,3M15.5,3C16.69,3.19 17.35,4.77 17,6.54C16.62,8.32 15.37,9.61 14.19,9.43C13,9.25 12.35,7.67 12.72,5.9C13.08,4.12 14.33,2.83 15.5,3M3,7.6C4.14,7.11 5.69,8 6.5,9.55C7.26,11.13 7,12.79 5.87,13.28C4.74,13.77 3.2,12.89 2.41,11.32C1.62,9.75 1.9,8.08 3,7.6M21,7.6C22.1,8.08 22.38,9.75 21.59,11.32C20.8,12.89 19.26,13.77 18.13,13.28C17,12.79 16.74,11.13 17.5,9.55C18.31,8 19.86,7.11 21,7.6M19.33,18.38C19.37,19.32 18.65,20.36 17.79,20.75C16,21.57 13.88,19.87 11.89,19.87C9.9,19.87 7.76,21.64 6,20.75C5,20.26 4.31,18.96 4.44,17.88C4.62,16.39 6.41,15.59 7.47,14.5C8.88,13.09 9.88,10.44 11.89,10.44C13.89,10.44 14.95,13.05 16.3,14.5C17.41,15.72 19.26,16.75 19.33,18.38Z',
+  tooth: 'M7,2C4,2 2,5 2,8C2,10.11 3,13 4,14C5,15 6,22 8,22C12.54,22 10,15 12,15C14,15 11.46,22 16,22C18,22 19,15 20,14C21,13 22,10.11 22,8C22,5 20,2 17,2C14,2 14,3 12,3C10,3 10,2 7,2Z',
+  'content-cut': 'M19,3L13,9L15,11L22,4V3M12,12.5A0.5,0.5 0 0,1 11.5,12A0.5,0.5 0 0,1 12,11.5A0.5,0.5 0 0,1 12.5,12A0.5,0.5 0 0,1 12,12.5M6,20A2,2 0 0,1 4,18C4,16.89 4.9,16 6,16A2,2 0 0,1 8,18C8,19.11 7.1,20 6,20M6,8A2,2 0 0,1 4,6C4,4.89 4.9,4 6,4A2,2 0 0,1 8,6C8,7.11 7.1,8 6,8M9.64,7.64C9.87,7.14 10,6.59 10,6A4,4 0 0,0 6,2A4,4 0 0,0 2,6A4,4 0 0,0 6,10C6.59,10 7.14,9.87 7.64,9.64L10,12L7.64,14.36C7.14,14.13 6.59,14 6,14A4,4 0 0,0 2,18A4,4 0 0,0 6,22A4,4 0 0,0 10,18C10,17.41 9.87,16.86 9.64,16.36L12,14L19,21H22V20L9.64,7.64Z',
+  'car-wrench': 'M20.96 16.45C20.97 16.3 21 16.15 21 16V16.5L20.96 16.45M11 16C11 16.71 11.15 17.39 11.42 18H6V19C6 19.55 5.55 20 5 20H4C3.45 20 3 19.55 3 19V11L5.08 5C5.28 4.42 5.84 4 6.5 4H17.5C18.16 4 18.72 4.42 18.92 5L21 11V16C21 13.24 18.76 11 16 11S11 13.24 11 16M8 13.5C8 12.67 7.33 12 6.5 12S5 12.67 5 13.5 5.67 15 6.5 15 8 14.33 8 13.5M19 10L17.5 5.5H6.5L5 10H19M22.87 21.19L18.76 17.08C19.17 16.04 18.94 14.82 18.08 13.97C17.18 13.06 15.83 12.88 14.74 13.38L16.68 15.32L15.33 16.68L13.34 14.73C12.8 15.82 13.05 17.17 13.93 18.08C14.79 18.94 16 19.16 17.05 18.76L21.16 22.86C21.34 23.05 21.61 23.05 21.79 22.86L22.83 21.83C23.05 21.65 23.05 21.33 22.87 21.19Z',
+  'trash-can': 'M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M9,8H11V17H9V8M13,8H15V17H13V8Z',
+};
+const WORDS = [[/\bvet\b/i, 'paw'], [/\bdentist\b/i, 'tooth'], [/\bhaircut\b/i, 'content-cut'], [/\boil change\b/i, 'car-wrench'], [/\btrash\b/i, 'trash-can']];
+const icon = t => { const w = WORDS.find(([re]) => re.test(t)); return w ? `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="${MDI[w[1]]}"/></svg>` : ''; };
+const ev = (p, s, e, t, o = {}) => ({ p, s, e, t, ...o });
+// The household face: the starting three (or whatever Settings picked).
+const HOUSE = {
+  next: ev('jenn', hm(16, 45), hm(17, 45), 'Yoga'),
+  needs: null, bring: 'Rain until 9 pm',
+  cols: [
+    { dn: 'Today', hl: '61° 44°', notes: ['Buy cat litter', 'Call about the gutter quote'], later: 3,
+      events: [ev('jenn', hm(7), hm(15, 30), 'Work shift', { now: true }), ev('will', hm(8, 30), hm(16, 30), 'At work', { work: true, now: true }),
+        ev('will', hm(17, 15), hm(17, 45), 'Pick up dry cleaning and drop off the library books'), ev('us', hm(19, 30), hm(20, 15), 'Plan holiday travel')], dinner: 'Salmon, rice and green beans' },
+    { dn: 'Sat 31', hl: '55° 40°', events: [ev('will', hm(9), hm(10), 'Oil change'), ev('jenn', hm(17, 30), hm(18, 30), 'Haircut'), ev('us', hm(19), hm(21, 30), 'Date night: dinner and a movie')], dinner: 'Out for date night' },
+    { dn: 'Sun 1', hl: '58° 39°', notes: ['Change the smoke alarm batteries'], events: [ev('us', hm(12, 30), hm(14), 'Lunch at the Parkers\''), ev('us', hm(19, 30), hm(19, 45), 'Trash night: bins to the curb')], dinner: 'Pizza night' },
+    { dn: 'Mon 2', hl: '63° 45°', events: [ev('will', hm(6, 15), hm(7, 15), 'Gym'), ev('jenn', hm(7), hm(15, 30), 'Work shift'), ev('will', hm(8, 30), hm(16, 30), 'At work', { work: true }), ev('will', hm(12), hm(12, 30), 'Package pickup at the post office')], dinner: 'Lasagna' },
+  ],
+};
+// The same face with one event in each of the 12, in hue order, so neighbors in hue sit next to each other.
+const TWELVE = [['Next', 0, hm(16), 'Book club'], [0, 1, hm(16, 45), 'Yoga'], [0, 2, hm(19, 30), 'Plan holiday travel'],
+  [1, 3, hm(9), 'Oil change'], [1, 4, hm(17, 30), 'Haircut'], [1, 5, hm(19), 'Date night: dinner and a movie'],
+  [2, 6, hm(9, 30), 'Farmers market'], [2, 7, hm(12, 30), 'Lunch at the Parkers\''], [2, 8, hm(16), 'Piano tuner'],
+  [3, 9, hm(6, 15), 'Gym'], [3, 10, hm(10), 'Team call'], [3, 11, hm(15), 'Dentist']];
+
+// ---------- drawing ----------
+// Colors of whatever a row belongs to: a person ("will"), or one of the 12 ("c7").
+function who(p) {
+  if (p[0] === 'c') { const [n, hex] = S().colors[+p.slice(1)], owner = PEOPLE.find(q => pickHex(q) === hex); return { hex, label: owner ? `${n} · ${WHO[owner]}` : n }; }
+  return { hex: pickHex(p), label: WHO[p] };
+}
+const vars = (hex, bg, rule) => { const m = marks(hex2rgb(hex), bg, rule); return `--c:${m.c};--blk:${m.blk};--wk:${m.wk}`; };
+function row(e, bg, rule) {
+  const w = who(e.p), when = e.now ? `Now · until ${tmS(e.e)}` : e.work ? `${tmS(e.s)} to ${tmS(e.e)}` : tm(e.s);
+  return `<div class="ev${e.work ? ' work' : ''}" style="${vars(w.hex, bg, rule)}"><span class="barc"></span>
+    <div><div class="tm">${when}<span class="who">${esc(w.label)}</span></div><div class="tt clamp2">${esc(e.t)}</div></div>${icon(e.t)}</div>`;
+}
+const rain = px => `<svg width="${px}" height="${px}" viewBox="0 0 48 48" aria-hidden="true"><path d="M13 30h23a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8.5 8.5 0 0 0-2 18z" fill="#6E7A82"/><g stroke="#0072B2" stroke-width="3.5" stroke-linecap="round"><path d="M16 35l-3 7M26 35l-3 7M36 35l-3 7"/></g></svg>`;
+function face(F) {
+  const n = F.next, w = who(n.p), m = marks(hex2rgb(w.hex), WALL);
+  const band = `<div class="band" style="--c:${m.c}"><span class="barc"></span>
+    <div><div class="lab">Next · ${esc(w.label)}</div><div class="line" data-shrink="64"><span class="clamp3"><span class="t">${tm(n.s)}</span>${esc(n.t)}</span></div></div>
+    <div class="side"><div class="clock">3:10<small class="ap">pm</small></div><div class="date">Fri, Oct 30</div><div class="wx">${rain(36)}<span>61°</span><span class="lo">44°</span></div>${F.bring ? `<div class="bring">${rain(28)}${F.bring}</div>` : ''}</div></div>`;
+  const cols = F.cols.map((c, i) => `<div class="col"><div class="hd"><span class="dn">${c.dn}</span><span class="hl">${c.hl}</span></div>
+    ${(c.notes || []).map(t => `<div class="note"><span class="ring"></span><span class="clamp2">${esc(t)}</span></div>`).join('')}${c.later ? `<div class="laterln">Later (${c.later}) ›</div>` : ''}
+    <div class="list" data-fit>${c.events.map(e => row(e, WALL)).join('')}</div><div class="dinner"><span class="lab">Dinner</span><span class="clamp2">${esc(c.dinner)}</span></div></div>`).join('');
+  return `<div class="face D">${band}<div class="cols">${cols}</div></div>`;
+}
+function twelveFace() {
+  const cols = HOUSE.cols.map(c => ({ dn: c.dn, hl: c.hl, dinner: c.dinner, events: [] }));
+  let next;
+  for (const [col, k, s, t] of TWELVE) { const e = ev('c' + k, s, s + 60, t); if (col === 'Next') next = e; else cols[col].events.push(e); }
+  return face({ next, bring: 'Rain until 9 pm', cols });
+}
+function phone(bg, rule, title) {
+  const dark = isDark(bg), today = HOUSE.cols[0].events.filter(e => !e.now), sat = HOUSE.cols[1].events;
+  const twelve = S().colors.map(([n], k) => ev('c' + k, hm(9 + Math.floor(k / 2), (k % 2) * 30), 0, ['Dentist', 'Book club', 'Team call', 'Haircut', 'Farmers market', 'Gym', 'Oil change', 'Lunch with Sam', 'Vet: both cats', 'Piano tuner', 'Yoga', 'Trash night'][k]));
+  return `<div class="P ${dark ? 'dark' : 'light'}" data-title="${title}">
+    <h2>Today<span>Fri, Oct 30 · 3:10</span></h2><div class="list">${row(HOUSE.next, bg, rule)}${today.map(e => row(e, bg, rule)).join('')}</div>
+    <h2>Saturday<span>Oct 31</span></h2><div class="list">${sat.map(e => row(e, bg, rule)).join('')}</div>
+    <h2>All 12<span>made-up events</span></h2><div class="list">${twelve.map(e => row(e, bg, rule)).join('')}</div></div>`;
+}
+
+// ---------- Settings: People and colors ----------
+function notes(p) {
+  const pick = hex2rgb(pickHex(p)), k = contrast(pick, WALL), b = bar(pick, WALL), out = [];
+  const same = PEOPLE.filter(q => q !== p && pickHex(q) === pickHex(p)), close = PEOPLE.filter(q => q !== p && !same.includes(q) && tooClose(pick, hex2rgb(pickHex(q))));
+  if (same.length) out.push(`Same color as ${same.map(q => POSS[q]).join(' and ')}.`);
+  if (close.length) out.push(`Hard to tell from ${close.map(q => POSS[q]).join(' and ')} across the room.`);
+  if (k < 3) out.push('Too pale to see well on the wall, so the board draws it a shade darker.');
+  if (k > 7.5) out.push('Dark enough to look like text, so the board draws it a shade lighter.');
+  if (oklch(pick)[1] < 0.06) out.push('Reads as gray, which on the board means nobody\'s.');
+  else if (de2000(b, AMBER) < 15) out.push('Could be mistaken for the board\'s yellow alerts.');
+  else if (de2000(b, RED) < 15) out.push('Could be mistaken for the board\'s red Delete button.');
+  return out;
+}
+const mini = (hex, sel) => { const m = marks(hex2rgb(hex), WALL); return `<span class="mini${sel ? ' sel' : ''}" style="--c:${m.c};--blk:${m.blk}"></span>`; };
+function settings() {
+  const rows = PEOPLE.map(p => `<div class="pwrap"><button class="prow" data-open="${p}">${mini(pickHex(p))}<span class="nm">${WHO[p]}<small>${esc(pickName(p))}</small></span><span class="chev">›</span></button>
+    ${notes(p).map(t => `<div class="pnote">${esc(t)}</div>`).join('')}</div>`).join('');
+  let sheet = '';
+  if (state.open) {
+    const p = state.open, cur = pickHex(p);
+    const grid = S().colors.map(([n, hex], k) => {
+      const owner = PEOPLE.find(q => q !== p && pickHex(q) === hex), like = !owner && PEOPLE.find(q => q !== p && tooClose(hex2rgb(hex), hex2rgb(pickHex(q))));
+      return `<button data-pick="${k}" aria-label="${n}">${mini(hex, hex === cur)}<span class="lbl">${n}${owner ? `<small>${owner === 'us' ? 'Us' : WHO[owner] + '\'s'}</small>` : like ? `<small>Hard to tell from ${like === 'us' ? 'Us' : WHO[like] + '\'s'}</small>` : ''}</span></button>`;
+    }).join('');
+    const ns = notes(p);
+    sheet = `<div class="scrim" data-close></div><div class="sheet"><div class="sh"><b>${p === 'us' ? 'The Us color' : WHO[p] + '\'s color'}</b><button class="done" data-close>Done</button></div>
+      <div class="grid">${grid}</div>
+      <label class="more"><span class="rb"></span><span>More colors<small>Any color you like</small></span><input type="color" value="${cur.toLowerCase()}" data-more="${p}"></label>
+      <div class="snote">${ns.length ? ns.map(t => `<div>${esc(t)}</div>`).join('') : '<div class="ok">Easy to tell apart from the others across the room.</div>'}</div></div>`;
+  }
+  return `<div class="S"><div class="top"><b>Settings</b><span>Done</span></div>
+    <h3>The house</h3><div class="card"><div class="hd">People and colors</div>${rows}</div>
+    <div class="card" style="margin-top:12px"><div class="crow">Calendars<span>›</span></div></div>${sheet}</div>`;
+}
+
+// Lists never cut a row in half: rows that don't fit drop from the end and are counted.
+function fit(root) {
+  for (const el of root.querySelectorAll('[data-shrink]')) {
+    const inner = el.firstElementChild, start = parseFloat(getComputedStyle(el).fontSize);
+    let size = start; const lines = () => inner.clientHeight / (size * 1.04), set = v => { size = v; el.style.fontSize = `${v}px`; };
+    while (lines() > 1.5 && size > 76) set(size - 4);
+    if (lines() > 1.5) { set(start); while (lines() > 2.5 && size > +el.dataset.shrink) set(size - 4); }
+  }
+  for (const box of root.querySelectorAll('[data-fit]')) {
+    const rows = [...box.children].filter(el => el.classList.contains('ev'));
+    let hidden = 0; const more = document.createElement('div'); more.className = 'more';
+    while (box.scrollHeight > box.clientHeight + 1 && rows.length) { rows.pop().remove(); hidden++; if (!more.isConnected) box.appendChild(more); more.textContent = `+${hidden} more`; }
+  }
+}
+
+// ---------- page ----------
+const box = (cap, inner, w, h) => `<div><div class="cap">${cap}</div><div class="frame" data-w="${w}" data-h="${h}">${inner}</div></div>`;
+function legend() {
+  const cs = S().colors, pairs = [];
+  for (let i = 0; i < 12; i++) for (let j = i + 1; j < 12; j++) { const d = szafir(wallBlock(hex2rgb(cs[i][1])), wallBlock(hex2rgb(cs[j][1]))); if (d < 0.45) pairs.push(`${cs[i][0]} and ${cs[j][0]} (${d.toFixed(2)})`); }
+  const items = cs.map(([n, hex]) => { const m = marks(hex2rgb(hex), WALL), st = PEOPLE.find(p => START[p] === n);
+    return `<div class="it"><span class="sw" style="--c:${m.c};--blk:${m.blk}"></span><span>${st ? `<b>${n}</b>` : n}<small>${hex}${st ? ` · starts as ${WHO[st]}` : ''}</small></span></div>`; }).join('');
+  const W = wallBlock(hex2rgb(pickHex('will'))), J = wallBlock(hex2rgb(pickHex('jenn'))), U = wallBlock(hex2rgb(pickHex('us')));
+  return `<div class="legend">${items}</div><p><b>Pairs that get the note</b> (under 0.45 on the 9 ft scale; today's Will and Us are 0.50): ${pairs.length ? pairs.join(', ') : 'none'}.
+    <b>The three in use now:</b> Will and Jenn ${szafir(W, J).toFixed(2)}, Jenn and Us ${szafir(J, U).toFixed(2)}, Will and Us ${szafir(W, U).toFixed(2)}.</p>`;
+}
+const VIEW_ABOUT = {
+  wall: 'The wall\'s resting face at 3:10 pm with the three starting colors, as decided in the marks ticket (pale blocks, a green Us). Try <b>9 ft</b> for across the room. Change anyone\'s color in <b>Settings</b>; it shows here.',
+  all: 'The same face with one event in each of the 12, in hue order, so the pairs most alike sit side by side. The label on each row is the color\'s name. Try <b>9 ft</b>: this is where close pairs blur.',
+  phones: 'The same rows on a phone. <b>Light</b>, then two ways a dark phone could draw them: <b>mirror</b> (the research\'s pick: each color stands off the dark as far as it does on the wall, so deep colors turn light) and <b>minimal</b> (each color kept as picked unless it would sink into the dark, then lightened just enough).',
+  will: 'Will\'s starting color three ways, with Jenn and Us as they start: today\'s Blue, Indigo and Cornflower, each at about 9 ft and at full size. The number is how far apart Will\'s and Us\'s blocks are on the 9 ft scale (under 0.45 gets the note; Will and Jenn stay 1.1 or more in all three).',
+  compare: 'All three sets, each with one event in each of its 12, at about 9 ft: what you\'d make out from across the room. The switcher\'s set doesn\'t matter here.',
+  colors: 'Settings, The house, People and colors, on a phone (the wall\'s Settings panel holds the same). Tap Will, Jenn or Us to open the 12; tap one to choose it. <b>More colors</b> opens your phone\'s own color picker for any color. A note shows under the swatch when a choice is hard to tell from someone else\'s, or would be adjusted. The face beside it is the wall at 9 ft, live.',
+};
+function render() {
+  const st = document.getElementById('stage');
+  let html = '';
+  if (state.view === 'wall') html = box('The wall <span>· the starting three</span>', face(HOUSE), 1200, 800);
+  if (state.view === 'all') html = box('The wall <span>· all 12</span>', twelveFace(), 1200, 800);
+  if (state.view === 'phones') html = [[PHONE_LIGHT, 'mirror', 'Light'], [PHONE_DARK, 'mirror', 'Dark, mirror'], [PHONE_DARK, 'minimal', 'Dark, minimal']]
+    .map(([bg, rule, cap]) => box(cap, phone(bg, rule, cap), 390, 0)).join('');
+  if (state.view === 'compare') { const v = state.v; html = keys.map(k => { state.v = k; return box(`${SETS[k].name} <span>· all 12 at 9 ft</span>`, twelveFace(), 1200, 800); }).join(''); state.v = v; }
+  if (state.view === 'will') { const w = state.pick.will; html = ['Blue', 'Indigo', 'Cornflower'].map(n => { const k = S().colors.findIndex(([m]) => m === n); if (k < 0) return ''; state.pick.will = k; const b = szafir(wallBlock(hex2rgb(pickHex('will'))), wallBlock(hex2rgb(pickHex('us')))).toFixed(2); return box(`Will in ${n} <span>· 9 ft · Will to Us ${b}</span>`, face(HOUSE), 1200, 800).replace('class="frame"', 'class="frame" data-far="1"') + box(`Will in ${n} <span>· full size</span>`, face(HOUSE), 1200, 800); }).join(''); if (w === undefined) delete state.pick.will; else state.pick.will = w; }
+  if (state.view === 'colors') html = box('Settings <span>· a phone</span>', settings(), 390, 844) + box('The wall at 9 ft <span>· live</span>', face(HOUSE), 1200, 800);
+  st.innerHTML = html;
+  document.getElementById('vname').textContent = S().name;
+  document.getElementById('intro').innerHTML = 'Three candidate sets of 12 person colors, each drawn the way it will be seen. Made-up events. The bar switches the set, the view and the distance; Settings changes anyone\'s color everywhere on this page. Judged in normal color vision.';
+  document.getElementById('about').innerHTML = `<p>${S().about}</p><p>${VIEW_ABOUT[state.view]}</p>${legend()}`;
+  for (const [id, key] of [['views', 'view'], ['dists', 'd']]) for (const b of document.querySelectorAll(`#${id} button`)) b.setAttribute('aria-pressed', b.dataset.k === state[key]);
+  document.getElementById('dists').style.display = state.view === 'wall' || state.view === 'all' ? '' : 'none';
+  st.classList.toggle('pairs', state.view === 'will');
+  document.body.classList.toggle('shot', state.shot);
+  if (!state.shot) writeHash();
+  layout();
+  for (const f of st.querySelectorAll('.face')) fit(f);
+}
+function layout() {
+  const avail = document.documentElement.clientWidth - (state.shot ? 24 : 32);
+  for (const fr of document.querySelectorAll('.frame')) {
+    const inner = fr.firstElementChild, W = +fr.dataset.w, H = +fr.dataset.h || inner.scrollHeight;
+    let w = Math.min(W, avail);
+    if (inner.classList.contains('face')) {
+      if (state.view === 'colors' || state.view === 'compare' || (state.view === 'will' && fr.dataset.far)) w = DISTS['9ft'].w;
+      if (state.view === 'will' && !fr.dataset.far) w = Math.min(560, avail);
+      else if (state.d === '9ft' && !state.shot) w = DISTS['9ft'].w;
+      else if (state.d === '9ft' && state.shot) w = 300;
+    }
+    const s = w / W;
+    fr.style.width = `${Math.round(W * s)}px`; fr.style.height = `${Math.round(H * s)}px`; inner.style.transform = `scale(${s})`;
+  }
+}
+function buttons(id, obj, key) {
+  const el = document.getElementById(id);
+  el.innerHTML = Object.entries(obj).map(([k, o]) => `<button data-k="${k}" aria-pressed="false">${o.label}</button>`).join('');
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { state[key] = b.dataset.k; render(); } });
+}
+const step = n => { state.v = keys[(keys.indexOf(state.v) + n + keys.length) % keys.length]; render(); };
+buttons('views', VIEWS, 'view'); buttons('dists', DISTS, 'd');
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+document.getElementById('stage').addEventListener('click', e => {
+  const o = e.target.closest('[data-open]'), k = e.target.closest('[data-pick]'), c = e.target.closest('[data-close]');
+  if (o) { state.open = o.dataset.open; render(); }
+  else if (k) { state.pick[state.open] = +k.dataset.pick; render(); }
+  else if (c) { state.open = null; render(); }
+});
+document.getElementById('stage').addEventListener('change', e => { const m = e.target.closest('[data-more]'); if (m) { state.pick[m.dataset.more] = m.value.toUpperCase(); render(); } });
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1);
+});
+window.addEventListener('resize', layout);
+window.addEventListener('hashchange', () => { readHash(); render(); });
+readHash(); render();
+if (document.fonts) document.fonts.ready.then(render);
+</script>
+</html>
