@@ -1,6 +1,6 @@
 # Switch-over plan: from the week card to the house board
 
-Proposed 2026-11-01 for [How does each copy move to the house board, and back if it fails?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/99), on the [map](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/37). The steps come from [What still depends on the week card, and what changes when it goes?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/96#issuecomment-6558258606) (its [checklist](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/research/week-card-dependencies/docs/research/week-card-dependencies.md) has every entity and line number). Approving this plan approves every Home Assistant and tablet change in it. Anything that has changed by the time a step runs is explained again.
+**Approved by the owner 2026-11-01**, with one change to the tablet step (1c), for [How does each copy move to the house board, and back if it fails?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/99), on the [map](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/37). The steps come from [What still depends on the week card, and what changes when it goes?](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/96#issuecomment-6558258606) (its [checklist](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/research/week-card-dependencies/docs/research/week-card-dependencies.md) has every entity and line number). Approving this plan approves every Home Assistant and tablet change in it. Anything that has changed by the time a step runs is explained again.
 
 Each Home Assistant or tablet change is set out as **Does**, **Gains**, **Costs**, and **Changes you could make**, each rated 0.00 (never) to 1.00 (should have been in the proposal).
 
@@ -26,7 +26,7 @@ Slices are numbered in build order. A slice that's done early goes up early, unl
 | 2. Will approves the merge to `main`, and CI runs once on the final head | Will |
 | 3. A full Home Assistant backup | Agent |
 | 4. HACS update and restart, then the slice's Home Assistant and tablet steps below | Agent |
-| 5. Right after: the wall's first content within 2 s, the open times each copy records, and no stutter | Agent |
+| 5. Right after: the wall's first content within 2 s, the open times each copy records, and no stutter. If another app is on the tablet's screen, the check waits; it never brings Fully to the front | Agent |
 | 6. Records: J006 and J008, both glossaries, and the sandbox's copy of the house setup | Agent |
 
 ## Before slice 1, on its own: Jenn's Google calendar
@@ -97,19 +97,22 @@ Then each adult swipes the Home Assistant app closed once, so it doesn't reopen 
 
 ### 1c. The wall's Fully settings (agent, through Home Assistant's Fully Kiosk integration)
 
+**Owner's change (2026-11-01):** the tablet is still used for other things, so nothing in this plan ever switches apps on it or brings Fully to the front. A refresh while the board is already on screen is fine after 5 minutes untouched.
+
 **Does.**
 1. Reads and records Fully's current settings, including the exact names of the Start URL and Auto Reload keys, from Fully's own settings list.
 2. Sets the Start URL to the house board's full address, the one the page actually shows, so Fully recognizes it.
-3. Sets Auto Reload on Idle to 2 minutes, and turns "Skip Auto Reload if Showing the Start URL" on.
-4. Presses Load Start URL.
-5. Leaves Delete Cache on Auto Reload and Auto Reload on Screen On off ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)).
+3. Sets Auto Reload on Idle to 5 minutes, and turns "Skip Auto Reload if Showing the Start URL" on.
+4. Leaves every setting that brings Fully to the front, and Fully's own kiosk lock, as they are (off), and checks once, with another app open, that the idle reload stays inside Fully. If it ever brings Fully forward, the idle reload comes off, and the wall stays wherever it was left until someone taps back.
+5. Presses Load Start URL only while Fully is already the app on screen.
+6. Leaves Delete Cache on Auto Reload and Auto Reload on Screen On off ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)).
 
-**Gains.** The wall shows the house board, and comes back to it from the week card after 2 minutes untouched. While it's already on the house board, nothing reloads.
+**Gains.** The wall shows the house board, and comes back to it from the week card after 5 minutes untouched. While it's already on the house board, nothing reloads. Another app in use on the tablet is never interrupted.
 
-**Costs.** Someone who stops halfway through a week card form for 2 minutes loses it.
+**Costs.** Someone who stops halfway through a week card form for 5 minutes loses it.
 
 **Changes you could make:**
-- 5 minutes instead of 2. 0.25
+- 2 minutes instead of 5. 0.05 (the owner chose 5)
 
 ## Slice 2: adding, the echo and Undo
 
@@ -242,7 +245,7 @@ After this slice nothing sends anyone to the week card, so the week card retires
 2. Delete the `/family-hub` dashboard. Its House reminders page already lives in Lists (slice 3).
 3. Take Family Hub's nine privacy and screensaver switches off Assist.
 4. Clear Family Hub's reminders list option, so its 5-minute check stops reading Us notes.
-5. Turn Fully's Auto Reload on Idle back off. The house board returns to its face by itself.
+5. Turn Fully's Auto Reload on Idle back off. The house board returns to its face by itself, inside Fully, and never switches apps.
 6. Retire the week card's own card file, in a fork update.
 7. Leave the per-copy entities, Family Hub's stored copy settings and its card files in place, unused. They go in the code cleanup, since there's no delete path and the card files come back at every start.
 8. Rewrite the voice guide's Hide work calendars and Guest mode lines, and Will reprints the sheet.
