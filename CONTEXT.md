@@ -42,6 +42,14 @@ _Avoid_: the card (ambiguous once there are two), Family Week Calendar
 The house-owned card that replaces the week card on the wall and the phones.
 _Avoid_: Board 2, new card, v2
 
+**Slice**:
+One piece of the house board, put up on the wall and both phones as soon as it's built and checked. Until the house board can do something, that thing opens the week card (owner, 2026-11-01).
+_Avoid_: phase, release, wave (the synthesis's build groups)
+
+**Switch-over**:
+The weeks in which the wall and both phones move from the week card to the house board, slice by slice, each change going with the slice that needs it; it ends when the week card retires (owner, 2026-11-01).
+_Avoid_: switch-over day (there isn't one), cutover, launch
+
 **Resting face**:
 What the board shows when nobody is touching it, read from across the room.
 _Avoid_: screensaver, idle screen, home screen
@@ -55,8 +63,20 @@ Clover's answer after a capture or a change: what landed or changed, where, and 
 _Avoid_: confirmation, toast, receipt
 
 **Event sheet**:
-The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), Delete from the calendar, and Hide from the board last. It saves when it closes, and the echo offers Undo (owner, 2026-10-31).
-_Avoid_: popup, modal, dialog, edit form, details
+The panel that opens when you tap an event on the house board: its title, day and time to change in place (‹ › arrows, a grid behind each), its place and details, whose it is, a Count down switch, Delete from the calendar, and Hide from the board last. It saves when it closes, and the echo offers Undo (owner, 2026-10-31 and 11-01).
+_Avoid_: popup, modal, dialog, edit form
+
+**Details**:
+An event's own notes, as its calendar keeps them; shown and changed in the event sheet beside its place (owner, 2026-11-01).
+_Avoid_: notes (a note is an Us notes item), description
+
+**Countdown**:
+The quiet "Beach trip in 12 days" line for one event someone switched on in its sheet; the nearest shows on the resting face and atop the phones' Upcoming until the event starts (owner, 2026-11-01).
+_Avoid_: timer, reminder
+
+**Dinner sheet**:
+The small panel that opens when you tap a dinner (or a breakfast or lunch): the dish to retype, ‹ › to move it a day, Every week, and Clear. A dinner moved onto a night that has one joins it, and both show (owner, 2026-11-01).
+_Avoid_: meal editor, meal form
 
 **Lists**:
 The house board's screen for the household's AnyList shopping lists, the notes and the house jobs that are due. On the wall it opens from the rail down the left edge, beside Upcoming and Month; on the phones it's a tab (owner, 2026-10-31).
@@ -103,7 +123,7 @@ The to-do list Family Hub always shows to everyone (`todo.us_notes` here); items
 _Avoid_: shared list, family list
 
 **Us calendar**:
-The one shared calendar for the two of you: whatever the board or Clover adds lands here, and it shows on the wall and both iPhones (owner, 2026-10-30). It becomes a shared iCloud calendar at the switch-over; until then it's `calendar.us`, a Home Assistant calendar the iPhones don't show.
+The one shared calendar for the two of you: whatever the board or Clover adds lands here, and it shows on the wall and both iPhones (owner, 2026-10-30). It becomes a shared iCloud calendar when the event sheet's slice goes up; until then it's `calendar.us`, a Home Assistant calendar the iPhones don't show.
 _Avoid_: Home calendar, the shared calendar (any calendar can be shared)
 
 **Us notes**:
@@ -132,7 +152,7 @@ _Avoid_: More, To-do, the house tab
 ## Whose it is, and what the board notices
 
 **Person**:
-Will, Jenn, or Us. Every calendar belongs to one person, and the house board names and colors events by person, never by calendar; whether a calendar is work is kept only behind the scenes, for hiding (owner, 2026-10-30). Each person has one color, chosen in the house setup (owner, 2026-11-01).
+Will, Jenn, or Us. Every calendar belongs to one person, and the house board names and colors events by person, never by calendar; whether a calendar is work is kept only behind the scenes, for hiding (owner, 2026-10-30). Each person has one color, chosen in the house setup (owner, 2026-11-01). Changing whose an event is moves it to that person's calendar (owner, 2026-11-01).
 _Avoid_: calendar group; a calendar's name when you mean whose it is
 
 **Detail**:
@@ -153,7 +173,7 @@ _Avoid_: badge, unread, notification
 
 **Guest mode**:
 The household switch, turned on from a phone, for when visitors are over. On the house board, shared plans keep their titles, each adult's own events show as blocks, Work hides, and anyone at the wall can only add things and tick notes off (owner, 2026-10-30). Home Assistant itself stays reachable at the wall.
-_Avoid_: privacy mode (Family Hub's lock), Board private (the Hide work calendars switch Guest mode turns on; it retires at the switch-over)
+_Avoid_: privacy mode (Family Hub's lock), Board private (the Hide work calendars switch Guest mode turns on; it retires with the week card)
 
 **Hide**:
 Taking one event off the house board everywhere, the wall and both phones, without changing its calendar. Only whoever hid it can bring it back (owner, 2026-10-30).
