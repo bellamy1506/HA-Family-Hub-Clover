@@ -24,11 +24,11 @@ Slices are numbered in build order. A slice that's done early goes up early, unl
 
 | Step | Who |
 |---|---|
-| 1. Tests (`bash tests/run_all.sh`), the sandbox open-time check ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)), frame stats on the tablet ([motion](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/72#issuecomment-6537563054)), a one-day soak on the tablet ([A16](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/house/board-next/docs/research/calendar-card-pro/gaps.md#3-the-agents-calls)), and a code review. Then one blind first-time reviewer ([reviewers](reviewers.md)) walks the slice in the sandbox, and its fixes go in before Will is asked (owner, 2026-11-01) | Agent |
+| 1. Tests (`bash tests/run_all.sh`), the sandbox open-time check ([load time](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/97#issuecomment-6558650608)), frame stats on the tablet ([motion](https://github.com/bellamy1506/HA-Family-Hub-Clover/issues/72#issuecomment-6537563054)), and a code review. Then one blind first-time reviewer ([reviewers](reviewers.md)) walks the slice in the sandbox, and its fixes go in before Will is asked (owner, 2026-11-01) | Agent |
 | 2. Will approves the merge to `main`, and CI runs once on the final head | Will |
 | 3. A full Home Assistant backup | Agent |
 | 4. HACS update and restart, then the slice's Home Assistant and tablet steps below | Agent |
-| 5. Right after: the wall's first content within 2 s, the open times each copy records, and no stutter. If another app is on the tablet's screen, the check waits; it never brings Fully to the front | Agent |
+| 5. Right after: the wall's first content within 2 s, the open times each copy records, and no stutter; then, over the next day, a soak on the tablet: memory and Home Assistant's pending messages ([A16](https://github.com/bellamy1506/HA-Family-Hub-Clover/blob/house/board-next/docs/research/calendar-card-pro/gaps.md#3-the-agents-calls)). If another app is on the tablet's screen, the check waits; it never brings Fully to the front | Agent |
 | 6. Records: J006 and J008, both glossaries, and the sandbox's copy of the house setup | Agent |
 
 ## Before slice 1, on its own: Jenn's Google calendar
