@@ -13,7 +13,7 @@
 const assert = require("assert");
 const { ZONE, wall } = require("./lib/wall_clock");
 const {
-  parseDay, dayKey, startOfDay, addDays, dayDiff, cleanEvents, splitByDay, timeWords, dayWords, dateTimeWords, multiDayWords,
+  parseDay, dayKey, startOfDay, addDays, dayDiff, cleanEvents, splitByDay, timeWords, shortTimeWords, dayWords, dateTimeWords, multiDayWords,
 } = require("../custom_components/family_hub/house_board/when.js");
 
 // The key n days on, counted in UTC, where no day is 23 or 25 hours long.
@@ -207,6 +207,8 @@ for (const [hm, words] of Object.entries(clock)) {
   const [h, min] = hm.split(":").map(Number);
   assert.strictEqual(timeWords(at("2026-11-03", h, min)), words, hm);
 }
+// The short form for spans and "until", where am or pm is plain: "8:30 to 4:30".
+assert.deepStrictEqual([[8, 30], [16, 30], [0, 5], [12, 0]].map(([h, min]) => shortTimeWords(at("2026-11-03", h, min))), ["8:30", "4:30", "12:05", "12:00"]);
 // Against Intl, every day of the year and both readings of fall-back's 1:30 am.
 for (const key of YEAR) {
   const instant = new Date(`${key}T13:05:00Z`);

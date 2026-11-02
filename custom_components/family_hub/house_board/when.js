@@ -112,6 +112,9 @@ export function timeWords(date) {
   return `${h % 12 || 12}:${String(date.getMinutes()).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 }
 
+// "4:30", for spans and "until", where am or pm is plain: "8:30 to 4:30".
+export const shortTimeWords = (date) => timeWords(date).slice(0, -3);
+
 // "Tue Nov 3"
 export function dayWords(date) {
   return `${DAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()}`;
