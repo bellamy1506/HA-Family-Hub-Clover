@@ -74,15 +74,16 @@ import { addDays, cleanEvents, dayKey, startOfDay } from "./when.js";
  */
 
 /**
- * One to-do item, exactly as Home Assistant's todo/item/subscribe sends it (fields
- * it leaves empty are absent). The meal plan's are for meals.js's readMealPlan.
+ * One to-do item, exactly as Home Assistant's todo/item/subscribe sends it: in core
+ * 2026.10.4 every field is there, null when empty. The meal plan's go to meals.js's readMealPlan.
  * @typedef {object} ListItem
  * @property {string} uid
  * @property {string} summary
  * @property {"needs_action"|"completed"} status
- * @property {string} [due]  a day, "2026-11-03", or a date-time with its offset. A house
+ * @property {string|null} due  a day, "2026-11-03", or a date-time with its offset. A house
  *   reminder's is its real date, read as a house date (#127); an undated must has none.
- * @property {string} [description]  a meal's packed JSON; a house reminder's ID on its first line
+ * @property {string|null} description  a meal's packed JSON; a house reminder's ID on its first line
+ * @property {string|null} completed  when it was ticked, a date-time; not every list keeps it
  */
 
 /**

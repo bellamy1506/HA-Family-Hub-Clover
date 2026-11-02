@@ -22,6 +22,8 @@ const ev = (summary, start, end, more = {}) => ({ summary, start: { dateTime: st
 const DENTIST = ev("Dentist", "2026-11-03T15:30:00-05:00", "2026-11-03T16:30:00-05:00", { uid: "a1" });
 const SOCCER = ev("Soccer", "2026-11-04T17:00:00-05:00", "2026-11-04T18:00:00-05:00", { uid: "a2" });
 const BOOK_CLUB = ev("Book club", "2026-11-05T19:00:00-05:00", "2026-11-05T21:00:00-05:00", { uid: "a3" });
+// A to-do item as todo/item/subscribe sends it in core 2026.10.4: every field, null when empty.
+const item = (uid, summary, more = {}) => ({ summary, uid, status: "needs_action", due: null, description: null, completed: null, ...more });
 
 const CONFIG = {
   people: { Will: { color: "Cornflower", users: ["user-will"] }, Jenn: { color: "Vermillion", users: ["user-jenn"] }, Us: { color: "Green" } },
@@ -240,7 +242,7 @@ async function main() {
 
   // ---- After stop, every subscription is ended (borrow item 6) ----
   {
-    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action" };
+    const NOTE = item("n1", "Call the vet");
     const empty = { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] };
     const config = { ...CONFIG, weather: "weather.google_weather", lists: { notes: "todo.us_notes", meals: "todo.meal_plan" } };
     // The meal plan isn't held, so it's refused and asked again in a minute.
@@ -308,11 +310,11 @@ async function main() {
 
   // ---- The to-do lists: each one's items as Home Assistant sends them ----
   {
-    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action", due: "2026-11-02" };
-    const NOTE_2 = { uid: "n2", summary: "Return the library books", status: "needs_action" };
-    const DINNER = { uid: "m1", summary: "Tacos", status: "needs_action", due: "2026-11-02", description: '{"block":2}' };
+    const NOTE = item("n1", "Call the vet", { due: "2026-11-02" });
+    const NOTE_2 = item("n2", "Return the library books");
+    const DINNER = item("m1", "Tacos", { due: "2026-11-02", description: '{"block":2}' });
     // A house reminder as the sync writes it (#127): the label, its real day, its ID first in the description.
-    const REMINDER = { uid: "h1", summary: "Test the porch light timer", status: "needs_action", due: "2026-10-30", description: "R990" };
+    const REMINDER = item("h1", "Test the porch light timer", { due: "2026-10-30", description: "R990" });
     const config = { ...CONFIG, lists: { notes: "todo.us_notes", meals: "todo.meal_plan", house: "todo.house_reminders" } };
     const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, todos: { "todo.us_notes": [NOTE], "todo.meal_plan": [DINNER], "todo.house_reminders": [] } }, config);
     assert.deepStrictEqual(t.fake.subscriptions.map((s) => s.msg), [
@@ -324,7 +326,7 @@ async function main() {
     await t.fake.clock.advance(0);
     assert.deepStrictEqual(t.last().lists, { notes: [NOTE], meals: [DINNER], house: [] }, "items as sent; an empty House reminders list is a known empty list: nothing due");
     const shown = t.seen.length;
-    const TICKED = { ...NOTE, status: "completed" };
+    const TICKED = { ...NOTE, status: "completed", completed: "2026-11-02T08:05:00-05:00" };
     t.fake.pushItems("todo.us_notes", [TICKED, NOTE_2]);
     assert.deepStrictEqual(t.last().lists.notes, [TICKED, NOTE_2], "a change arrives");
     assert.strictEqual(t.seen.length, shown + 1, "in one snapshot");
@@ -344,7 +346,7 @@ async function main() {
   // Home Assistant refuses one while it's still starting after a restart, or
   // for an entity it doesn't know, and the wall may not reload for weeks.
   {
-    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action" };
+    const NOTE = item("n1", "Call the vet");
     const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, todos: { "todo.us_notes": [NOTE] } }, { ...CONFIG, lists: { notes: "todo.us_notes" } });
     t.fake.refuse("todo.us_notes"); // its answer comes on the fake clock, so this lands first
     await t.fake.clock.advance(59 * S);
