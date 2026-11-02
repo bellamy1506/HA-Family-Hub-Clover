@@ -6,15 +6,20 @@
 // each calendar live over REST, a minute after its last answer, for as long
 // as the card is on the page. Changed live answers go back to the copy. No
 // subscriptions: iCloud's changes would come up to 15 minutes late.
+// Lists and weather by subscription: Home Assistant pushes a list's items
+// whenever it's written, and each forecast hourly (borrow item 10). The
+// weather now and the two switches are read from hass.states.
+// Reports (#111): report() sends one copy's open times and last error.
 
-import { addDays, cleanEvents, startOfDay } from "./when.js";
+import { addDays, cleanEvents, dayKey, startOfDay } from "./when.js";
 
 /**
  * The card's config, from the /house-board dashboard. Later tickets add to it here.
  * @typedef {object} BoardConfig
  * @property {Object<string, PersonConfig>} people  by name: "Will", "Jenn", "Us"
  * @property {CalendarConfig[]} calendars  every calendar the board reads, each one a person's
- * @property {string} [weather]  a weather entity, "weather.forecast_home"
+ * @property {string} [weather]  a weather entity: "weather.google_weather", or the house
+ *   forecast "weather.forecast_home"
  * @property {{ notes?: string, meals?: string, house?: string }} [lists]  to-do entities
  * @property {string} [guest_mode]  the Guest mode input_boolean
  * @property {string} [board_private]  the Board private input_boolean
@@ -38,11 +43,18 @@ import { addDays, cleanEvents, startOfDay } from "./when.js";
  */
 
 /**
- * What the board draws from. onChange gets a new one after every change. Later tickets add to it here.
+ * What the board draws from. onChange gets a new one after every change. Later slices add to it here.
  * @typedef {object} Snapshot
  * @property {number} days  the calendars cover this many days from local midnight today
  *   (42: today and the 41 after). Count it from your own `now`, since a snapshot can be hours old at rest.
  * @property {CalendarState[]} calendars  one per calendar in the config, in its order
+ * @property {{ notes: ListItem[]|null, meals: ListItem[]|null, house: ListItem[]|null }} lists
+ *   each list in config.lists: null until it first answers, or when the config names none.
+ *   `[]` is a known empty list; for House reminders, nothing due.
+ * @property {Weather|null} weather  null when the config names none, or while its entity is
+ *   unavailable, unknown or missing (how an outage shows, #109)
+ * @property {boolean} guestMode  Guest mode is on; false when the config names none or it's missing
+ * @property {boolean} boardPrivate  Board private is on; likewise
  */
 
 /**
@@ -62,7 +74,43 @@ import { addDays, cleanEvents, startOfDay } from "./when.js";
  */
 
 /**
- * Starts reading the calendars for the board. onChange runs once at once,
+ * One to-do item, exactly as Home Assistant's todo/item/subscribe sends it: in core
+ * 2026.10.4 every field is there, null when empty. The meal plan's go to meals.js's readMealPlan.
+ * @typedef {object} ListItem
+ * @property {string} uid
+ * @property {string} summary
+ * @property {"needs_action"|"completed"} status
+ * @property {string|null} due  a day, "2026-11-03", or a date-time with its offset. A house
+ *   reminder's is its real date, read as a house date (#127); an undated must has none.
+ * @property {string|null} description  a meal's packed JSON; a house reminder's ID on its first line
+ * @property {string|null} completed  when it was ticked, a date-time; not every list keeps it
+ */
+
+/**
+ * The weather, with each forecast kept until the next arrives: read days and hours from your
+ * own `now`. Temperatures are in Home Assistant's unit.
+ * @typedef {object} Weather
+ * @property {string} condition  now: the entity's state, "sunny", "clear-night"
+ * @property {Object<string, WeatherDay>|null} daily  by local day key, "2026-11-03", in order;
+ *   null until the first forecast. Google gives 10 days, the house forecast 6; a day not there has none.
+ * @property {WeatherHour[]|null} hourly  in time order, from the hour under way when it came
+ *   (Google gives 24, the house forecast 48); null until the first forecast.
+ *
+ * @typedef {object} WeatherDay
+ * @property {string|null} condition  "rainy"; icons.js draws it and says whether it's rainy
+ * @property {number|null} high
+ * @property {number|null} low
+ * @property {number|null} rain  the chance of rain, in percent; null when the entity gives none
+ *
+ * @typedef {object} WeatherHour
+ * @property {Date} at  the hour's start
+ * @property {string|null} condition
+ * @property {number|null} temperature
+ * @property {number|null} rain  as for a day
+ */
+
+/**
+ * Starts reading what the board shows. onChange runs once at once,
  * with what this page already knows (nothing, on a fresh page), then after
  * every change. The card stops it when it leaves the page; Home Assistant
  * builds a new card on each reconnect, which starts it again.
@@ -86,15 +134,23 @@ export function watch(hass, config, onChange, clock = realClock) {
       timer: null,
     };
   });
-  // The entities the board reads, from its config.
-  const lists = Object.values(config.lists || {});
-  const ids = [...cals.map((c) => c.entity), config.weather, ...lists, config.guest_mode, config.board_private].filter(Boolean);
+  // The entities whose state the board reads, from its config. The lists'
+  // items come by subscription, so a list's own state (its count) isn't one.
+  const ids = [...cals.map((c) => c.entity), config.weather, config.guest_mode, config.board_private].filter(Boolean);
+  const items = {}; // each list's last items, by its name in LISTS
+  const forecasts = {}; // the weather's last daily and hourly, as the snapshot gives them
+  const ends = []; // what stop() undoes for each subscription
   let stopped = false;
   const emit = () =>
     onChange({
       days: DAYS,
       calendars: cals.map(({ about, kept }) => ({ ...about, events: kept.events, answeredAt: kept.answeredAt, failingSince: kept.failingSince })),
+      lists: Object.fromEntries(LISTS.map((name) => [name, items[name] || null])),
+      weather: weatherFrom(hass.states[config.weather], forecasts),
+      guestMode: isOn(config.guest_mode),
+      boardPrivate: isOn(config.board_private),
     });
+  const isOn = (entity) => hass.states[entity]?.state === "on";
   const now = () => new Date(clock.now());
   const hold = (cal, raw, json = JSON.stringify(raw)) => {
     cal.kept.json = json; // as Home Assistant sent them
@@ -158,6 +214,42 @@ export function watch(hass, config, onChange, clock = realClock) {
       emit();
     }, () => {});
   cals.forEach(ask);
+
+  // One subscription, for a list or a forecast. take(event) keeps what it
+  // can use and says whether it did; a push the
+  // same as the last gives no snapshot. A refused subscription (Home
+  // Assistant still starting, or an entity it doesn't know) is asked again a
+  // minute later, since the wall may not reload for weeks.
+  function follow(msg, take) {
+    let last = null;
+    let timer = null;
+    ends.push(() => clock.clearTimeout(timer));
+    const start = () =>
+      hass.connection.subscribeMessage((event) => {
+        const json = JSON.stringify(event);
+        if (stopped || json === last || !take(event)) return;
+        last = json;
+        emit();
+      }, msg).then(
+        (unsub) => {
+          const end = () => unsub().catch(() => {});
+          if (stopped) end();
+          else ends.push(end);
+        },
+        () => {
+          if (!stopped) timer = clock.setTimeout(start, EVERY);
+        },
+      );
+    start();
+  }
+  for (const name of LISTS) {
+    const entity = (config.lists || {})[name];
+    if (entity) follow({ type: "todo/item/subscribe", entity_id: entity }, (event) => Array.isArray(event.items) && (items[name] = event.items));
+  }
+  for (const type of config.weather ? FORECASTS : []) {
+    const msg = { type: "weather/subscribe_forecast", entity_id: config.weather, forecast_type: type };
+    follow(msg, (event) => Array.isArray(event.forecast) && (forecasts[type] = readForecast(type, event.forecast)));
+  }
   emit();
   return {
     // Home Assistant hands the card a new hass on every state change in the
@@ -168,12 +260,32 @@ export function watch(hass, config, onChange, clock = realClock) {
       hass = next;
       if (!stopped && (KEYS.some((key) => next[key] !== prev[key]) || ids.some((id) => next.states[id] !== prev.states[id]))) emit();
     },
-    // Nothing that answers later lands: no snapshot, no put, no next ask.
+    // Nothing that answers later lands: no snapshot, no put, no next ask,
+    // and every subscription ends.
     stop() {
       stopped = true;
       for (const cal of cals) clock.clearTimeout(cal.timer);
+      for (const end of ends) end();
     },
   };
+}
+
+/**
+ * Sends one copy's report to Family Hub (`family_hub/copy_report`, #115), where a
+ * session reads it. What to measure and when is the card's. A failure is
+ * never seen: it resolves either way, and nothing is sent again.
+ * @param {object} hass
+ * @param {{ copy: string, label: string, open?: [number, number|null], error?: string }} fields
+ *   copy: this copy's own id, 1 to 40 characters; label: where and what, up to 40, "home, iPhone";
+ *   open: first content and all live, in ms from performance.now(), each 0 to 600,000, or all live null;
+ *   error: the last error's text, cut to 300 by the server. A field out of bounds loses the whole report.
+ * @returns {Promise<void>}
+ */
+export function report(hass, fields) {
+  return new Promise((resolve) => resolve(hass.callWS({ type: "family_hub/copy_report", ...fields }))).then(
+    () => {},
+    () => {},
+  );
 }
 
 // What each page knows of each calendar, by its Home Assistant connection
@@ -184,6 +296,9 @@ const pages = new WeakMap();
 
 // Today and the days after it that the calendars are asked for.
 const DAYS = 42;
+const LISTS = ["notes", "meals", "house"]; // the snapshot's names for config.lists
+const FORECASTS = ["daily", "hourly"];
+const NO_WEATHER = new Set(["unavailable", "unknown"]);
 const KEYS = ["locale", "themes", "user", "connected"];
 const EVERY = 60 * 1000;
 const TIMEOUT = 30 * 1000;
@@ -206,6 +321,30 @@ function askedRange(now) {
   const from = startOfDay(now);
   return { start: from.toISOString(), end: addDays(from, DAYS).toISOString() };
 }
+
+// The weather now and its forecasts, or null while its entity is unavailable
+// or missing: that's how a Google Weather outage shows (#109).
+function weatherFrom(state, forecasts) {
+  if (!state || NO_WEATHER.has(state.state)) return null;
+  return { condition: state.state, daily: forecasts.daily || null, hourly: forecasts.hourly || null };
+}
+
+// A forecast in the snapshot's shape, each entry placed by the instant in its
+// datetime (borrow item 10). Daily entries are keyed by their local day,
+// where Google's 7 am stamps and the house forecast's 17:00 UTC ones both
+// land. Hourly ones stay a list in time order: the night the clocks fall
+// back has two 1 am hours. An entry with no time costs only itself.
+function readForecast(type, list) {
+  const placed = list
+    .map((f) => ({ at: new Date(f && typeof f.datetime === "string" ? f.datetime : NaN), f }))
+    .filter(({ at }) => !isNaN(at))
+    .sort((a, b) => a.at - b.at);
+  const rain = (f) => num(f.precipitation_probability);
+  const condition = (f) => f.condition ?? null;
+  if (type === "hourly") return placed.map(({ at, f }) => ({ at, condition: condition(f), temperature: num(f.temperature), rain: rain(f) }));
+  return Object.fromEntries(placed.map(({ at, f }) => [dayKey(at), { condition: condition(f), high: num(f.temperature), low: num(f.templow), rain: rain(f) }]));
+}
+const num = (value) => (typeof value === "number" ? value : null);
 
 const realClock = {
   now: () => Date.now(),

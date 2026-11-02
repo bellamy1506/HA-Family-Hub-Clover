@@ -17,6 +17,15 @@
 //   { never: true }          never answers
 // `events` may be anything, to answer with something that isn't a list.
 // `watch` asks at once, so plan a first ask before starting the board.
+//
+// Subscriptions: `todos: { "todo.us_notes": [item, ...] }` and
+// `forecasts: { "weather.home": { daily: [...], hourly: [...] } }` are what
+// Home Assistant holds. A subscription answers on the fake clock, then pushes
+// what's held at once, as Home Assistant does. An entity or forecast type not
+// held is refused; `fake.refuse(entity)` refuses its next subscription only.
+// `fake.pushItems(entity, items)` and `fake.pushForecast(entity, type, list)`
+// push at once to every open subscription, and keep it for later ones.
+// `family_hub/copy_report` answers null; `fake.lose()` drops the connection.
 // fake.calendars and fake.copy are the objects given; change them as the
 // test goes. Each fake is one page: its own connection, so ha.js's memory
 // of a page never leaks between fakes.
@@ -62,12 +71,15 @@ export function fakeClock(start) {
 
 const copyOf = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
-export function fakeHass({ now, calendars = {}, copy = {}, copyAfter = 0, states = {} } = {}) {
+export function fakeHass({ now, calendars = {}, copy = {}, copyAfter = 0, states = {}, todos = {}, forecasts = {} } = {}) {
   const clock = fakeClock(now);
   const asked = []; // every live ask: { entity, start, end, at }
   const sent = []; // every websocket message the board sent
   const queued = {}; // one-off plans by calendar
   const subscriptions = []; // { msg, callback, closed }
+  const refusals = {}; // one-off refused subscriptions, counted by entity
+  let lost = false; // fake.lose(): the connection dropped
+  const LOST = 3; // home-assistant-js-websocket's ERR_CONNECTION_LOST
 
   // After `ms` on the fake clock, settle with what `make` gives (or throws).
   const later = (ms, make) =>
@@ -101,20 +113,45 @@ export function fakeHass({ now, calendars = {}, copy = {}, copyAfter = 0, states
         calendars: Object.fromEntries(msg.entity_ids.filter((id) => copy[id]).map((id) => [id, copyOf(copy[id])])),
       })),
     "family_hub/calendar_cache/put": () => Promise.resolve({}),
+    "family_hub/copy_report": () => Promise.resolve(null),
   };
   function callWS(msg) {
     sent.push(copyOf(msg));
+    if (lost) return Promise.reject(LOST);
     const command = commands[msg.type];
     return command ? command(msg) : Promise.reject({ code: "unknown_command", message: `Unknown command ${msg.type}` });
   }
 
+  // What Home Assistant would push first for a subscription, or undefined.
+  function held(msg) {
+    if (msg.type === "todo/item/subscribe" && msg.entity_id in todos) return { items: copyOf(todos[msg.entity_id]) };
+    const types = forecasts[msg.entity_id];
+    if (msg.type === "weather/subscribe_forecast" && types && msg.forecast_type in types) return { type: msg.forecast_type, forecast: copyOf(types[msg.forecast_type]) };
+  }
+  const push = (match, event) => subscriptions.filter((s) => !s.closed && match(s.msg)).forEach((s) => s.callback(copyOf(event)));
+
   const connection = {
     sendMessagePromise: callWS,
+    // Resolves to an unsubscribe that, like Home Assistant's, returns a
+    // promise and ends the subscription only once the server answers (on the
+    // fake clock), so a push can still come in between.
     subscribeMessage(callback, msg) {
       const sub = { msg: copyOf(msg), callback, closed: false };
       subscriptions.push(sub);
-      return Promise.resolve(() => {
-        sub.closed = true;
+      return later(0, () => {
+        const event = held(msg);
+        const refused = refusals[msg.entity_id] > 0;
+        if (refused) refusals[msg.entity_id]--;
+        if (refused || event === undefined) {
+          sub.closed = true;
+          throw { code: "invalid_entity_id", message: `Not subscribed: ${msg.entity_id}` };
+        }
+        clock.setTimeout(() => sub.closed || callback(event), 0);
+        return () =>
+          later(0, () => {
+            if (lost) throw LOST;
+            sub.closed = true;
+          });
       });
     },
   };
@@ -133,6 +170,22 @@ export function fakeHass({ now, calendars = {}, copy = {}, copyAfter = 0, states
     // Plans the next ask of one calendar.
     next(entity, plan) {
       (queued[entity] = queued[entity] || []).push(plan);
+    },
+    // The connection drops: what's sent from now on, websocket messages and
+    // unsubscribes, rejects as a request out when the socket closes does.
+    lose() {
+      lost = true;
+    },
+    refuse(entity) {
+      refusals[entity] = (refusals[entity] || 0) + 1;
+    },
+    pushItems(entity, items) {
+      todos[entity] = items;
+      push((m) => m.type === "todo/item/subscribe" && m.entity_id === entity, { items });
+    },
+    pushForecast(entity, type, forecast) {
+      (forecasts[entity] = forecasts[entity] || {})[type] = forecast;
+      push((m) => m.type === "weather/subscribe_forecast" && m.entity_id === entity && m.forecast_type === type, { type, forecast });
     },
     // A new hass object with one entity's state changed, as Home Assistant
     // hands a card after every state change. The other state objects stay.
