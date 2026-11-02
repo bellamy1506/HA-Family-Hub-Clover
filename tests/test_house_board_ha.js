@@ -1,4 +1,5 @@
-// House board test: ha.js, the calendars, against tests/lib/fake_hass.js.
+// House board test: ha.js (the calendars, lists, weather, switches and
+// reports), against tests/lib/fake_hass.js.
 // Run: node tests/test_house_board_ha.js   (no dependencies)
 // Rerun in three zones: run_all.sh runs this file again under TZ=America/New_York, Australia/Sydney and UTC.
 //
@@ -9,7 +10,7 @@
 const assert = require("assert");
 const { wall } = require("./lib/wall_clock");
 const { fakeHass } = require("./lib/fake_hass.js");
-const { watch } = require("../custom_components/family_hub/house_board/ha.js");
+const { report, watch } = require("../custom_components/family_hub/house_board/ha.js");
 
 const T0 = "2026-11-02T08:00:00-05:00";
 const local = (y, m, d, h = 0, min = 0, s = 0) => new Date(y, m - 1, d, h, min, s);
@@ -56,6 +57,8 @@ async function main() {
       { entity: "calendar.jenn", person: "Jenn", work: true, detail: "block", label: "At work", events: null, answeredAt: null, failingSince: null },
       { entity: "calendar.us", person: "Us", work: false, detail: "titles", label: null, events: null, answeredAt: null, failingSince: null },
     ]);
+    const { lists, weather, guestMode, boardPrivate } = t.last();
+    assert.deepStrictEqual({ lists, weather, guestMode, boardPrivate }, { lists: { notes: null, meals: null, house: null }, weather: null, guestMode: false, boardPrivate: false }, "no lists, weather or switches named: nothing known, both off");
     t.board.stop();
   }
 
@@ -235,6 +238,41 @@ async function main() {
     assert.strictEqual(t.seen.length, shown, "nor after a new hass");
   }
 
+  // ---- After stop, every subscription is ended (borrow item 6) ----
+  {
+    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action" };
+    const empty = { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] };
+    const config = { ...CONFIG, weather: "weather.google_weather", lists: { notes: "todo.us_notes", meals: "todo.meal_plan" } };
+    // The meal plan isn't held, so it's refused and asked again in a minute.
+    const t = start({ calendars: empty, states: { "weather.google_weather": "sunny" }, todos: { "todo.us_notes": [NOTE] }, forecasts: { "weather.google_weather": { daily: [], hourly: [] } } }, config);
+    await t.fake.clock.advance(0);
+    const shown = t.seen.length;
+    t.board.stop();
+    // Home Assistant can still push until it answers the unsubscribe.
+    t.fake.pushItems("todo.us_notes", []);
+    t.fake.pushForecast("weather.google_weather", "daily", [{ datetime: "2026-11-03T12:00:00Z", condition: "rainy" }]);
+    await t.fake.clock.advance(5 * MIN);
+    assert.strictEqual(t.seen.length, shown, "nothing lands after stop");
+    assert.deepStrictEqual(t.fake.subscriptions.map((s) => s.closed), [true, true, true, true], "every subscription ended");
+    assert.strictEqual(t.fake.subscriptions.length, 4, "the refused one isn't asked again");
+    assert.strictEqual(t.fake.clock.pending(), 0, "no timer left running");
+    // Answers that come only after stop: a subscription is ended at once, and
+    // a refusal isn't asked again.
+    const late = start({ calendars: empty, todos: { "todo.us_notes": [NOTE] } }, { ...CONFIG, lists: { notes: "todo.us_notes", meals: "todo.meal_plan" } });
+    late.board.stop();
+    await late.fake.clock.advance(5 * MIN);
+    assert.deepStrictEqual(late.fake.subscriptions.map((s) => s.closed), [true, true], "a late subscription is ended at once");
+    assert.strictEqual(late.fake.subscriptions.length, 2, "a late refusal isn't asked again");
+    assert.strictEqual(late.seen.length, 1, "and neither draws anything");
+    // The connection drops as the board stops: an unsubscribe that fails
+    // stays quiet (an unhandled rejection would end this run).
+    const dropped = start({ calendars: empty, todos: { "todo.us_notes": [NOTE] } }, { ...CONFIG, lists: { notes: "todo.us_notes" } });
+    await dropped.fake.clock.advance(0);
+    dropped.fake.lose();
+    dropped.board.stop();
+    await dropped.fake.clock.advance(MIN);
+  }
+
   // ---- The hass gate (borrow item 7; call A5) ----
   {
     const config = { ...CONFIG, weather: "weather.forecast_home", lists: { notes: "todo.us_notes" }, guest_mode: "input_boolean.guest_mode", board_private: "input_boolean.board_private" };
@@ -245,8 +283,10 @@ async function main() {
     t.board.setHass(t.fake.hass);
     t.board.setHass(t.fake.setState("sensor.porch_motion", "on"));
     t.board.setHass(t.fake.change({ states: { ...t.fake.hass.states } }));
-    assert.strictEqual(count(), before, "an unrelated change, or none, gives no snapshot");
-    for (const [entity, state] of [["calendar.will", "on"], ["weather.forecast_home", "rainy"], ["todo.us_notes", "2"], ["input_boolean.guest_mode", "on"], ["input_boolean.board_private", "on"]]) {
+    // A list's items come by subscription, so its count changing alone is no news.
+    t.board.setHass(t.fake.setState("todo.us_notes", "2"));
+    assert.strictEqual(count(), before, "an unrelated change, a list's count, or none, gives no snapshot");
+    for (const [entity, state] of [["calendar.will", "on"], ["weather.forecast_home", "rainy"], ["input_boolean.guest_mode", "on"], ["input_boolean.board_private", "on"]]) {
       const was = count();
       t.board.setHass(t.fake.setState(entity, state));
       assert.strictEqual(count(), was + 1, `${entity} changing gives one snapshot`);
@@ -264,6 +304,167 @@ async function main() {
     assert.deepStrictEqual(t.fake.asked.slice(asks).map((a) => a.entity), ["calendar.will", "calendar.jenn"]);
     assert.deepStrictEqual(t.cal("calendar.us").failingSince, t.at(60 * S));
     t.board.stop();
+  }
+
+  // ---- The to-do lists: each one's items as Home Assistant sends them ----
+  {
+    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action", due: "2026-11-02" };
+    const NOTE_2 = { uid: "n2", summary: "Return the library books", status: "needs_action" };
+    const DINNER = { uid: "m1", summary: "Tacos", status: "needs_action", due: "2026-11-02", description: '{"block":2}' };
+    // A house reminder as the sync writes it (#127): the label, its real day, its ID first in the description.
+    const REMINDER = { uid: "h1", summary: "Test the porch light timer", status: "needs_action", due: "2026-10-30", description: "R990" };
+    const config = { ...CONFIG, lists: { notes: "todo.us_notes", meals: "todo.meal_plan", house: "todo.house_reminders" } };
+    const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, todos: { "todo.us_notes": [NOTE], "todo.meal_plan": [DINNER], "todo.house_reminders": [] } }, config);
+    assert.deepStrictEqual(t.fake.subscriptions.map((s) => s.msg), [
+      { type: "todo/item/subscribe", entity_id: "todo.us_notes" },
+      { type: "todo/item/subscribe", entity_id: "todo.meal_plan" },
+      { type: "todo/item/subscribe", entity_id: "todo.house_reminders" },
+    ], "one subscription per list named");
+    assert.deepStrictEqual(t.last().lists, { notes: null, meals: null, house: null }, "nothing known before a list answers");
+    await t.fake.clock.advance(0);
+    assert.deepStrictEqual(t.last().lists, { notes: [NOTE], meals: [DINNER], house: [] }, "items as sent; an empty House reminders list is a known empty list: nothing due");
+    const shown = t.seen.length;
+    const TICKED = { ...NOTE, status: "completed" };
+    t.fake.pushItems("todo.us_notes", [TICKED, NOTE_2]);
+    assert.deepStrictEqual(t.last().lists.notes, [TICKED, NOTE_2], "a change arrives");
+    assert.strictEqual(t.seen.length, shown + 1, "in one snapshot");
+    t.fake.pushItems("todo.us_notes", [TICKED, NOTE_2]); // Home Assistant pushes on every write of the list
+    t.fake.pushItems("todo.us_notes", null);
+    assert.strictEqual(t.seen.length, shown + 1, "the same items again, or no list, give no snapshot");
+    t.fake.pushItems("todo.us_notes", [NOTE_2]);
+    assert.deepStrictEqual(t.last().lists.notes, [NOTE_2], "an item goes");
+    t.fake.pushItems("todo.house_reminders", [REMINDER]);
+    assert.deepStrictEqual(t.last().lists.house, [REMINDER], "a reminder comes due");
+    t.fake.pushItems("todo.house_reminders", []);
+    assert.deepStrictEqual(t.last().lists, { notes: [NOTE_2], meals: [DINNER], house: [] }, "done and cleared: nothing due again, the other lists untouched");
+    t.board.stop();
+  }
+
+  // ---- A refused subscription is asked again a minute later ----
+  // Home Assistant refuses one while it's still starting after a restart, or
+  // for an entity it doesn't know, and the wall may not reload for weeks.
+  {
+    const NOTE = { uid: "n1", summary: "Call the vet", status: "needs_action" };
+    const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, todos: { "todo.us_notes": [NOTE] } }, { ...CONFIG, lists: { notes: "todo.us_notes" } });
+    t.fake.refuse("todo.us_notes"); // its answer comes on the fake clock, so this lands first
+    await t.fake.clock.advance(59 * S);
+    assert.strictEqual(t.last().lists.notes, null, "refused: nothing known yet");
+    assert.strictEqual(t.fake.subscriptions.length, 1, "not asked again yet");
+    await t.fake.clock.advance(1 * S);
+    assert.strictEqual(t.fake.subscriptions.length, 2, "asked again at a minute");
+    assert.deepStrictEqual(t.last().lists.notes, [NOTE], "and its items arrive");
+    t.board.stop();
+  }
+
+  // ---- The weather by subscription, daily and hourly (borrow item 10) ----
+  // Google Weather (#109): 10 days, each stamped 7 am local written in UTC,
+  // and 24 hours from the hour under way, each with a chance of rain. Its
+  // hours here run through the night the clocks fell back, so New York sees
+  // two 1 am hours. The house forecast (#109; gaps.md call A22): 6 days
+  // stamped 17:00 UTC, which is the next day in Sydney, and no chance of rain.
+  {
+    const HOUR = 60 * MIN;
+    const iso = (ms) => new Date(ms).toISOString().replace(".000Z", "Z");
+    const DAILY = Array.from({ length: 10 }, (_, i) => ({ datetime: `2026-11-${String(i + 1).padStart(2, "0")}T12:00:00Z`, condition: i === 1 ? "rainy" : "sunny", temperature: 60 - i, templow: 40 + i, precipitation_probability: i === 1 ? 80 : 0, precipitation: 0 }));
+    const HOURLY = Array.from({ length: 24 }, (_, i) => ({ datetime: iso(Date.parse("2026-11-01T04:00:00Z") + i * HOUR), condition: "cloudy", temperature: 45 + (i % 5), precipitation_probability: i * 4, is_daytime: false }));
+    const config = { ...CONFIG, weather: "weather.google_weather" };
+    // Given out of order, the newest hour first.
+    const t = start({ now: "2026-11-01T00:30:00-04:00", calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, states: { "weather.google_weather": "cloudy" }, forecasts: { "weather.google_weather": { daily: DAILY, hourly: [...HOURLY].reverse() } } }, config);
+    assert.deepStrictEqual(t.fake.subscriptions.map((s) => s.msg), [
+      { type: "weather/subscribe_forecast", entity_id: "weather.google_weather", forecast_type: "daily" },
+      { type: "weather/subscribe_forecast", entity_id: "weather.google_weather", forecast_type: "hourly" },
+    ]);
+    assert.deepStrictEqual(t.last().weather, { condition: "cloudy", daily: null, hourly: null }, "the weather now, before its forecasts arrive");
+    await t.fake.clock.advance(0);
+    const { daily, hourly } = t.last().weather;
+    const days = DAILY.map((d) => wall(new Date(d.datetime)).key);
+    assert.deepStrictEqual(Object.keys(daily), days, "each day on its local day, in order");
+    assert.deepStrictEqual(daily[days[1]], { condition: "rainy", high: 59, low: 41, rain: 80 }, "a rainy day with its chance of rain");
+    assert.deepStrictEqual(daily[days[0]], { condition: "sunny", high: 60, low: 40, rain: 0 });
+    assert.deepStrictEqual(hourly.map((h) => h.at.toISOString()), HOURLY.map((h) => new Date(h.datetime).toISOString()), "every hour kept, in time order, the repeated 1 am too");
+    assert.deepStrictEqual(hourly[2], { at: new Date("2026-11-01T06:00:00Z"), condition: "cloudy", temperature: 47, rain: 8 });
+    t.board.stop();
+
+    const HOUSE_DAILY = Array.from({ length: 6 }, (_, i) => ({ datetime: `2026-11-${String(i + 2).padStart(2, "0")}T17:00:00+00:00`, condition: "partlycloudy", temperature: 55, templow: 41, precipitation: 0.4 }));
+    const HOUSE_HOURLY = Array.from({ length: 48 }, (_, i) => ({ datetime: `${iso(Date.parse("2026-11-02T13:00:00Z") + i * HOUR).slice(0, 19)}+00:00`, condition: "rainy", temperature: 50, precipitation: 0.2 }));
+    const h = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, states: { "weather.forecast_home": "rainy" }, forecasts: { "weather.forecast_home": { daily: HOUSE_DAILY, hourly: HOUSE_HOURLY } } }, { ...CONFIG, weather: "weather.forecast_home" });
+    await h.fake.clock.advance(0);
+    const house = h.last().weather;
+    assert.deepStrictEqual(Object.keys(house.daily), HOUSE_DAILY.map((d) => wall(new Date(d.datetime)).key), "the house forecast's days on their local days");
+    assert.deepStrictEqual(Object.values(house.daily)[0], { condition: "partlycloudy", high: 55, low: 41, rain: null }, "no chance of rain given: none");
+    assert.strictEqual(house.hourly.length, 48);
+    assert.deepStrictEqual(house.hourly[0], { at: new Date("2026-11-02T13:00:00Z"), condition: "rainy", temperature: 50, rain: null });
+    h.board.stop();
+  }
+
+  // ---- An unavailable weather entity is no weather (#109) ----
+  // A Google Weather outage turns the entity unavailable within 15 minutes,
+  // then may push one null forecast; a board subscribing then gets null.
+  {
+    const DAY = { datetime: "2026-11-02T12:00:00Z", condition: "sunny", temperature: 58, templow: 41, precipitation_probability: 10 };
+    const config = { ...CONFIG, weather: "weather.google_weather" };
+    const empty = { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] };
+    const t = start({ calendars: empty, states: { "weather.google_weather": "sunny" }, forecasts: { "weather.google_weather": { daily: [DAY, { condition: "sunny" }, { datetime: "soon", condition: "rainy" }, null], hourly: null } } }, config);
+    await t.fake.clock.advance(0);
+    const key = wall(new Date(DAY.datetime)).key;
+    const today = { [key]: { condition: "sunny", high: 58, low: 41, rain: 10 } };
+    assert.deepStrictEqual(t.last().weather.daily, today, "an entry that can't be placed costs only itself");
+    assert.strictEqual(t.last().weather.hourly, null, "a null forecast on subscribing: none yet");
+    t.board.setHass(t.fake.setState("weather.google_weather", "unavailable"));
+    assert.strictEqual(t.last().weather, null, "unavailable: no weather");
+    const shown = t.seen.length;
+    t.fake.pushForecast("weather.google_weather", "daily", null);
+    assert.strictEqual(t.seen.length, shown, "a null forecast gives no snapshot");
+    t.board.setHass(t.fake.setState("weather.google_weather", "cloudy"));
+    assert.deepStrictEqual(t.last().weather, { condition: "cloudy", daily: today, hourly: null }, "back: the last forecast until a new one comes");
+    t.board.setHass(t.fake.setState("weather.google_weather", "unknown"));
+    assert.strictEqual(t.last().weather, null, "unknown: no weather");
+    t.board.stop();
+    const missing = start({ calendars: empty }, config);
+    assert.strictEqual(missing.last().weather, null, "named, but missing from Home Assistant: no weather");
+    missing.board.stop();
+  }
+
+  // ---- A copy's report goes out once, and a failing one stays quiet (#111, #115) ----
+  {
+    const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] } });
+    await t.fake.clock.advance(0);
+    const reports = () => t.fake.sentOf("family_hub/copy_report");
+    assert.deepStrictEqual(reports(), [], "the board sends none by itself: what to report is the card's");
+    const shown = t.seen.length;
+    const OPENED = { copy: "k3f9q2", label: "home, iPhone", open: [1180, 2410] };
+    assert.strictEqual(await report(t.fake.hass, OPENED), undefined);
+    assert.deepStrictEqual(reports(), [{ type: "family_hub/copy_report", ...OPENED }], "one message, as given");
+    // Each of these resolves quietly: refused for a broken rule, a Family Hub
+    // without the command, a callWS that throws, a dropped connection.
+    const FAILED = { copy: "k3f9q2", label: "home, iPhone", error: "TypeError: day is undefined" };
+    t.fake.commands["family_hub/copy_report"] = () => Promise.reject({ code: "invalid_format", message: "label too long" });
+    await report(t.fake.hass, FAILED);
+    delete t.fake.commands["family_hub/copy_report"];
+    await report(t.fake.hass, FAILED);
+    await report({ ...t.fake.hass, callWS: () => { throw new Error("not connected"); } }, FAILED);
+    t.fake.lose();
+    await report(t.fake.hass, FAILED);
+    assert.strictEqual(reports().length, 4, "each sent once, never again");
+    assert.strictEqual(t.seen.length, shown, "and nothing shows on the board");
+    t.board.stop();
+  }
+
+  // ---- Guest mode and Board private: whether each switch is on ----
+  {
+    const config = { ...CONFIG, guest_mode: "input_boolean.guest_mode", board_private: "input_boolean.board_private" };
+    const t = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] }, states: { "input_boolean.guest_mode": "on", "input_boolean.board_private": "off" } }, config);
+    const switches = () => [t.last().guestMode, t.last().boardPrivate];
+    assert.deepStrictEqual(switches(), [true, false], "Guest mode on, Board private off");
+    t.board.setHass(t.fake.setState("input_boolean.guest_mode", "off"));
+    t.board.setHass(t.fake.setState("input_boolean.board_private", "on"));
+    assert.deepStrictEqual(switches(), [false, true], "each turned the other way");
+    t.board.setHass(t.fake.setState("input_boolean.board_private", "unavailable"));
+    assert.deepStrictEqual(switches(), [false, false], "a switch that isn't on is off");
+    t.board.stop();
+    const missing = start({ calendars: { "calendar.will": [], "calendar.jenn": [], "calendar.us": [] } }, config);
+    assert.deepStrictEqual([missing.last().guestMode, missing.last().boardPrivate], [false, false], "named, but missing from Home Assistant: off");
+    missing.board.stop();
   }
 
   // ---- The range asked: local midnight today, for 42 days ----
