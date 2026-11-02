@@ -16,8 +16,13 @@
 //   { fail: "Server error" } fails (with `after` too, if wanted)
 //   { never: true }          never answers
 // `events` may be anything, to answer with something that isn't a list.
+// `watch` asks at once, so plan a first ask before starting the board.
+// fake.calendars and fake.copy are the objects given; change them as the
+// test goes. Each fake is one page: its own connection, so ha.js's memory
+// of a page never leaks between fakes.
 
-// Lets every promise chain waiting on a settled promise run on.
+// Lets every promise chain waiting on a settled promise run on (50 turns:
+// ha.js's chains are a few deep).
 async function settle() {
   for (let i = 0; i < 50; i++) await null;
 }
