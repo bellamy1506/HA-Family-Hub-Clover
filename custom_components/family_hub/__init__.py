@@ -100,6 +100,8 @@ from . import chores_websocket_api as chores_ws_api
 from . import device_settings_websocket_api as device_settings_ws_api
 # House fork: the board's calendar events, kept ready (calendar_cache.py).
 from . import calendar_cache_websocket_api as calendar_cache_ws_api
+# House fork: each copy's open times and last error (copy_reports.py).
+from . import copy_reports_websocket_api as copy_reports_ws_api
 
 from .const import (
     CARD_JS_URL,
@@ -177,6 +179,7 @@ from .const import (
     ACTIVE_TIMERS_CARD_JS_URL,
     RECIPE_BOX_CARD_JS_URL,
     RIGHT_NOW_CARD_JS_URL,
+    HOUSE_BOARD_URL,
     SERVICE_CREATE_CHORE,
     SERVICE_COMPLETE_CHORE,
     SERVICE_APPROVE_CHORE,
@@ -12189,7 +12192,21 @@ def _file_content_hash(path: str) -> str:
         return "0"
 
 
-def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str) -> None:
+def _folder_content_hash(path: str) -> str:
+    """House fork (#115): _file_content_hash over a whole folder, every file's
+    name and bytes, so one changed file is a new address for all of them (a
+    module's relative imports carry no "?v=")."""
+    digest = hashlib.sha256()
+    for root, dirs, files in os.walk(path):
+        dirs.sort()
+        for name in sorted(files):
+            full = os.path.join(root, name)
+            with open(full, "rb") as f:
+                digest.update(f"{os.path.relpath(full, path)}\0".encode() + hashlib.sha256(f.read()).digest())
+    return digest.hexdigest()[:10]
+
+
+def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str, prefix: str | None = None) -> None:
     """Best-effort: ensure the calendar card is registered as a dashboard resource.
 
     Uses Home Assistant's internal Lovelace storage collection - there is no
@@ -12205,8 +12222,15 @@ def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str) -> Non
     changes, rather than accumulating a new resource entry per version -
     this is what makes a plain file replace + restart pick up automatically
     in the browser without ever touching Settings > Dashboards by hand.
+
+    House fork (#115): with prefix, the existing resource is the one whose
+    URL starts with it instead, for the house board, whose version is in
+    its path rather than after "?".
     """
     base_path = versioned_url.split("?", 1)[0]
+
+    def _same(url: str) -> bool:
+        return url.startswith(prefix) if prefix else url.split("?", 1)[0] == base_path
     try:
         lovelace_data = hass.data.get("lovelace")
         if lovelace_data is None:
@@ -12228,7 +12252,7 @@ def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str) -> Non
                     resource_collection.loaded = True
                 existing = resource_collection.async_items()
                 match = next(
-                    (item for item in existing if (item.get("url") or "").split("?", 1)[0] == base_path),
+                    (item for item in existing if _same(item.get("url") or "")),
                     None,
                 )
                 if match is None:
@@ -12265,7 +12289,8 @@ def _register_dashboard_resource(hass: HomeAssistant, versioned_url: str) -> Non
 def _retire_dashboard_resource(hass: HomeAssistant, base_path: str) -> None:
     """House fork (wave 0, B4): best-effort, remove every dashboard resource
     whose URL (before "?") is base_path - one this integration registered
-    for a card file that isn't in the build any more. The opposite of
+    for a card file that isn't in the build any more, or that no house
+    dashboard uses (#115). The opposite of
     _register_dashboard_resource, and as defensive: if Home Assistant's
     internals change, or the resources are YAML, it does nothing."""
     try:
@@ -12282,13 +12307,29 @@ def _retire_dashboard_resource(hass: HomeAssistant, base_path: str) -> None:
                 for item in list(resource_collection.async_items()):
                     if (item.get("url") or "").split("?", 1)[0] == base_path:
                         await resource_collection.async_delete_item(item["id"])
-                        _LOGGER.info("Family Hub: removed dashboard resource %s (its file is gone)", item.get("url"))
+                        _LOGGER.info("Family Hub: removed dashboard resource %s", item.get("url"))
             except Exception as err:  # noqa: BLE001
                 _LOGGER.debug("Family Hub: could not remove dashboard resource %s: %s", base_path, err)
 
         hass.async_create_task(_retire())
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("Family Hub: dashboard resource removal skipped: %s", err)
+
+
+async def _serve_house_board(hass: HomeAssistant, integration_dir: str) -> None:
+    """House fork (#115): serve house_board/ at HOUSE_BOARD_URL/<folder hash>/
+    with cache headers (a new version is a new address), and keep one
+    dashboard resource on its entry file. Nothing until the folder exists.
+
+    Notes, not code: between a HACS download and the restart HACS asks for,
+    the old address serves the new files; and a resource left from a build
+    that had the folder stays if the folder ever goes."""
+    board_dir = f"{integration_dir}/house_board"
+    if not await hass.async_add_executor_job(os.path.isdir, board_dir):
+        return
+    board_url = f"{HOUSE_BOARD_URL}/{await hass.async_add_executor_job(_folder_content_hash, board_dir)}"
+    await hass.http.async_register_static_paths([StaticPathConfig(board_url, board_dir, True)])
+    _register_dashboard_resource(hass, f"{board_url}/house-board.js", prefix=f"{HOUSE_BOARD_URL}/")
 
 
 # ---------------------------------------------------------------------------
@@ -12528,6 +12569,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     device_settings_ws_api.async_register_all(hass)
     # House fork: see calendar_cache.py.
     calendar_cache_ws_api.async_register_all(hass)
+    # House fork: see copy_reports.py.
+    await copy_reports_ws_api.async_register_all(hass)
 
     return True
 
@@ -12616,31 +12659,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # any manual cache clearing (see _file_content_hash for why).
     panel_hash = await hass.async_add_executor_job(_file_content_hash, panel_path)
     card_hash = await hass.async_add_executor_job(_file_content_hash, card_path)
-    theme_selector_hash = await hass.async_add_executor_job(_file_content_hash, theme_selector_path)
-    today_card_hash = await hass.async_add_executor_job(_file_content_hash, today_card_path)
-    screensaver_card_hash = await hass.async_add_executor_job(_file_content_hash, screensaver_card_path)
-    chores_card_hash = await hass.async_add_executor_job(_file_content_hash, chores_card_path)
-    my_chores_card_hash = await hass.async_add_executor_job(_file_content_hash, my_chores_card_path)
-    rewards_card_hash = await hass.async_add_executor_job(_file_content_hash, rewards_card_path)
-    goals_card_hash = await hass.async_add_executor_job(_file_content_hash, goals_card_path)
-    pantry_card_hash = await hass.async_add_executor_job(_file_content_hash, pantry_card_path)
-    todo_card_hash = await hass.async_add_executor_job(_file_content_hash, todo_card_path)
-    active_timers_card_hash = await hass.async_add_executor_job(_file_content_hash, active_timers_card_path)
-    recipe_box_card_hash = await hass.async_add_executor_job(_file_content_hash, recipe_box_card_path)
     right_now_card_hash = await hass.async_add_executor_job(_file_content_hash, right_now_card_path)
     panel_url_versioned = f"{PANEL_JS_URL}?v={panel_hash}"
     card_url_versioned = f"{CARD_JS_URL}?v={card_hash}"
-    theme_selector_url_versioned = f"{THEME_SELECTOR_CARD_JS_URL}?v={theme_selector_hash}"
-    today_card_url_versioned = f"{TODAY_CARD_JS_URL}?v={today_card_hash}"
-    screensaver_card_url_versioned = f"{SCREENSAVER_CARD_JS_URL}?v={screensaver_card_hash}"
-    chores_card_url_versioned = f"{CHORES_CARD_JS_URL}?v={chores_card_hash}"
-    my_chores_card_url_versioned = f"{MY_CHORES_CARD_JS_URL}?v={my_chores_card_hash}"
-    rewards_card_url_versioned = f"{REWARDS_CARD_JS_URL}?v={rewards_card_hash}"
-    goals_card_url_versioned = f"{GOALS_CARD_JS_URL}?v={goals_card_hash}"
-    pantry_card_url_versioned = f"{PANTRY_CARD_JS_URL}?v={pantry_card_hash}"
-    todo_card_url_versioned = f"{TODO_CARD_JS_URL}?v={todo_card_hash}"
-    active_timers_card_url_versioned = f"{ACTIVE_TIMERS_CARD_JS_URL}?v={active_timers_card_hash}"
-    recipe_box_card_url_versioned = f"{RECIPE_BOX_CARD_JS_URL}?v={recipe_box_card_hash}"
     right_now_card_url_versioned = f"{RIGHT_NOW_CARD_JS_URL}?v={right_now_card_hash}"
     icon_url_versioned = ""
     if icon_exists:
@@ -12665,21 +12686,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.debug("Family Hub panel already registered")
 
     _register_dashboard_resource(hass, card_url_versioned)
-    _register_dashboard_resource(hass, theme_selector_url_versioned)
-    _register_dashboard_resource(hass, today_card_url_versioned)
-    _register_dashboard_resource(hass, screensaver_card_url_versioned)
-    _register_dashboard_resource(hass, chores_card_url_versioned)
-    _register_dashboard_resource(hass, my_chores_card_url_versioned)
-    _register_dashboard_resource(hass, rewards_card_url_versioned)
-    _register_dashboard_resource(hass, goals_card_url_versioned)
-    _register_dashboard_resource(hass, pantry_card_url_versioned)
-    _register_dashboard_resource(hass, todo_card_url_versioned)
-    _register_dashboard_resource(hass, active_timers_card_url_versioned)
-    _register_dashboard_resource(hass, recipe_box_card_url_versioned)
+    # House fork (#115): the 11 cards no house dashboard uses stop loading on
+    # every dashboard (1.5 MB each open, load-time.md on research/load-time).
+    # Their static paths and files stay until the code cleanup (switch-over
+    # plan, step 5a.7); the week card's resource goes when the week card does.
+    _retire_dashboard_resource(hass, THEME_SELECTOR_CARD_JS_URL)
+    _retire_dashboard_resource(hass, TODAY_CARD_JS_URL)
+    _retire_dashboard_resource(hass, SCREENSAVER_CARD_JS_URL)
+    _retire_dashboard_resource(hass, CHORES_CARD_JS_URL)
+    _retire_dashboard_resource(hass, MY_CHORES_CARD_JS_URL)
+    _retire_dashboard_resource(hass, REWARDS_CARD_JS_URL)
+    _retire_dashboard_resource(hass, GOALS_CARD_JS_URL)
+    _retire_dashboard_resource(hass, PANTRY_CARD_JS_URL)
+    _retire_dashboard_resource(hass, TODO_CARD_JS_URL)
+    _retire_dashboard_resource(hass, ACTIVE_TIMERS_CARD_JS_URL)
+    _retire_dashboard_resource(hass, RECIPE_BOX_CARD_JS_URL)
     if right_now_card_exists:
         _register_dashboard_resource(hass, right_now_card_url_versioned)
     else:
         _retire_dashboard_resource(hass, RIGHT_NOW_CARD_JS_URL)
+    await _serve_house_board(hass, integration_dir)
     _schedule_my_chores_migration(hass)
 
     themes = await _load_themes(hass)

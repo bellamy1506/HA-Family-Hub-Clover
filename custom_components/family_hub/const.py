@@ -970,6 +970,11 @@ RIGHT_NOW_CARD_JS_URL = "/family_hub_right_now_card/family-right-now-card.js"
 
 ICON_URL = "/family_hub_static/icon.png"
 
+# House fork (#115): the house board's folder (house_board/) is served at
+# HOUSE_BOARD_URL/<hash of the folder>/, so every module it imports by a
+# relative path shares one version. See __init__.py's _serve_house_board.
+HOUSE_BOARD_URL = "/family_hub_house_board"
+
 # Optional integration with a self-hosted Grocy instance, so the Meal
 # Suggestions box can offer "Add from Grocy" (family_hub/get_grocy_recipes)
 # alongside typing a suggestion by hand. Deliberately kept out of the card's

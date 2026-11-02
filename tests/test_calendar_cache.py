@@ -168,11 +168,13 @@ class _Connection:
 
 
 class _Calendar:
-    def __init__(self, events=None, fail=False):
-        self.events, self.fail, self.asked = events or [], fail, []
+    def __init__(self, events=None, fail=False, gate=None):
+        self.events, self.fail, self.gate, self.asked = events or [], fail, gate, []
 
     async def async_get_events(self, hass, start, end):
         self.asked.append((start, end))
+        if self.gate:
+            await self.gate.wait()
         if self.fail:
             raise RuntimeError("iCloud unreachable")
         return self.events
@@ -191,7 +193,13 @@ class Wiring(unittest.TestCase):
         self.calendars = {}
         states = {"calendar.will": object(), "calendar.home": object()}
         component = types.SimpleNamespace(get_entity=lambda entity_id: self.calendars.get(entity_id))
-        self.hass = types.SimpleNamespace(data={"family_hub": {}, "calendar": component}, states=types.SimpleNamespace(get=states.get))
+        self.started = []
+        self.hass = types.SimpleNamespace(
+            data={"family_hub": {}, "calendar": component},
+            states=types.SimpleNamespace(get=states.get),
+            # Tests that don't run them only count them.
+            async_create_background_task=lambda coro, name: (self.started.append(name), coro.close()),
+        )
         ws.async_register_all(self.hass)
 
     def call(self, handler, **msg):
@@ -209,6 +217,44 @@ class Wiring(unittest.TestCase):
         got = self.call(ws.ws_get, entity_ids=["calendar.will", "calendar.gone", "sensor.x"], start=start, end=end)
         self.assertEqual(list(got["calendars"]), ["calendar.will"], "only calendars Home Assistant has")
         self.assertEqual(names(got["calendars"]["calendar.will"]), ["dentist"])
+
+    def run_refreshes(self, steps):
+        """Each step in turn, with the refreshes a miss starts running between
+        them, as on Home Assistant's event loop."""
+        async def main():
+            loop = asyncio.get_running_loop()
+            tasks = []
+            self.hass.async_create_background_task = lambda coro, name: tasks.append(loop.create_task(coro))
+            for step in steps:
+                step()
+                await asyncio.sleep(0)
+            await asyncio.gather(*tasks)
+
+        asyncio.run(main())
+
+    def test_a_miss_fills_the_copy_once(self):
+        # After a restart the copy is empty; the hourly refresh is up to an hour away (#97).
+        self.calendars["calendar.will"] = _Calendar([_Event(dtm.datetime(2026, 10, 27, 13, tzinfo=dtm.timezone.utc), dtm.datetime(2026, 10, 27, 14, tzinfo=dtm.timezone.utc), "dentist")])
+        week = dict(entity_ids=["calendar.will"], start="2026-10-25T04:00:00Z", end="2026-11-01T04:00:00Z")
+        self.run_refreshes([lambda: self.assertEqual(self.call(ws.ws_get, **week), {"calendars": {}})])
+        self.assertEqual(len(self.calendars["calendar.will"].asked), 1)
+        self.run_refreshes([lambda: self.assertEqual(names(self.call(ws.ws_get, **week)["calendars"]["calendar.will"]), ["dentist"])])
+        self.assertEqual(len(self.calendars["calendar.will"].asked), 1, "a copy that covers it starts nothing")
+
+    def test_not_twice_while_one_is_running(self):
+        gate = asyncio.Event()
+        self.calendars["calendar.will"] = _Calendar(gate=gate, fail=True)
+        week = dict(entity_ids=["calendar.will"], start="2026-10-25T04:00:00Z", end="2026-11-01T04:00:00Z")
+        self.run_refreshes([lambda: self.call(ws.ws_get, **week), lambda: self.call(ws.ws_get, **week), gate.set])
+        self.assertEqual(len(self.calendars["calendar.will"].asked), 1, "iCloud asked once")
+        self.run_refreshes([lambda: self.call(ws.ws_get, **week)])
+        self.assertEqual(len(self.calendars["calendar.will"].asked), 2, "again once that one failed, since the copy is still empty")
+
+    def test_a_range_the_refresh_cannot_fill_starts_none(self):
+        # The week card asks for every month it's browsed to; months past the window would refresh every time.
+        self.calendars["calendar.will"] = _Calendar()
+        self.call(ws.ws_get, entity_ids=["calendar.will"], start="2027-03-01T05:00:00Z", end="2027-04-01T04:00:00Z")
+        self.assertEqual(self.started, [])
 
     def test_bad_range_gets_nothing(self):
         self.assertEqual(self.call(ws.ws_get, entity_ids=["calendar.will"], start="soon", end="later"), {"calendars": {}})

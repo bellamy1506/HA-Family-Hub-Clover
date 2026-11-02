@@ -1,17 +1,23 @@
 """House fork tests: a card file that isn't in the build is neither served
 nor registered as a dashboard resource, and one an earlier start registered
 is taken away (wave 0, B4: the Right Now card's missing file was requested
-on every board open, as .../family-right-now-card.js?v=0).
+on every board open, as .../family-right-now-card.js?v=0). Family Hub's 11
+unused cards stop loading, and the house board is served from a folder
+whose address carries its hash (#115).
 
 Run: python3 -m unittest discover -s tests   (no dependencies)
 
-Home Assistant isn't installed here, so the two resource helpers are taken
-out of __init__.py with ast and run against a stand-in resource collection;
-the setup wiring is checked in its source.
+Home Assistant isn't installed here, so the resource and serving helpers
+are taken out of __init__.py with ast and run against stand-ins; the setup
+wiring is checked in its source.
 """
 import ast
 import asyncio
+import collections
+import hashlib
+import os
 import pathlib
+import tempfile
 import types
 import unittest
 
@@ -66,6 +72,23 @@ def _run(tasks):
         asyncio.run(task)
 
 
+def _serving():
+    """_serve_house_board, with what it uses from __init__.py and const.py."""
+    const = (_PKG_DIR / "const.py").read_text()
+    url = next(n for n in ast.parse(const).body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", None) == "HOUSE_BOARD_URL")
+    namespace = {
+        "os": os,
+        "hashlib": hashlib,
+        "StaticPathConfig": collections.namedtuple("StaticPathConfig", "url_path path cache_headers"),
+        "HOUSE_BOARD_URL": ast.literal_eval(url.value),
+        "HomeAssistant": object,
+        "_LOGGER": types.SimpleNamespace(info=lambda *a: None, debug=lambda *a: None),
+    }
+    for name in ("_folder_content_hash", "_register_dashboard_resource", "_serve_house_board"):
+        exec(_function(name), namespace)
+    return namespace["_serve_house_board"]
+
+
 class RetireResourceTest(unittest.TestCase):
     def test_removes_only_the_missing_cards_resource(self):
         _, retire = _helpers()
@@ -99,9 +122,93 @@ class RetireResourceTest(unittest.TestCase):
         self.assertEqual(resources.items, [])
 
 
+def _args(source, name, arg=1):
+    """The given argument of every call to name (a function or a method) in
+    source, as written, in order."""
+    calls = [c for c in ast.walk(ast.parse(source)) if isinstance(c, ast.Call)]
+    calls.sort(key=lambda c: (c.lineno, c.col_offset))
+    return [ast.unparse(c.args[arg]) for c in calls if name in (getattr(c.func, "id", None), getattr(c.func, "attr", None))]
+
+
+# Family Hub's 11 cards that no house dashboard uses (#115; the list is in
+# load-time.md on research/load-time).
+UNUSED = [
+    "THEME_SELECTOR_CARD_JS_URL", "TODAY_CARD_JS_URL", "SCREENSAVER_CARD_JS_URL", "CHORES_CARD_JS_URL",
+    "MY_CHORES_CARD_JS_URL", "REWARDS_CARD_JS_URL", "GOALS_CARD_JS_URL", "PANTRY_CARD_JS_URL",
+    "TODO_CARD_JS_URL", "ACTIVE_TIMERS_CARD_JS_URL", "RECIPE_BOX_CARD_JS_URL",
+]
+
+
+WEEK_CARD = "/family_hub_card/family-week-calendar-card.js?v=1a2b3c4d5e"
+
+
+class HouseBoardServingTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.board = pathlib.Path(self.tmp.name) / "house_board"
+        self.resources = _Resources([WEEK_CARD])
+        self.hass, self.tasks = _hass(self.resources)
+        self.served = []
+
+        async def register_static_paths(configs):
+            self.served.extend(configs)
+
+        async def executor(fn, *args):
+            return fn(*args)
+
+        self.hass.http = types.SimpleNamespace(async_register_static_paths=register_static_paths)
+        self.hass.async_add_executor_job = executor
+
+    def serve(self):
+        asyncio.run(_serving()(self.hass, self.tmp.name))
+        _run(self.tasks)
+        self.tasks.clear()
+        return self.served[-1].url_path if self.served else None
+
+    def write(self, name, text):
+        self.board.mkdir(exist_ok=True)
+        (self.board / name).write_text(text)
+
+    def urls(self):
+        return [i["url"] for i in self.resources.items]
+
+    def test_nothing_served_or_registered_without_the_folder(self):
+        self.assertIsNone(self.serve())
+        self.assertEqual(self.urls(), [WEEK_CARD])
+
+    def test_served_from_an_address_named_by_every_file(self):
+        self.write("house-board.js", "import { day } from './when.js';")
+        self.write("when.js", "export const day = 1;")
+        folder = self.serve()
+        self.assertRegex(folder, r"^/family_hub_house_board/[0-9a-f]{10}$")
+        self.assertEqual(self.served[-1].path, str(self.board))
+        self.assertTrue(self.served[-1].cache_headers, "a new version is a new address, so it can be cached")
+        self.assertEqual(self.urls(), [WEEK_CARD, f"{folder}/house-board.js"])
+        self.assertEqual(self.serve(), folder, "same files, same address")
+        self.write("when.js", "export const day = 2;")
+        changed = self.serve()
+        self.assertNotEqual(changed, folder, "a sibling file changed")
+        self.assertEqual(self.urls(), [WEEK_CARD, f"{changed}/house-board.js"], "the resource moves, it isn't added")
+        (self.board / "when.js").rename(self.board / "soon.js")
+        self.assertNotEqual(self.serve(), changed, "a renamed file")
+
+
 class SetupWiringTest(unittest.TestCase):
     def setUp(self):
         self.setup = _function("async_setup_entry")
+
+    def test_the_11_unused_cards_stop_loading_and_the_week_card_stays(self):
+        self.assertEqual(sorted(_args(self.setup, "_retire_dashboard_resource")), sorted(UNUSED + ["RIGHT_NOW_CARD_JS_URL"]))
+        self.assertEqual(_args(self.setup, "_register_dashboard_resource"), ["card_url_versioned", "right_now_card_url_versioned"])
+        # Their hash lines go; their static paths stay until the code cleanup.
+        hashed = [a for a, f in zip(_args(self.setup, "async_add_executor_job"), _args(self.setup, "async_add_executor_job", 0)) if f == "_file_content_hash"]
+        self.assertEqual(hashed, ["panel_path", "card_path", "right_now_card_path", "icon_path"])
+        for url in UNUSED:
+            self.assertIn(f"StaticPathConfig({url}, ", self.setup)
+
+    def test_the_house_board_is_served_by_one_line(self):
+        self.assertIn("\n    await _serve_house_board(hass, integration_dir)\n", self.setup)
 
     def test_the_right_now_card_is_not_in_the_build(self):
         # Why the else branch runs on the house. If the file comes back, it's
