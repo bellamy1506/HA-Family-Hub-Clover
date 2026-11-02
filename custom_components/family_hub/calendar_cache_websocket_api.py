@@ -3,7 +3,8 @@
 Two commands for the week calendar card, open to every signed-in user, the
 same as Home Assistant's own calendar API: get the copy for a range, and
 send back what a live check found. Plus the hourly refresh of every
-calendar a board has asked about. Named like device_settings_websocket_api.py
+calendar a board has asked about, also started when a board asks for a
+range the copy doesn't hold (#115). Named like device_settings_websocket_api.py
 for the same import-shadowing reason.
 """
 from __future__ import annotations
@@ -38,6 +39,12 @@ def _range(hass: HomeAssistant, msg: dict):
     return calendar_cache.parse_time(msg["start"], tz), calendar_cache.parse_time(msg["end"], tz)
 
 
+def _window():
+    """The range the refresh fetches, from today."""
+    start = dt_util.start_of_local_day() - WINDOW_BEFORE
+    return start, start + WINDOW_BEFORE + WINDOW_AFTER
+
+
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "family_hub/calendar_cache/get",
@@ -48,10 +55,16 @@ def _range(hass: HomeAssistant, msg: dict):
 )
 @callback
 def ws_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
-    """The copy for each calendar that covers the range; none for the rest."""
+    """The copy for each calendar that covers the range; none for the rest.
+    A calendar missing from a range the refresh covers starts the refresh,
+    so a phone isn't left waiting on iCloud for up to an hour after each
+    restart (#115)."""
     start, end = _range(hass, msg)
     ids = [e for e in msg["entity_ids"] if e.startswith("calendar.") and hass.states.get(e)]
     found = _cache(hass).get(ids, start, end) if start and end else {}
+    first, last = _window()
+    if start and end and first <= start and end <= last and len(found) < len(ids):
+        hass.async_create_background_task(async_refresh(hass), "family_hub calendar copy refresh")
     connection.send_result(msg["id"], {"calendars": found})
 
 
@@ -76,23 +89,28 @@ def ws_put(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg:
 
 
 async def async_refresh(hass: HomeAssistant) -> None:
-    """Fetch the whole window fresh for every calendar a board has asked about."""
+    """Fetch the whole window fresh for every calendar a board has asked about.
+    One at a time: a call while one runs does nothing (#115)."""
     component = hass.data.get("calendar")
-    if component is None:
+    data = hass.data[DOMAIN]
+    if component is None or data.get("calendar_cache_refreshing"):
         return
-    began = dt_util.now()
-    start = dt_util.start_of_local_day() - WINDOW_BEFORE
-    end = start + WINDOW_BEFORE + WINDOW_AFTER
-    for entity_id in _cache(hass).entities():
-        entity = component.get_entity(entity_id)
-        if entity is None:
-            continue
-        try:
-            events = await entity.async_get_events(hass, start, end)
-        except Exception as err:  # noqa: BLE001 - keep the old copy on any failure
-            _LOGGER.debug("Calendar copy refresh failed for %s: %s", entity_id, err)
-            continue
-        _cache(hass).replace(entity_id, start, end, [calendar_cache.api_event(e, dt_util.as_local) for e in events], began)
+    data["calendar_cache_refreshing"] = True
+    try:
+        began = dt_util.now()
+        start, end = _window()
+        for entity_id in _cache(hass).entities():
+            entity = component.get_entity(entity_id)
+            if entity is None:
+                continue
+            try:
+                events = await entity.async_get_events(hass, start, end)
+            except Exception as err:  # noqa: BLE001 - keep the old copy on any failure
+                _LOGGER.debug("Calendar copy refresh failed for %s: %s", entity_id, err)
+                continue
+            _cache(hass).replace(entity_id, start, end, [calendar_cache.api_event(e, dt_util.as_local) for e in events], began)
+    finally:
+        data["calendar_cache_refreshing"] = False
 
 
 def async_register_all(hass: HomeAssistant) -> None:
