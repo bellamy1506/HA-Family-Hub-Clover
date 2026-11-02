@@ -294,6 +294,31 @@ async function main() {
     t.board.stop();
   }
 
+  // ---- A new card on the same page keeps what the page knew ----
+  // Home Assistant builds a new card on every reconnect (#110). A Home
+  // Assistant restart empties the server's copy, so the page's own memory
+  // is what keeps a failing calendar's events, and the time it began failing.
+  {
+    const copy = { "calendar.will": [DENTIST], "calendar.jenn": [BOOK_CLUB] };
+    const t = start({ calendars: { "calendar.will": [DENTIST], "calendar.jenn": { fail: "Server error" }, "calendar.us": [] }, copy });
+    await t.fake.clock.advance(5 * MIN);
+    t.board.stop();
+    delete copy["calendar.jenn"]; // Home Assistant restarted: the copy is empty for Jenn
+    copy["calendar.will"] = [SOCCER]; // and another board sent Will's newer events
+    t.fake.calendars["calendar.will"] = { never: true };
+    const seen = [];
+    const board = watch(t.fake.hass, CONFIG, (snapshot) => seen.push(snapshot), t.fake.clock);
+    const cal = (entity) => seen[seen.length - 1].calendars.find((c) => c.entity === entity);
+    assert.deepStrictEqual(cal("calendar.jenn").events.map((e) => e.summary), ["Book club"], "Jenn's last events stay");
+    assert.deepStrictEqual(cal("calendar.jenn").failingSince, t.at(0), "and the time she began failing");
+    assert.deepStrictEqual(cal("calendar.will").answeredAt, t.at(5 * MIN), "the last answer stays noted");
+    await t.fake.clock.advance(0);
+    assert.deepStrictEqual(cal("calendar.will").events.map((e) => e.summary), ["Soccer"], "the server's copy still beats the page's memory");
+    assert.deepStrictEqual(cal("calendar.jenn").events.map((e) => e.summary), ["Book club"]);
+    assert.deepStrictEqual(cal("calendar.jenn").failingSince, t.at(0));
+    board.stop();
+  }
+
   console.log("house board ha: all checks passed");
 }
 

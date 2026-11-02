@@ -63,8 +63,9 @@ import { addDays, cleanEvents, startOfDay } from "./when.js";
 
 /**
  * Starts reading the calendars for the board. onChange runs once at once,
- * with nothing loaded, then after every change; the card stops it when it
- * leaves the page, and Home Assistant builds a new card on each reconnect.
+ * with what this page already knows (nothing, on a fresh page), then after
+ * every change. The card stops it when it leaves the page; Home Assistant
+ * builds a new card on each reconnect, which starts it again.
  * @param {object} hass  Home Assistant's own hass object
  * @param {BoardConfig} config
  * @param {(snapshot: Snapshot) => void} onChange
@@ -72,31 +73,32 @@ import { addDays, cleanEvents, startOfDay } from "./when.js";
  * @returns {{ setHass(hass: object): void, stop(): void }}
  */
 export function watch(hass, config, onChange, clock = realClock) {
-  const cals = (config.calendars || []).map((c) => ({
-    shown: {
+  if (!pages.has(hass.connection)) pages.set(hass.connection, new Map());
+  const known = pages.get(hass.connection);
+  const cals = (config.calendars || []).map((c) => {
+    if (!known.has(c.entity)) known.set(c.entity, { events: null, json: null, doubt: false, answeredAt: null, failingSince: null });
+    return {
       entity: c.entity,
-      person: c.person,
-      work: Boolean(c.work),
-      detail: c.detail || "titles",
-      label: c.label || null,
-      events: null,
-      answeredAt: null,
-      failingSince: null,
-    },
-    json: null, // the events held, as Home Assistant sent them
-    failures: 0, // in a row
-    doubt: false, // the last answer was empty over held events
-    timer: null,
-  }));
+      about: { entity: c.entity, person: c.person, work: Boolean(c.work), detail: c.detail || "titles", label: c.label || null },
+      kept: known.get(c.entity), // what this page knows of it
+      heard: false, // a live answer reached this card
+      failures: 0, // in a row
+      timer: null,
+    };
+  });
   // The entities the board reads, from its config.
   const lists = Object.values(config.lists || {});
-  const ids = [...cals.map((c) => c.shown.entity), config.weather, ...lists, config.guest_mode, config.board_private].filter(Boolean);
+  const ids = [...cals.map((c) => c.entity), config.weather, ...lists, config.guest_mode, config.board_private].filter(Boolean);
   let stopped = false;
-  const emit = () => onChange({ days: DAYS, calendars: cals.map((c) => ({ ...c.shown })) });
+  const emit = () =>
+    onChange({
+      days: DAYS,
+      calendars: cals.map(({ about, kept }) => ({ ...about, events: kept.events, answeredAt: kept.answeredAt, failingSince: kept.failingSince })),
+    });
   const now = () => new Date(clock.now());
   const hold = (cal, raw, json = JSON.stringify(raw)) => {
-    cal.json = json;
-    cal.shown.events = cleanEvents(raw);
+    cal.kept.json = json; // as Home Assistant sent them
+    cal.kept.events = cleanEvents(raw);
   };
 
   // One calendar's live ask. The next is armed once it settles: a minute
@@ -104,7 +106,7 @@ export function watch(hass, config, onChange, clock = realClock) {
   // An unavailable entity has failed without asking.
   function ask(cal) {
     const range = askedRange(now());
-    const { entity } = cal.shown;
+    const { entity } = cal;
     const path = `calendars/${entity}?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`;
     const state = hass.states[entity];
     withTimeout(new Promise((resolve) => resolve(state && state.state !== "unavailable" ? hass.callApi("GET", path) : null)), clock)
@@ -116,8 +118,8 @@ export function watch(hass, config, onChange, clock = realClock) {
 
   function failed(cal) {
     cal.failures++;
-    if (cal.shown.failingSince) return;
-    cal.shown.failingSince = now();
+    if (cal.kept.failingSince) return;
+    cal.kept.failingSince = now();
     emit();
   }
 
@@ -125,30 +127,34 @@ export function watch(hass, config, onChange, clock = realClock) {
   // agree before it's drawn or put (call A4), so one blank answer can't
   // empty the day on every copy of the board.
   function landed(cal, raw, range) {
-    const first = cal.shown.answeredAt === null;
-    const recovered = cal.shown.failingSince !== null;
-    cal.doubt = !raw.length && cal.shown.events?.length > 0 && !cal.doubt;
+    const { kept } = cal;
+    const first = !cal.heard;
+    const recovered = kept.failingSince !== null;
+    kept.doubt = !raw.length && kept.events?.length > 0 && !kept.doubt;
     const json = JSON.stringify(raw);
-    const changed = !cal.doubt && json !== cal.json;
-    cal.shown.answeredAt = now();
-    cal.shown.failingSince = null;
+    const changed = !kept.doubt && json !== kept.json;
+    cal.heard = true;
+    kept.answeredAt = now();
+    kept.failingSince = null;
     cal.failures = 0;
     // A changed answer goes back to the server's copy as it came, unless
     // it's so big the message could drop the board's connection.
     if (changed) {
       hold(cal, raw, json);
-      if (json.length < PUT_LIMIT) hass.callWS({ type: "family_hub/calendar_cache/put", ...range, calendars: { [cal.shown.entity]: raw } }).catch(() => {});
+      if (json.length < PUT_LIMIT) hass.callWS({ type: "family_hub/calendar_cache/put", ...range, calendars: { [cal.entity]: raw } }).catch(() => {});
     }
     if (changed || first || recovered) emit();
   }
 
-  // The server's copy, for each calendar it holds that hasn't answered live.
+  // The server's copy, for each calendar it holds that this card hasn't
+  // heard live yet. It beats the page's memory: another board may have sent
+  // newer events since.
   hass
-    .callWS({ type: "family_hub/calendar_cache/get", entity_ids: cals.map((c) => c.shown.entity), ...askedRange(now()) })
+    .callWS({ type: "family_hub/calendar_cache/get", entity_ids: cals.map((c) => c.entity), ...askedRange(now()) })
     .then((result) => {
       if (stopped) return;
       const found = (result && result.calendars) || {};
-      for (const cal of cals) if (Array.isArray(found[cal.shown.entity]) && cal.shown.answeredAt === null) hold(cal, found[cal.shown.entity]);
+      for (const cal of cals) if (Array.isArray(found[cal.entity]) && !cal.heard) hold(cal, found[cal.entity]);
       emit();
     }, () => {});
   cals.forEach(ask);
@@ -169,6 +175,12 @@ export function watch(hass, config, onChange, clock = realClock) {
     },
   };
 }
+
+// What each page knows of each calendar, by its Home Assistant connection
+// (one for the page's life). Home Assistant builds a new card on every
+// reconnect (#110), and a restart empties the server's copy, so this is
+// what keeps a failing calendar's last events until the page reloads.
+const pages = new WeakMap();
 
 // Today and the days after it that the calendars are asked for.
 const DAYS = 42;

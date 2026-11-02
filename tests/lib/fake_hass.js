@@ -117,6 +117,8 @@ export function fakeHass({ now, calendars = {}, copy = {}, copyAfter = 0, states
   const stateOf = (entity_id, state, attributes = {}) => ({ entity_id, state, attributes });
   const fake = {
     clock,
+    calendars, // change them as the test goes
+    copy,
     asked,
     sent,
     commands,
